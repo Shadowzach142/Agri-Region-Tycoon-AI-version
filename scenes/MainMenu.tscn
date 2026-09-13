@@ -1,0 +1,156 @@
+[gd_scene format=3 uid="uid://maingame"]
+
+[ext_resource type="Script" uid="uid://npptjcjxv1wr" path="res://scenes/MainMenu.gd" id="1_mainmenu"]
+
+[node name="MainMenu" type="Control" unique_id=1354100432]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mainmenu")
+
+[node name="Background" type="ColorRect" parent="." unique_id=461568907]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.14, 0.08, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1359343006]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -390.0
+offset_top = -310.0
+offset_right = 390.0
+offset_bottom = 310.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Title" type="Label" parent="VBoxContainer" unique_id=1472980061]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "🌾 Region Agri Tycoon"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="VBoxContainer" unique_id=577831517]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.88, 0.65, 1)
+theme_override_font_sizes/font_size = 14
+text = "SOCCSKSARGEN (Region 12) Climate Agricultural RTS & Supply Chain Tycoon"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="VBoxContainer" unique_id=414672554]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+
+[node name="RegionLabel" type="Label" parent="VBoxContainer" unique_id=1377229887]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+text = "Select Starting Farm Region (SOCCSKSARGEN, Philippines):"
+horizontal_alignment = 1
+
+[node name="RegionSelector" type="OptionButton" parent="VBoxContainer" unique_id=1215055349]
+custom_minimum_size = Vector2(360, 38)
+layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
+
+[node name="ProfileCard" type="PanelContainer" parent="VBoxContainer" unique_id=1164643195]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Margin" type="MarginContainer" parent="VBoxContainer/ProfileCard" unique_id=1276000372]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="VBoxContainer/ProfileCard/Margin" unique_id=70598065]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RegionTitle" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox" unique_id=1996950699]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "📍 Cotabato Basin — Rice Paddies & Wetland Agriculture"
+
+[node name="HSeparator1" type="HSeparator" parent="VBoxContainer/ProfileCard/Margin/VBox" unique_id=1604246372]
+layout_mode = 2
+
+[node name="DescLabel" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox" unique_id=796234447]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+text = "The fertile rice bowl of Central Mindanao, fed by the Pulangi and Rio Grande de Mindanao river systems. Features naturally rich alluvial soils ideal for continuous rice cultivation."
+autowrap_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer/ProfileCard/Margin/VBox" unique_id=900749411]
+layout_mode = 2
+
+[node name="Details" type="HBoxContainer" parent="VBoxContainer/ProfileCard/Margin/VBox" unique_id=1455971889]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="ProsBox" type="VBoxContainer" parent="VBoxContainer/ProfileCard/Margin/VBox/Details" unique_id=2053775318]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ProsHeader" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox/Details/ProsBox" unique_id=1726617612]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "🌱 ADVANTAGES & PROS:"
+
+[node name="ProsText" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox/Details/ProsBox" unique_id=1995772448]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "  ✔ High natural soil moisture (65%)
+  ✔ Accelerated Palay growth
+  ✔ Low drought vulnerability"
+autowrap_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="VBoxContainer/ProfileCard/Margin/VBox/Details" unique_id=671600132]
+layout_mode = 2
+
+[node name="ConsBox" type="VBoxContainer" parent="VBoxContainer/ProfileCard/Margin/VBox/Details" unique_id=1147175644]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ConsHeader" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox/Details/ConsBox" unique_id=1434097619]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "⚠️ RISKS & CLIMATE CONS:"
+
+[node name="ConsText" type="Label" parent="VBoxContainer/ProfileCard/Margin/VBox/Details/ConsBox" unique_id=53003882]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "  ⚠ Severe flash flood risks (La Niña)
+  ⚠ Golden Apple Snail infestations
+  ⚠ Over-saturation triggers crop rot"
+autowrap_mode = 2
+
+[node name="StartButton" type="Button" parent="VBoxContainer" unique_id=1075778148]
+custom_minimum_size = Vector2(260, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 16
+text = "🌾 Launch Farming Operation"

@@ -1,0 +1,527 @@
+[gd_scene load_steps=7 format=3 uid="uid://maingameplay"]
+
+[ext_resource type="Script" path="res://src/FarmGrid.gd" id="1_farmgrid"]
+[ext_resource type="Script" path="res://src/Farmer.gd" id="2_farmer"]
+[ext_resource type="Script" path="res://src/HUD.gd" id="3_hud"]
+[ext_resource type="Script" path="res://src/TileActionPopup.gd" id="4_popup"]
+[ext_resource type="Script" path="res://src/TileInfoPanel.gd" id="5_info"]
+[ext_resource type="Script" path="res://src/MarketPanel.gd" id="6_market"]
+[ext_resource type="Script" path="res://src/ShopPanel.gd" id="7_shop"]
+
+[node name="MainGame" type="Node2D"]
+
+[node name="FarmGrid" type="Node2D" parent="."]
+position = Vector2(290, 80)
+script = ExtResource("1_farmgrid")
+
+[node name="Farmer" type="CharacterBody2D" parent="."]
+position = Vector2(450, 240)
+script = ExtResource("2_farmer")
+
+[node name="FarmerSprite" type="ColorRect" parent="Farmer"]
+offset_left = -16.0
+offset_top = -16.0
+offset_right = 16.0
+offset_bottom = 16.0
+color = Color(0.95, 0.65, 0.15, 1)
+
+[node name="FarmerLabel" type="Label" parent="Farmer"]
+offset_left = -60.0
+offset_top = -36.0
+offset_right = 60.0
+offset_bottom = -13.0
+text = "🧑‍🌾 Ready"
+horizontal_alignment = 1
+
+[node name="TileActionPopup" type="PopupMenu" parent="."]
+script = ExtResource("4_popup")
+
+[node name="HUDLayer" type="CanvasLayer" parent="."]
+script = ExtResource("3_hud")
+
+[node name="Control" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="HBoxContainer" parent="HUDLayer/Control"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 8.0
+offset_right = -10.0
+offset_bottom = 38.0
+grow_horizontal = 2
+theme_override_constants/separation = 14
+
+[node name="CashLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "💰 ₱1000"
+theme_override_font_sizes/font_size = 15
+
+[node name="RegionLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "📍 Cotabato Basin"
+theme_override_font_sizes/font_size = 15
+
+[node name="DayLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "📅 Day: 1"
+theme_override_font_sizes/font_size = 15
+
+[node name="TimeLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "⏰ 00:00"
+theme_override_font_sizes/font_size = 15
+
+[node name="WeatherLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "🌡️ 28°C | 💧 65%"
+theme_override_font_sizes/font_size = 15
+
+[node name="TaskLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+text = "📋 Tasks: 0"
+theme_override_font_sizes/font_size = 15
+
+[node name="DisasterLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
+theme_override_font_sizes/font_size = 15
+
+[node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 42.0
+offset_right = 500.0
+offset_bottom = 74.0
+theme_override_constants/separation = 8
+
+[node name="PauseButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "⏸ Pause"
+
+[node name="Speed1xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(55, 0)
+layout_mode = 2
+text = "▶ 1x"
+
+[node name="Speed2xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(55, 0)
+layout_mode = 2
+text = "⏩ 2x"
+
+[node name="Speed3xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(55, 0)
+layout_mode = 2
+text = "⏩ 3x"
+
+[node name="MarketButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "📈 Market & Logistics"
+
+[node name="ShopButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "🛒 Agri Shop"
+
+[node name="TileInfoPanel" type="PanelContainer" parent="HUDLayer/Control"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 80.0
+offset_right = 275.0
+offset_bottom = 570.0
+script = ExtResource("5_info")
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "📍 Tile Inspector"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+
+[node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "Status: (Click tile to inspect)"
+
+[node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "Crop: (None)"
+
+[node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "Growth:"
+
+[node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
+custom_minimum_size = Vector2(110, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+
+[node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "0%"
+
+[node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "Health:"
+
+[node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
+custom_minimum_size = Vector2(110, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+value = 100.0
+
+[node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "100%"
+
+[node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "Moisture:"
+
+[node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
+custom_minimum_size = Vector2(110, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+value = 60.0
+
+[node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "60%"
+
+[node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "Quality: Grade A"
+
+[node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "Pests: None"
+
+[node name="HSeparator2" type="HSeparator" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+
+[node name="ActionHeader" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+text = "Queue Tile Action:"
+horizontal_alignment = 1
+
+[node name="Actions" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="BtnPlow" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+layout_mode = 2
+text = "⛏️ Plow Land"
+
+[node name="BtnPlant" type="MenuButton" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+layout_mode = 2
+text = "🌱 Plant Crop ▾"
+flat = false
+
+[node name="BtnWater" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+layout_mode = 2
+text = "💧 Water Soil (+25%)"
+
+[node name="BtnSpray" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+layout_mode = 2
+text = "🧪 Spray Pesticide"
+
+[node name="BtnHarvest" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+layout_mode = 2
+text = "🧺 Harvest Crop"
+
+[node name="MarketPanel" type="PanelContainer" parent="HUDLayer/Control"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -440.0
+offset_top = -280.0
+offset_right = 440.0
+offset_bottom = 290.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_market")
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Header" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📊 Regional Market, Weather Forecast & Farm Storage"
+theme_override_font_sizes/font_size = 16
+
+[node name="CloseBtn" type="Button" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+text = "✕"
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox"]
+layout_mode = 2
+
+[node name="Content" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="PricesSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
+custom_minimum_size = Vector2(210, 0)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
+layout_mode = 2
+text = "🏷️ Live Market Rates"
+theme_override_font_sizes/font_size = 14
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
+layout_mode = 2
+
+[node name="PriceList" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ForecastSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
+layout_mode = 2
+text = "📡 3-Day Tech Forecast"
+theme_override_font_sizes/font_size = 14
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
+layout_mode = 2
+
+[node name="ForecastList" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LogisticsSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+layout_mode = 2
+text = "📦 Stored Crop Batches"
+theme_override_font_sizes/font_size = 14
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+layout_mode = 2
+
+[node name="StorageList" type="ItemList" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+custom_minimum_size = Vector2(0, 130)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HubSelector" type="OptionButton" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+layout_mode = 2
+
+[node name="HubDetailsLabel" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+layout_mode = 2
+text = "Distance: 0 km | Fuel: ₱0"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="SellBtn" type="Button" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+text = "🚚 Ship & Sell Selected Batch"
+
+[node name="StatusMsg" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox"]
+layout_mode = 2
+
+[node name="RegionSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RegTitle" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
+layout_mode = 2
+text = "🗺️ Regional Profile: Cotabato Basin"
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="RegDesc" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
+layout_mode = 2
+text = "Regional description"
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 11
+
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ProsBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ProsHeader" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ProsBox"]
+layout_mode = 2
+text = "🌱 REGIONAL PROS:"
+theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ProsText" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ProsBox"]
+layout_mode = 2
+text = "Pros text"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
+layout_mode = 2
+
+[node name="ConsBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ConsHeader" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ConsBox"]
+layout_mode = 2
+text = "⚠️ REGIONAL CONS & HAZARDS:"
+theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ConsText" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ConsBox"]
+layout_mode = 2
+text = "Cons text"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ShopPanel" type="PanelContainer" parent="HUDLayer/Control"]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -240.0
+offset_right = 380.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_shop")
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "🛒 Regional Agri-Tech & Farm Equipment Shop"
+theme_override_font_sizes/font_size = 16
+
+[node name="CashLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
+layout_mode = 2
+text = "Funds: 💰 ₱1000"
+theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+
+[node name="CloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+text = "✕"
+
+[node name="StatusLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox"]
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="TabContainer" type="TabContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Machinery" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
+layout_mode = 2
+metadata/_tab_title = "Machinery & Tech"
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Machinery"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+theme_override_constants/separation = 10
+
+[node name="Infrastructure" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+metadata/_tab_title = "Infrastructure & Storage"
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Infrastructure"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+theme_override_constants/separation = 10
+
+[node name="Labor" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+metadata/_tab_title = "Labor & Workers"
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Labor"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+theme_override_constants/separation = 10

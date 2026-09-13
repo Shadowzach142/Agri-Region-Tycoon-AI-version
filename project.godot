@@ -1,0 +1,43 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Agri-Region AI version"
+run/main_scene="res://scenes/MainMenu.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+Data="*res://autoload/Data.gd"
+TimeManager="*res://autoload/TimeManager.gd"
+EconomyManager="*res://autoload/EconomyManager.gd"
+TaskManager="*res://autoload/TaskManager.gd"
+WeatherManager="*res://autoload/WeatherManager.gd"
+PestManager="*res://autoload/PestManager.gd"
+MarketManager="*res://autoload/MarketManager.gd"
+BuildingManager="*res://autoload/BuildingManager.gd"
+
+[display]
+
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
