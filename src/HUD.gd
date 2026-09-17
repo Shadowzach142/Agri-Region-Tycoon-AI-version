@@ -1,26 +1,33 @@
 # HUD.gd
-# Main HUD controller: Top status bar, time controls, disaster banner, and modal toggles (Market & Shop).
+# Main HUD controller: Modern Clash of Clans style top resource bar,
+# Warcraft 3 bottom command console, and bottom-right command corner.
 
 extends CanvasLayer
 
-# Top Status Bar
-@onready var cash_label: Label = $Control/TopBar/CashLabel
-@onready var region_label: Label = $Control/TopBar/RegionLabel
-@onready var day_label: Label = $Control/TopBar/DayLabel
-@onready var time_label: Label = $Control/TopBar/TimeLabel
-@onready var weather_label: Label = $Control/TopBar/WeatherLabel
-@onready var disaster_label: Label = $Control/TopBar/DisasterLabel
-@onready var task_label: Label = $Control/TopBar/TaskLabel
+# Top Status Bar (COC & Warcraft 3 style)
+@onready var region_label: Label = $Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule/RegionLabel
+@onready var weather_label: Label = $Control/TopBar/Margin/HBox/LeftCluster/WeatherCapsule/WeatherLabel
 
-# Controls
-@onready var pause_btn: Button = $Control/SpeedBar/PauseButton
-@onready var speed1_btn: Button = $Control/SpeedBar/Speed1xButton
-@onready var speed2_btn: Button = $Control/SpeedBar/Speed2xButton
-@onready var speed3_btn: Button = $Control/SpeedBar/Speed3xButton
-@onready var market_btn: Button = $Control/SpeedBar/MarketButton
-@onready var shop_btn: Button = $Control/SpeedBar/ShopButton
+@onready var day_label: Label = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/DayLabel
+@onready var time_label: Label = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/TimeLabel
+@onready var disaster_label: Label = $Control/TopBar/Margin/HBox/CenterCluster/DisasterLabel
 
-# Modals
+@onready var pause_btn: Button = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar/PauseButton
+@onready var speed1_btn: Button = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar/Speed1xButton
+@onready var speed2_btn: Button = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar/Speed2xButton
+@onready var speed3_btn: Button = $Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar/Speed3xButton
+
+@onready var worker_label: Label = $Control/TopBar/Margin/HBox/RightCluster/WorkerCapsule/WorkerLabel
+@onready var storage_label: Label = $Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox/StorageLabel
+@onready var storage_bar: ProgressBar = $Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox/StorageBar
+@onready var cash_label: Label = $Control/TopBar/Margin/HBox/RightCluster/CashCapsule/CashLabel
+@onready var task_label: Label = $Control/TopBar/Margin/HBox/RightCluster/TaskCapsule/TaskLabel
+
+# Bottom-Right Command Corner (COC style)
+@onready var market_btn: Button = $Control/CommandCorner/MarketButton
+@onready var shop_btn: Button = $Control/CommandCorner/ShopButton
+
+# Modals & Bottom Console
 @onready var market_panel: PanelContainer = $Control/MarketPanel
 @onready var shop_panel: PanelContainer = $Control/ShopPanel
 @onready var tile_info_panel: PanelContainer = $Control/TileInfoPanel
@@ -35,11 +42,21 @@ func _ready() -> void:
 	WeatherManager.weather_changed.connect(_on_weather_changed)
 	WeatherManager.disaster_warning.connect(_on_disaster_warning)
 
+	BuildingManager.storage_updated.connect(func(_c, _u): _refresh_storage_display())
+	BuildingManager.worker_hired.connect(func(_w): _refresh_workers_display())
+	BuildingManager.building_purchased.connect(func(_b): 
+		_refresh_storage_display()
+		_refresh_workers_display()
+	)
+	MarketManager.inventory_changed.connect(_refresh_storage_display)
+
 	# Speed button signals
 	pause_btn.pressed.connect(_on_pause_pressed)
 	speed1_btn.pressed.connect(_on_1x_pressed)
 	speed2_btn.pressed.connect(_on_2x_pressed)
 	speed3_btn.pressed.connect(_on_3x_pressed)
+
+	# Command corner buttons
 	market_btn.pressed.connect(_on_market_toggle_pressed)
 	shop_btn.pressed.connect(_on_shop_toggle_pressed)
 
@@ -51,11 +68,13 @@ func _ready() -> void:
 	_on_day_changed(TimeManager.current_day)
 	_on_hour_changed(TimeManager.current_hour)
 	_on_weather_changed(WeatherManager.temperature, WeatherManager.humidity)
+	_refresh_storage_display()
+	_refresh_workers_display()
 
 	var reg_data = Data.get_region(Data.current_region)
 	region_label.text = "📍 " + reg_data.get("display_name", Data.current_region.capitalize())
 	disaster_label.text = ""
-	task_label.text = "Tasks: 0"
+	task_label.text = "📋 0"
 
 	market_panel.visible = false
 	shop_panel.visible = false
@@ -67,27 +86,47 @@ func _process(delta: float) -> void:
 			disaster_label.text = ""
 
 func _on_cash_changed(amount: int) -> void:
-	cash_label.text = "💰 ₱%d" % amount
+	if cash_label:
+		cash_label.text = "💰 ₱%s" % _format_number(amount)
 
 func _on_day_changed(day: int) -> void:
-	day_label.text = "📅 Day: %d" % day
+	if day_label:
+		day_label.text = "📅 Day: %d" % day
 
 func _on_hour_changed(hour: int) -> void:
-	time_label.text = "⏰ %02d:00" % hour
-	task_label.text = "📋 Tasks: %d" % TaskManager.get_task_count()
+	if time_label:
+		time_label.text = "⏰ %02d:00" % hour
+	if task_label:
+		task_label.text = "📋 %d" % TaskManager.get_task_count()
+	_refresh_storage_display()
 
 func _on_weather_changed(temp: float, hum: float) -> void:
 	var climate_str: String = ""
 	match WeatherManager.current_climate:
-		WeatherManager.Climate.EL_NINO: climate_str = " 🔥 [El Niño Drought]"
-		WeatherManager.Climate.LA_NINA: climate_str = " 🌧️ [La Niña Flood]"
+		WeatherManager.Climate.EL_NINO: climate_str = " 🔥 [El Niño]"
+		WeatherManager.Climate.LA_NINA: climate_str = " 🌧️ [La Niña]"
 		WeatherManager.Climate.NORMAL: climate_str = " ⛅ [Normal]"
-	weather_label.text = "🌡️ %.1f°C | 💧 %.0f%%%s" % [temp, hum * 100.0, climate_str]
+	if weather_label:
+		weather_label.text = "🌡️ %.1f°C | 💧 %.0f%%%s" % [temp, hum * 100.0, climate_str]
+
+func _refresh_storage_display() -> void:
+	var total_stored: int = 0
+	for b in MarketManager.stored_inventory:
+		total_stored += int(b.get("quantity", 0))
+	var capacity: int = max(BuildingManager.total_storage_capacity, 1000)
+	if storage_label:
+		storage_label.text = "📦 %d / %d kg" % [total_stored, capacity]
+	if storage_bar:
+		storage_bar.value = float(total_stored) / float(capacity) * 100.0
+
+func _refresh_workers_display() -> void:
+	if worker_label:
+		worker_label.text = "🧑‍🌾 %d / %d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
 
 func _on_disaster_warning(hazard_type: String) -> void:
-	disaster_label.text = "⚠️ DISASTER ALERT: %s!" % hazard_type.replace("_", " ").to_upper()
-	disaster_label.modulate = Color(1.0, 0.2, 0.2)
-	# Non-blocking timer reset
+	if disaster_label:
+		disaster_label.text = "⚠️ ALERT: %s!" % hazard_type.replace("_", " ").to_upper()
+		disaster_label.modulate = Color(1.0, 0.25, 0.25)
 	_disaster_timer = 6.0
 
 func _on_market_toggle_pressed() -> void:
@@ -108,7 +147,7 @@ func _on_worker_spawn_requested() -> void:
 	var farmer = CharacterBody2D.new()
 	farmer.set_script(farmer_script)
 	farmer.name = "Farmer_%d" % BuildingManager.active_workers
-	farmer.position = Vector2(420, 240) + Vector2(randf_range(-30, 30), randf_range(-30, 30))
+	farmer.position = Vector2(480, 240) + Vector2(randf_range(-30, 30), randf_range(-30, 30))
 
 	var sprite = ColorRect.new()
 	sprite.name = "FarmerSprite"
@@ -116,7 +155,7 @@ func _on_worker_spawn_requested() -> void:
 	sprite.offset_top = -16.0
 	sprite.offset_right = 16.0
 	sprite.offset_bottom = 16.0
-	sprite.color = Color(0.35, 0.70, 0.95, 1.0) # Light blue overalls for extra workers
+	sprite.color = Color(0.35, 0.70, 0.95, 1.0)
 	farmer.add_child(sprite)
 
 	var label = Label.new()
@@ -130,6 +169,18 @@ func _on_worker_spawn_requested() -> void:
 	farmer.add_child(label)
 
 	get_parent().add_child(farmer)
+	_refresh_workers_display()
+
+func _format_number(val: int) -> String:
+	var s: String = str(val)
+	var result: String = ""
+	var count: int = 0
+	for i in range(s.length() - 1, -1, -1):
+		result = s[i] + result
+		count += 1
+		if count % 3 == 0 and i > 0:
+			result = "," + result
+	return result
 
 func _on_pause_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.PAUSE)
 func _on_1x_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.ONE_X)

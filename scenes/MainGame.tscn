@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://maingameplay"]
+[gd_scene load_steps=14 format=3 uid="uid://maingameplay"]
 
 [ext_resource type="Script" path="res://src/FarmGrid.gd" id="1_farmgrid"]
 [ext_resource type="Script" path="res://src/Farmer.gd" id="2_farmer"]
@@ -8,14 +8,108 @@
 [ext_resource type="Script" path="res://src/MarketPanel.gd" id="6_market"]
 [ext_resource type="Script" path="res://src/ShopPanel.gd" id="7_shop"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 4.0
+bg_color = Color(0.08, 0.10, 0.14, 0.92)
+border_width_bottom = 2
+border_color = Color(0.85, 0.70, 0.20, 0.85)
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 6
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_capsule"]
+content_margin_left = 10.0
+content_margin_top = 2.0
+content_margin_right = 10.0
+content_margin_bottom = 2.0
+bg_color = Color(0.12, 0.15, 0.20, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.32, 0.42, 0.8)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gold"]
+content_margin_left = 12.0
+content_margin_top = 2.0
+content_margin_right = 12.0
+content_margin_bottom = 2.0
+bg_color = Color(0.18, 0.14, 0.05, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.82, 0.2, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.9, 0.7, 0.1, 0.25)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_console"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.08, 0.10, 0.14, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.42, 0.52, 0.8)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 8
+shadow_offset = Vector2(0, -2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shop"]
+bg_color = Color(0.85, 0.65, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 3
+border_color = Color(1, 0.9, 0.45, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0.95, 0.75, 0.15, 0.4)
+shadow_size = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_market"]
+bg_color = Color(0.15, 0.45, 0.60, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 3
+border_color = Color(0.40, 0.75, 0.95, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
 [node name="MainGame" type="Node2D"]
 
 [node name="FarmGrid" type="Node2D" parent="."]
-position = Vector2(290, 80)
+position = Vector2(315, 62)
+scale = Vector2(0.68, 0.68)
 script = ExtResource("1_farmgrid")
 
 [node name="Farmer" type="CharacterBody2D" parent="."]
-position = Vector2(450, 240)
+position = Vector2(500, 260)
 script = ExtResource("2_farmer")
 
 [node name="FarmerSprite" type="ColorRect" parent="Farmer"]
@@ -23,7 +117,7 @@ offset_left = -16.0
 offset_top = -16.0
 offset_right = 16.0
 offset_bottom = 16.0
-color = Color(0.95, 0.65, 0.15, 1)
+color = Color(0.2, 0.6, 1, 1)
 
 [node name="FarmerLabel" type="Label" parent="Farmer"]
 offset_left = -60.0
@@ -34,6 +128,7 @@ text = "🧑‍🌾 Ready"
 horizontal_alignment = 1
 
 [node name="TileActionPopup" type="PopupMenu" parent="."]
+size = Vector2i(220, 200)
 script = ExtResource("4_popup")
 
 [node name="HUDLayer" type="CanvasLayer" parent="."]
@@ -48,219 +143,363 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TopBar" type="HBoxContainer" parent="HUDLayer/Control"]
+[node name="TopBar" type="PanelContainer" parent="HUDLayer/Control"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_left = 10.0
-offset_top = 8.0
+offset_top = 6.0
 offset_right = -10.0
-offset_bottom = 38.0
+offset_bottom = 54.0
 grow_horizontal = 2
-theme_override_constants/separation = 14
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
-[node name="CashLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+[node name="Margin" type="MarginContainer" parent="HUDLayer/Control/TopBar"]
 layout_mode = 2
-text = "💰 ₱1000"
-theme_override_font_sizes/font_size = 15
 
-[node name="RegionLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin"]
 layout_mode = 2
-text = "📍 Cotabato Basin"
-theme_override_font_sizes/font_size = 15
+theme_override_constants/separation = 12
 
-[node name="DayLabel" type="Label" parent="HUDLayer/Control/TopBar"]
+[node name="LeftCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
 layout_mode = 2
-text = "📅 Day: 1"
-theme_override_font_sizes/font_size = 15
-
-[node name="TimeLabel" type="Label" parent="HUDLayer/Control/TopBar"]
-layout_mode = 2
-text = "⏰ 00:00"
-theme_override_font_sizes/font_size = 15
-
-[node name="WeatherLabel" type="Label" parent="HUDLayer/Control/TopBar"]
-layout_mode = 2
-text = "🌡️ 28°C | 💧 65%"
-theme_override_font_sizes/font_size = 15
-
-[node name="TaskLabel" type="Label" parent="HUDLayer/Control/TopBar"]
-layout_mode = 2
-text = "📋 Tasks: 0"
-theme_override_font_sizes/font_size = 15
-
-[node name="DisasterLabel" type="Label" parent="HUDLayer/Control/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
-theme_override_font_sizes/font_size = 15
-
-[node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 42.0
-offset_right = 500.0
-offset_bottom = 74.0
 theme_override_constants/separation = 8
 
-[node name="PauseButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(70, 0)
+[node name="RegionCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
 layout_mode = 2
-text = "⏸ Pause"
+theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 
-[node name="Speed1xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(55, 0)
+[node name="RegionLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule"]
 layout_mode = 2
-text = "▶ 1x"
+text = "📍 Cotabato Basin"
+theme_override_font_sizes/font_size = 13
 
-[node name="Speed2xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(55, 0)
+[node name="WeatherCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
 layout_mode = 2
-text = "⏩ 2x"
+theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 
-[node name="Speed3xButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(55, 0)
+[node name="WeatherLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/WeatherCapsule"]
 layout_mode = 2
-text = "⏩ 3x"
+text = "🌡️ 28°C | 💧 65%"
+theme_override_font_sizes/font_size = 12
 
-[node name="MarketButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(160, 0)
+[node name="CenterCluster" type="VBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
 layout_mode = 2
-text = "📈 Market & Logistics"
+size_flags_horizontal = 3
+alignment = 1
 
-[node name="ShopButton" type="Button" parent="HUDLayer/Control/SpeedBar"]
-custom_minimum_size = Vector2(140, 0)
+[node name="ClockBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster"]
 layout_mode = 2
-text = "🛒 Agri Shop"
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="DayLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
+layout_mode = 2
+text = "📅 Day: 1"
+theme_override_font_sizes/font_size = 13
+
+[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
+layout_mode = 2
+
+[node name="TimeLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
+layout_mode = 2
+text = "⏰ 06:00"
+theme_override_font_sizes/font_size = 13
+
+[node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
+layout_mode = 2
+
+[node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PauseButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+text = "⏸"
+
+[node name="Speed1xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+text = "1x"
+
+[node name="Speed2xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+text = "2x"
+
+[node name="Speed3xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
+custom_minimum_size = Vector2(36, 24)
+layout_mode = 2
+text = "3x"
+
+[node name="DisasterLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster"]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="RightCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WorkerCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
+
+[node name="WorkerLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/WorkerCapsule"]
+layout_mode = 2
+text = "🧑‍🌾 1 / 1"
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="StorageCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule"]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="StorageLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
+layout_mode = 2
+text = "📦 0 / 1000 kg"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 11
+
+[node name="StorageBar" type="ProgressBar" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
+custom_minimum_size = Vector2(0, 4)
+layout_mode = 2
+show_percentage = false
+
+[node name="CashCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_gold")
+
+[node name="CashLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/CashCapsule"]
+layout_mode = 2
+text = "💰 ₱1,000"
+theme_override_colors/font_color = Color(1, 0.92, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="TaskCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
+
+[node name="TaskLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/TaskCapsule"]
+layout_mode = 2
+text = "📋 0"
+theme_override_font_sizes/font_size = 12
 
 [node name="TileInfoPanel" type="PanelContainer" parent="HUDLayer/Control"]
 layout_mode = 0
-offset_left = 10.0
-offset_top = 80.0
-offset_right = 275.0
-offset_bottom = 570.0
+offset_left = 16.0
+offset_top = 585.0
+offset_right = 930.0
+offset_bottom = 712.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_console")
 script = ExtResource("5_info")
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel"]
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel"]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="PortraitBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
-text = "📍 Tile Inspector"
+theme_override_constants/separation = 8
+
+[node name="PortraitIcon" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+size_flags_vertical = 4
+text = "🌱"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 16
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 32
 
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="Meta" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+theme_override_constants/separation = 3
+
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
+layout_mode = 2
+text = "📍 Tile (0, 0)"
+theme_override_font_sizes/font_size = 13
+
+[node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
+layout_mode = 2
+text = "Uncultivated Soil"
+theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
+layout_mode = 2
+text = "Empty Grass"
+theme_override_colors/font_color = Color(0.7, 0.8, 0.7, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
 layout_mode = 2
 
-[node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="GaugesBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
-text = "Status: (Click tile to inspect)"
+alignment = 1
+theme_override_constants/separation = 4
 
-[node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
-layout_mode = 2
-text = "Crop: (None)"
-
-[node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
+custom_minimum_size = Vector2(65, 0)
 layout_mode = 2
 text = "Growth:"
+theme_override_font_sizes/font_size = 11
 
-[node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
-custom_minimum_size = Vector2(110, 16)
+[node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
+custom_minimum_size = Vector2(110, 14)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
-[node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/GrowthBox"]
-custom_minimum_size = Vector2(40, 0)
+[node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
 text = "0%"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 11
 
-[node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
+custom_minimum_size = Vector2(65, 0)
 layout_mode = 2
 text = "Health:"
+theme_override_font_sizes/font_size = 11
 
-[node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
-custom_minimum_size = Vector2(110, 16)
+[node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
+custom_minimum_size = Vector2(110, 14)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 value = 100.0
 
-[node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/HealthBox"]
-custom_minimum_size = Vector2(40, 0)
+[node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
 text = "100%"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 11
 
-[node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
-custom_minimum_size = Vector2(70, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
+custom_minimum_size = Vector2(65, 0)
 layout_mode = 2
 text = "Moisture:"
+theme_override_font_sizes/font_size = 11
 
-[node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
-custom_minimum_size = Vector2(110, 16)
+[node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
+custom_minimum_size = Vector2(110, 14)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 value = 60.0
 
-[node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox/MoistureBox"]
-custom_minimum_size = Vector2(40, 0)
+[node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
 text = "60%"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 11
 
-[node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+layout_mode = 2
+
+[node name="StatusBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
 layout_mode = 2
 text = "Quality: Grade A"
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 12
 
-[node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
 layout_mode = 2
-text = "Pests: None"
+text = "Pests: None (Healthy)"
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+theme_override_font_sizes/font_size = 12
 
-[node name="HSeparator2" type="HSeparator" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="VSeparator3" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
 layout_mode = 2
 
-[node name="ActionHeader" type="Label" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="Actions" type="GridContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
 layout_mode = 2
-text = "Queue Tile Action:"
-horizontal_alignment = 1
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 3
 
-[node name="Actions" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/VBox"]
+[node name="BtnPlow" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
+custom_minimum_size = Vector2(90, 32)
 layout_mode = 2
-theme_override_constants/separation = 5
+text = "⛏️ Plow"
 
-[node name="BtnPlow" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+[node name="BtnPlant" type="MenuButton" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
+custom_minimum_size = Vector2(95, 32)
 layout_mode = 2
-text = "⛏️ Plow Land"
-
-[node name="BtnPlant" type="MenuButton" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
-layout_mode = 2
-text = "🌱 Plant Crop ▾"
+text = "🌱 Plant ▾"
 flat = false
 
-[node name="BtnWater" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+[node name="BtnWater" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
+custom_minimum_size = Vector2(90, 32)
 layout_mode = 2
-text = "💧 Water Soil (+25%)"
+text = "💧 Water"
 
-[node name="BtnSpray" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+[node name="BtnSpray" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
+custom_minimum_size = Vector2(90, 32)
 layout_mode = 2
-text = "🧪 Spray Pesticide"
+text = "🧪 Spray"
 
-[node name="BtnHarvest" type="Button" parent="HUDLayer/Control/TileInfoPanel/VBox/Actions"]
+[node name="BtnHarvest" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
+custom_minimum_size = Vector2(95, 32)
 layout_mode = 2
-text = "🧺 Harvest Crop"
+text = "🧺 Harvest"
+
+[node name="CommandCorner" type="VBoxContainer" parent="HUDLayer/Control"]
+layout_mode = 0
+offset_left = 944.0
+offset_top = 585.0
+offset_right = 1136.0
+offset_bottom = 712.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="MarketButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
+custom_minimum_size = Vector2(180, 48)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_market")
+text = "📈 MARKET & TRADE"
+
+[node name="ShopButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
+custom_minimum_size = Vector2(180, 56)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.12, 0.08, 0, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_shop")
+text = "🛒 AGRI SHOP"
 
 [node name="MarketPanel" type="PanelContainer" parent="HUDLayer/Control"]
 visible = false
@@ -270,17 +509,17 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -440.0
-offset_top = -280.0
-offset_right = 440.0
-offset_bottom = 290.0
+offset_left = -380.0
+offset_top = -240.0
+offset_right = 380.0
+offset_bottom = 250.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("6_market")
 
 [node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel"]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 8
 
 [node name="Header" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
 layout_mode = 2
@@ -288,7 +527,7 @@ layout_mode = 2
 [node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "📊 Regional Market, Weather Forecast & Farm Storage"
+text = "📈 Regional Commodity Exchange & Logistics"
 theme_override_font_sizes/font_size = 16
 
 [node name="CloseBtn" type="Button" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
@@ -296,21 +535,19 @@ custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 text = "✕"
 
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox"]
-layout_mode = 2
-
 [node name="Content" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 14
+theme_override_constants/separation = 16
 
 [node name="PricesSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
-custom_minimum_size = Vector2(210, 0)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
 layout_mode = 2
-text = "🏷️ Live Market Rates"
+text = "🌾 Live Commodity Prices"
 theme_override_font_sizes/font_size = 14
 
 [node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
@@ -321,12 +558,13 @@ layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="ForecastSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
-custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
 [node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
 layout_mode = 2
-text = "📡 3-Day Tech Forecast"
+text = "🌦️ 3-Day Climate Forecast"
 theme_override_font_sizes/font_size = 14
 
 [node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
@@ -401,7 +639,7 @@ size_flags_horizontal = 3
 
 [node name="ProsHeader" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ProsBox"]
 layout_mode = 2
-text = "🌱 REGIONAL PROS:"
+text = "✔ REGIONAL ADVANTAGES (PROS):"
 theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
 theme_override_font_sizes/font_size = 11
 

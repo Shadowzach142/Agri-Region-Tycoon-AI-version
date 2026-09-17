@@ -1,28 +1,30 @@
 # TileInfoPanel.gd
-# Side HUD panel showing detailed inspect statistics for the selected farm tile.
+# Bottom Command Console (Warcraft 3 style) displaying tile portrait, gauges, and RTS actions.
 
 extends PanelContainer
 
-@onready var title_label: Label = $VBox/TitleLabel
-@onready var state_label: Label = $VBox/StateLabel
-@onready var crop_label: Label = $VBox/CropLabel
-@onready var quality_label: Label = $VBox/QualityLabel
-@onready var pest_label: Label = $VBox/PestLabel
+@onready var portrait_icon: Label = $HBox/PortraitBox/PortraitIcon
+@onready var title_label: Label = $HBox/PortraitBox/Meta/TitleLabel
+@onready var crop_label: Label = $HBox/PortraitBox/Meta/CropLabel
+@onready var state_label: Label = $HBox/PortraitBox/Meta/StateLabel
 
-@onready var growth_bar: ProgressBar = $VBox/GrowthBox/GrowthBar
-@onready var growth_val: Label = $VBox/GrowthBox/GrowthVal
+@onready var growth_bar: ProgressBar = $HBox/GaugesBox/GrowthBox/GrowthBar
+@onready var growth_val: Label = $HBox/GaugesBox/GrowthBox/GrowthVal
 
-@onready var health_bar: ProgressBar = $VBox/HealthBox/HealthBar
-@onready var health_val: Label = $VBox/HealthBox/HealthVal
+@onready var health_bar: ProgressBar = $HBox/GaugesBox/HealthBox/HealthBar
+@onready var health_val: Label = $HBox/GaugesBox/HealthBox/HealthVal
 
-@onready var moisture_bar: ProgressBar = $VBox/MoistureBox/MoistureBar
-@onready var moisture_val: Label = $VBox/MoistureBox/MoistureVal
+@onready var moisture_bar: ProgressBar = $HBox/GaugesBox/MoistureBox/MoistureBar
+@onready var moisture_val: Label = $HBox/GaugesBox/MoistureBox/MoistureVal
 
-@onready var btn_plow: Button = $VBox/Actions/BtnPlow
-@onready var btn_plant: MenuButton = $VBox/Actions/BtnPlant
-@onready var btn_water: Button = $VBox/Actions/BtnWater
-@onready var btn_spray: Button = $VBox/Actions/BtnSpray
-@onready var btn_harvest: Button = $VBox/Actions/BtnHarvest
+@onready var quality_label: Label = $HBox/StatusBox/QualityLabel
+@onready var pest_label: Label = $HBox/StatusBox/PestLabel
+
+@onready var btn_plow: Button = $HBox/Actions/BtnPlow
+@onready var btn_plant: MenuButton = $HBox/Actions/BtnPlant
+@onready var btn_water: Button = $HBox/Actions/BtnWater
+@onready var btn_spray: Button = $HBox/Actions/BtnSpray
+@onready var btn_harvest: Button = $HBox/Actions/BtnHarvest
 
 var selected_pos: Vector2i = Vector2i(-1, -1)
 var selected_tile: FarmTile = null
@@ -68,13 +70,27 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		return
 
 	title_label.text = "📍 Tile (%d, %d)" % [pos.x, pos.y]
-	state_label.text = "Status: " + _tile_state_string(tile.state)
+	state_label.text = _tile_state_string(tile.state)
+
+	if portrait_icon:
+		match tile.state:
+			FarmTile.TileState.EMPTY: portrait_icon.text = "🌱"
+			FarmTile.TileState.PLOWED: portrait_icon.text = "⛏️"
+			FarmTile.TileState.PLANTED, FarmTile.TileState.GROWING:
+				var c_data = Data.get_crop(tile.crop_type)
+				portrait_icon.text = c_data.get("icon", "🌿")
+			FarmTile.TileState.HARVESTABLE:
+				var c_data = Data.get_crop(tile.crop_type)
+				portrait_icon.text = c_data.get("icon", "🌾")
+			FarmTile.TileState.FLOODED: portrait_icon.text = "🌊"
+			FarmTile.TileState.INFECTED: portrait_icon.text = "🐛"
+			_: portrait_icon.text = "🌱"
 
 	if tile.crop_type != "":
 		var c_data = Data.get_crop(tile.crop_type)
-		crop_label.text = "Crop: %s %s" % [c_data.get("icon", "🌱"), c_data.get("display_name", tile.crop_type)]
+		crop_label.text = "%s %s" % [c_data.get("icon", "🌱"), c_data.get("display_name", tile.crop_type)]
 	else:
-		crop_label.text = "Crop: (None)"
+		crop_label.text = "Uncultivated Soil"
 
 	# Progress Bars
 	growth_bar.value = tile.growth_progress * 100.0
