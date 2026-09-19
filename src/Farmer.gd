@@ -22,6 +22,10 @@ var work_timer: float = 0.0
 @onready var sprite: ColorRect = $FarmerSprite
 
 func _ready() -> void:
+	if sprite:
+		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if status_label:
+		status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_update_status_display("🧑‍🌾 Ready")
 
 func _process(delta: float) -> void:
@@ -57,15 +61,17 @@ func _move_towards_tile(delta: float) -> void:
 	var target_pixel: Vector2 = _grid_to_pixel_center(target_grid_pos)
 	var dir: Vector2 = target_pixel - global_position
 	var dist: float = dir.length()
-	var step: float = BASE_MOVE_SPEED * delta
+	var speed_mult: float = BuildingManager.get_worker_speed_multiplier()
+	var move_speed: float = BASE_MOVE_SPEED * speed_mult
+	var step: float = move_speed * delta
 
 	if dist <= step or dist < 4.0:
 		global_position = target_pixel
 		state = WorkerState.WORKING
-		work_timer = WORK_DURATION
+		work_timer = WORK_DURATION / speed_mult
 		_update_work_status()
 	else:
-		velocity = dir.normalized() * BASE_MOVE_SPEED
+		velocity = dir.normalized() * move_speed
 		global_position += velocity * delta
 
 func _update_work_status() -> void:
@@ -114,17 +120,20 @@ func _complete_task() -> void:
 			_finish_work_cycle()
 
 func _move_towards_depot(delta: float) -> void:
-	# Depot location: (0, 0) or grid edge
-	var depot_pixel: Vector2 = Vector2(32.0, 32.0)
+	# Depot location: tile (0, 0) in farm grid
+	var depot_local: Vector2 = Vector2(TILE_PIXEL_SIZE / 2.0, TILE_PIXEL_SIZE / 2.0)
+	var depot_pixel: Vector2 = farm_grid.to_global(depot_local) if farm_grid else depot_local
 	var dir: Vector2 = depot_pixel - global_position
 	var dist: float = dir.length()
-	var step: float = BASE_MOVE_SPEED * delta
+	var speed_mult: float = BuildingManager.get_worker_speed_multiplier()
+	var move_speed: float = BASE_MOVE_SPEED * speed_mult
+	var step: float = move_speed * delta
 
 	if dist <= step or dist < 4.0:
 		global_position = depot_pixel
 		_finish_work_cycle()
 	else:
-		velocity = dir.normalized() * BASE_MOVE_SPEED
+		velocity = dir.normalized() * move_speed
 		global_position += velocity * delta
 
 func _finish_work_cycle() -> void:
@@ -138,10 +147,16 @@ func _update_status_display(txt: String) -> void:
 		status_label.text = txt
 
 func _grid_to_pixel_center(gpos: Vector2i) -> Vector2:
-	return Vector2(
-		gpos.x * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2,
-		gpos.y * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2
+	var local_center = Vector2(
+		gpos.x * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2.0,
+		gpos.y * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2.0
 	)
+	if farm_grid:
+		return farm_grid.to_global(local_center)
+	return local_center
 
 func _pixel_to_grid(pixel: Vector2) -> Vector2i:
-	return Vector2i(int(pixel.x / TILE_PIXEL_SIZE), int(pixel.y / TILE_PIXEL_SIZE))
+	if farm_grid:
+		var local_p = farm_grid.to_local(pixel)
+		return Vector2i(int(floor(local_p.x / float(TILE_PIXEL_SIZE))), int(floor(local_p.y / float(TILE_PIXEL_SIZE))))
+	return Vector2i(int(floor(pixel.x / float(TILE_PIXEL_SIZE))), int(floor(pixel.y / float(TILE_PIXEL_SIZE))))

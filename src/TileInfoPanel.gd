@@ -1,5 +1,5 @@
 # TileInfoPanel.gd
-# Bottom Command Console (Warcraft 3 style) displaying tile portrait, gauges, and RTS actions.
+# Sleek Bottom-Left Tile Inspector Card displaying thumbnail, coordinates, and vital gauges.
 
 extends PanelContainer
 
@@ -20,31 +20,10 @@ extends PanelContainer
 @onready var quality_label: Label = $HBox/StatusBox/QualityLabel
 @onready var pest_label: Label = $HBox/StatusBox/PestLabel
 
-@onready var btn_plow: Button = $HBox/Actions/BtnPlow
-@onready var btn_plant: MenuButton = $HBox/Actions/BtnPlant
-@onready var btn_water: Button = $HBox/Actions/BtnWater
-@onready var btn_spray: Button = $HBox/Actions/BtnSpray
-@onready var btn_harvest: Button = $HBox/Actions/BtnHarvest
-
 var selected_pos: Vector2i = Vector2i(-1, -1)
 var selected_tile: FarmTile = null
 
 func _ready() -> void:
-	btn_plow.pressed.connect(_on_plow_pressed)
-	btn_water.pressed.connect(_on_water_pressed)
-	btn_spray.pressed.connect(_on_spray_pressed)
-	btn_harvest.pressed.connect(_on_harvest_pressed)
-
-	# Setup plant popup submenu
-	var plant_popup: PopupMenu = btn_plant.get_popup()
-	plant_popup.clear()
-	plant_popup.add_item("🌾 Palay (Rice) - ₱25", 1)
-	plant_popup.add_item("🌽 Yellow Corn - ₱30", 2)
-	plant_popup.add_item("☕ Arabica Coffee - ₱50", 3)
-	plant_popup.add_item("🍌 Banana - ₱35", 4)
-	plant_popup.add_item("🥥 Coconut - ₱40", 5)
-	plant_popup.id_pressed.connect(_on_plant_crop_selected)
-
 	# Connect to TimeManager to refresh stats continuously as the world updates
 	TimeManager.hour_changed.connect(_on_time_tick)
 	TimeManager.day_changed.connect(_on_time_tick)
@@ -113,44 +92,6 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		pest_label.text = "Pests: None (Healthy)"
 		pest_label.modulate = Color(0.6, 0.9, 0.6)
 
-	_update_action_button_states()
-
-func _update_action_button_states() -> void:
-	if selected_tile == null:
-		return
-	btn_plow.disabled = (selected_tile.state != FarmTile.TileState.EMPTY and selected_tile.state != FarmTile.TileState.FLOODED)
-	btn_plant.disabled = (selected_tile.state != FarmTile.TileState.PLOWED)
-	btn_water.disabled = (selected_tile.state != FarmTile.TileState.PLANTED and selected_tile.state != FarmTile.TileState.GROWING and selected_tile.state != FarmTile.TileState.INFECTED)
-	btn_spray.disabled = (selected_tile.pest_type == "")
-	btn_harvest.disabled = (selected_tile.state != FarmTile.TileState.HARVESTABLE)
-
-func _on_plow_pressed() -> void:
-	if selected_pos != Vector2i(-1, -1):
-		TaskManager.add_task({"type": "plow", "position": selected_pos})
-
-func _on_plant_crop_selected(id: int) -> void:
-	var crop_name: String = "palay"
-	match id:
-		1: crop_name = "palay"
-		2: crop_name = "yellow_corn"
-		3: crop_name = "arabica_coffee"
-		4: crop_name = "banana"
-		5: crop_name = "coconut"
-	if selected_pos != Vector2i(-1, -1):
-		TaskManager.add_task({"type": "plant", "crop_type": crop_name, "position": selected_pos})
-
-func _on_water_pressed() -> void:
-	if selected_pos != Vector2i(-1, -1):
-		TaskManager.add_task({"type": "water", "amount": 25.0, "position": selected_pos})
-
-func _on_spray_pressed() -> void:
-	if selected_pos != Vector2i(-1, -1):
-		TaskManager.add_task({"type": "spray_pest", "method": "chemical", "position": selected_pos})
-
-func _on_harvest_pressed() -> void:
-	if selected_pos != Vector2i(-1, -1):
-		TaskManager.add_task({"type": "harvest", "position": selected_pos})
-
 func _tile_state_string(state_val: int) -> String:
 	match state_val:
 		FarmTile.TileState.EMPTY: return "Empty Grass"
@@ -164,7 +105,7 @@ func _tile_state_string(state_val: int) -> String:
 
 func _quality_string(grade_val: int) -> String:
 	match grade_val:
-		FarmTile.QualityGrade.A: return "Grade A (Organic / Premium)"
-		FarmTile.QualityGrade.B: return "Grade B (Standard Market)"
-		FarmTile.QualityGrade.C: return "Grade C (Damaged / Salvage)"
+		FarmTile.QualityGrade.A: return "Grade A (Organic)"
+		FarmTile.QualityGrade.B: return "Grade B (Standard)"
+		FarmTile.QualityGrade.C: return "Grade C (Damaged)"
 		_: return "Standard"

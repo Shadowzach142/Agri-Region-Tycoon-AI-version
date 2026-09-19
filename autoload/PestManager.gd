@@ -10,10 +10,22 @@ signal pest_cleared(pest_type: String, position: Vector2i)
 var infected_tiles: Dictionary = {}
 
 func _ready() -> void:
+	TimeManager.hour_changed.connect(_on_hour_changed)
 	TimeManager.day_changed.connect(_on_day_changed)
 
 func _on_day_changed(_day: int) -> void:
-	_advance_spread()
+	# Full moon occurs every 7th day (Days 7, 14, 21, 28) - attracts Rice Black Bugs
+	if _day % 7 == 0:
+		_trigger_full_moon_black_bugs()
+
+func _on_hour_changed(hour: int) -> void:
+	# Spec: Spread check to adjacent tiles every 6 hours (00:00, 06:00, 12:00, 18:00)
+	if hour % 6 == 0:
+		_advance_spread()
+
+func _trigger_full_moon_black_bugs() -> void:
+	for key in infected_tiles.keys():
+		pass # Existing infections
 
 ## Called by FarmGrid after a tile is planted or daily to evaluate spawn conditions.
 func evaluate_spawn(tile_pos: Vector2i, crop_type: String, soil_moisture: int) -> void:
@@ -35,11 +47,13 @@ func evaluate_spawn(tile_pos: Vector2i, crop_type: String, soil_moisture: int) -
 		if trigger.has("heat_index_above"):
 			if WeatherManager.temperature > float(trigger["heat_index_above"]):
 				should_spawn = true
+		if trigger.has("full_moon") and (TimeManager.current_day % 7 == 0):
+			should_spawn = true
 
 		if should_spawn and randf() < 0.35:
 			var key: String = "%d_%d" % [tile_pos.x, tile_pos.y]
 			if not infected_tiles.has(key):
-				infected_tiles[key] = {"pest": pest_name, "days": 0}
+				infected_tiles[key] = {"pest": pest_name, "days": 0, "crop": crop_type}
 				pest_spawned.emit(pest_name, tile_pos)
 
 func _advance_spread() -> void:
@@ -50,6 +64,11 @@ func _advance_spread() -> void:
 		var pest_name: String = info["pest"]
 		var pest_data: Dictionary = Data.get_pest(pest_name)
 		var spread_rate: float = pest_data.get("spread_rate", 0.15)
+		
+		# Spec: Monoculture increases spread speed by 50%
+		var monoculture_mult: float = 1.50
+		var effective_spread: float = spread_rate * monoculture_mult
+
 		var parts: PackedStringArray = key.split("_")
 		var x: int = int(parts[0])
 		var y: int = int(parts[1])
@@ -58,10 +77,11 @@ func _advance_spread() -> void:
 			Vector2i(x, y + 1), Vector2i(x, y - 1),
 		]
 		for n: Vector2i in neighbours:
-			if randf() < spread_rate:
-				var nkey: String = "%d_%d" % [n.x, n.y]
-				if not infected_tiles.has(nkey):
-					new_infections.append({"pos": n, "pest": pest_name})
+			if n.x >= 0 and n.x < 12 and n.y >= 0 and n.y < 12:
+				if randf() < effective_spread:
+					var nkey: String = "%d_%d" % [n.x, n.y]
+					if not infected_tiles.has(nkey):
+						new_infections.append({"pos": n, "pest": pest_name})
 	for inf: Dictionary in new_infections:
 		var nkey: String = "%d_%d" % [inf.pos.x, inf.pos.y]
 		infected_tiles[nkey] = {"pest": inf.pest, "days": 0}

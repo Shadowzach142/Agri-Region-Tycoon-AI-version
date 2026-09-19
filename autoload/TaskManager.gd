@@ -10,6 +10,14 @@ var task_queue: Array = []
 func add_task(task: Dictionary) -> void:
 	task_queue.append(task)
 
+## Return true if a task with the given position and optional type already exists in queue
+func has_task_at(pos: Vector2i, type: String = "") -> bool:
+	for t in task_queue:
+		if t.get("position", Vector2i(-1, -1)) == pos:
+			if type == "" or t.get("type", "") == type:
+				return true
+	return false
+
 ## Return the nearest pending task for a farmer at farmer_pos, or {} if none.
 func get_next_task_for_farmer(farmer_pos: Vector2i) -> Dictionary:
 	if task_queue.is_empty():

@@ -49,12 +49,17 @@ func _increment_day() -> void:
 	current_day += 1
 	current_hour = 0
 	
-	# Midnight payroll deduction (e.g. 15 pesos per active farmer)
-	var payroll: int = DAILY_WORKER_WAGE
+	# Midnight payroll deduction (15 pesos per active farmer)
+	var payroll: int = DAILY_WORKER_WAGE * BuildingManager.active_workers
 	EconomyManager.deduct_cash(payroll)
 	
-	# Notify WeatherManager and listeners
+	# Refresh market commodity supply/demand and pricing
+	MarketManager.refresh_daily_prices()
+
+	# Advance climate and weather forecast
 	WeatherManager.on_day_passed(current_day)
+	
+	# Trigger crop growth, health updates, and agronomy checks
 	midnight_tick.emit(current_day)
 	day_changed.emit(current_day)
 	hour_changed.emit(0)

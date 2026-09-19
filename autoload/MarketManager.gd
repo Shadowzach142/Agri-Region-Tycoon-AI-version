@@ -7,20 +7,34 @@ signal price_updated(crop: String, price: float)
 signal inventory_changed()
 signal sale_completed(crop: String, revenue: int, net_profit: int, hub_name: String, rot_loss: float)
 
-# Internal tracking of regional market supply per crop
+# Internal tracking of regional market supply and demand per crop
 var regional_supply: Dictionary = {}
+var regional_demand: Dictionary = {}
 
 # Stored crop batches: [{"id": int, "crop": String, "quantity": int, "grade": String, "freshness": float, "is_cold_storage": bool}]
 var stored_inventory: Array = []
 var _next_batch_id: int = 1
 
-const SUPPLY_PRICE_FACTOR: float = 0.50   # Up to 50% price drop at massive surplus
-const DISASTER_PRICE_BOOST: float = 1.80  # Up to 80% price surge during shortages
+const DISASTER_PRICE_BOOST: float = 2.20  # 220% price surge (shortage spike) during regional disasters
 const SPOILAGE_RATE_PER_HOUR: float = 5.0 # 5% per hour in basic bodega
 
 func _ready() -> void:
 	for crop_name in Data.CROPS.keys():
-		regional_supply[crop_name] = randi_range(200, 800)
+		regional_supply[crop_name] = randf_range(400.0, 600.0)
+		regional_demand[crop_name] = randf_range(450.0, 550.0)
+
+## Refresh daily market conditions at midnight tick
+func refresh_daily_prices() -> void:
+	for crop_name in Data.CROPS.keys():
+		# Market consumption reduces supply
+		var current_s: float = regional_supply.get(crop_name, 500.0)
+		regional_supply[crop_name] = maxf(current_s * randf_range(0.85, 0.95), 200.0)
+		# Demand shifts slightly each day
+		var current_d: float = regional_demand.get(crop_name, 500.0)
+		regional_demand[crop_name] = clampf(current_d * randf_range(0.92, 1.08), 300.0, 800.0)
+		
+		var p: float = calculate_unit_price(crop_name, "Grade A", 100.0, "local_biyahero")
+		price_updated.emit(crop_name, p)
 
 ## Add harvested crop batch to farm storage
 func add_harvest_to_storage(crop: String, quantity: int, grade: String, freshness: float) -> void:
@@ -49,36 +63,42 @@ func process_hourly_spoilage() -> void:
 	if updated:
 		inventory_changed.emit()
 
-## Calculate unit price considering quality, freshness, destination distance, and regional supply
+## Calculate unit price considering quality, freshness, destination distance, and regional supply/demand
 func calculate_unit_price(crop: String, grade: String, freshness: float, hub_id: String) -> float:
 	var crop_data: Dictionary = Data.get_crop(crop)
 	var base_price: float = float(crop_data.get("base_price", 100))
 	
+	# Quality grade multiplier
 	var grade_mult: float = 0.4
 	match grade:
 		"Grade A": grade_mult = 1.0
 		"Grade B": grade_mult = 0.7
 		"Grade C": grade_mult = 0.4
 
-	var freshness_factor: float = clampf(freshness / 100.0, 0.1, 1.0)
+	# Solar dryer bonus (+25% quality boost for grains: palay & corn)
+	if BuildingManager.has_building("solar_dryer") and (crop == "palay" or crop == "yellow_corn"):
+		grade_mult = minf(grade_mult * 1.25, 1.25)
+
+	var freshness_factor: float = clampf(freshness / 100.0, 0.05, 1.0)
 	
 	# Severe ROT discount if produce rots below 25% freshness
 	if freshness < 25.0:
-		freshness_factor *= 0.35 # 65% loss for rotten produce
+		freshness_factor *= 0.35 # 65% loss for rotting produce
 
 	var hub_data: Dictionary = Data.get_market_hub(hub_id)
 	var hub_multiplier: float = float(hub_data.get("price_multiplier", 1.0))
 	
-	# Supply impact
-	var supply: float = float(regional_supply.get(crop, 500))
-	var supply_factor: float = clampf(1.0 - (supply / 10000.0) * SUPPLY_PRICE_FACTOR, 0.5, 1.3)
+	# Demand / Supply ratio
+	var supply: float = float(regional_supply.get(crop, 500.0))
+	var demand: float = float(regional_demand.get(crop, 500.0))
+	var ratio: float = clampf(demand / maxf(supply, 100.0), 0.50, 1.50)
 	
-	# Disaster impact
+	# Regional disaster shortages spike prices up to 200-300%
 	var disaster_factor: float = 1.0
 	if WeatherManager.current_climate != WeatherManager.Climate.NORMAL:
 		disaster_factor = DISASTER_PRICE_BOOST
 
-	return base_price * grade_mult * freshness_factor * hub_multiplier * supply_factor * disaster_factor
+	return base_price * grade_mult * freshness_factor * ratio * hub_multiplier * disaster_factor
 
 ## Sell a specific stored batch with distance logistics, fuel expenses, and road ROT decay
 func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
@@ -113,8 +133,9 @@ func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
 	if gross_revenue > 0:
 		EconomyManager.add_cash(gross_revenue)
 
-	# Update market supply
-	regional_supply[batch.crop] = regional_supply.get(batch.crop, 0) + batch.quantity
+	# Update market supply: Dumping 50+ units (tons) floods local market, dropping prices up to 50%
+	var dump_multiplier: float = 2.5 if batch.quantity >= 50 else 1.0
+	regional_supply[batch.crop] = float(regional_supply.get(batch.crop, 500.0)) + float(batch.quantity) * dump_multiplier
 	price_updated.emit(batch.crop, unit_price)
 	
 	var hub_name: String = hub_data.get("display_name", hub_id)

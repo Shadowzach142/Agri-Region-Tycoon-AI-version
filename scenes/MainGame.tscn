@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://maingameplay"]
+[gd_scene load_steps=16 format=3 uid="uid://maingameplay"]
 
 [ext_resource type="Script" path="res://src/FarmGrid.gd" id="1_farmgrid"]
 [ext_resource type="Script" path="res://src/Farmer.gd" id="2_farmer"]
@@ -9,23 +9,23 @@
 [ext_resource type="Script" path="res://src/ShopPanel.gd" id="7_shop"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-content_margin_left = 12.0
-content_margin_top = 4.0
-content_margin_right = 12.0
-content_margin_bottom = 4.0
+content_margin_left = 10.0
+content_margin_top = 3.0
+content_margin_right = 10.0
+content_margin_bottom = 3.0
 bg_color = Color(0.08, 0.10, 0.14, 0.92)
 border_width_bottom = 2
 border_color = Color(0.85, 0.70, 0.20, 0.85)
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.4)
-shadow_size = 6
-shadow_offset = Vector2(0, 3)
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 5
+shadow_offset = Vector2(0, 2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_capsule"]
-content_margin_left = 10.0
+content_margin_left = 8.0
 content_margin_top = 2.0
-content_margin_right = 10.0
+content_margin_right = 8.0
 content_margin_bottom = 2.0
 bg_color = Color(0.12, 0.15, 0.20, 0.85)
 border_width_left = 1
@@ -33,15 +33,15 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.25, 0.32, 0.42, 0.8)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gold"]
-content_margin_left = 12.0
+content_margin_left = 10.0
 content_margin_top = 2.0
-content_margin_right = 12.0
+content_margin_right = 10.0
 content_margin_bottom = 2.0
 bg_color = Color(0.18, 0.14, 0.05, 0.9)
 border_width_left = 1
@@ -49,18 +49,37 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(1, 0.82, 0.2, 0.95)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0.9, 0.7, 0.1, 0.25)
-shadow_size = 4
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0.9, 0.7, 0.1, 0.2)
+shadow_size = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hovercard"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.06, 0.08, 0.12, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.40, 0.65, 0.95, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.6)
+shadow_size = 8
+shadow_offset = Vector2(0, 4)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_console"]
 content_margin_left = 12.0
-content_margin_top = 8.0
+content_margin_top = 6.0
 content_margin_right = 12.0
-content_margin_bottom = 8.0
+content_margin_bottom = 6.0
 bg_color = Color(0.08, 0.10, 0.14, 0.94)
 border_width_left = 2
 border_width_top = 2
@@ -72,7 +91,7 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 shadow_color = Color(0, 0, 0, 0.5)
-shadow_size = 8
+shadow_size = 6
 shadow_offset = Vector2(0, -2)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shop"]
@@ -86,8 +105,8 @@ corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-shadow_color = Color(0.95, 0.75, 0.15, 0.4)
-shadow_size = 5
+shadow_color = Color(0.95, 0.75, 0.15, 0.35)
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_market"]
 bg_color = Color(0.15, 0.45, 0.60, 1)
@@ -101,15 +120,33 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_infocard"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.09, 0.12, 0.17, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.70, 0.95, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 4
+
 [node name="MainGame" type="Node2D"]
 
 [node name="FarmGrid" type="Node2D" parent="."]
-position = Vector2(315, 62)
-scale = Vector2(0.68, 0.68)
+position = Vector2(346, 75)
+scale = Vector2(0.6, 0.6)
 script = ExtResource("1_farmgrid")
 
 [node name="Farmer" type="CharacterBody2D" parent="."]
-position = Vector2(500, 260)
+position = Vector2(490, 240)
 script = ExtResource("2_farmer")
 
 [node name="FarmerSprite" type="ColorRect" parent="Farmer"]
@@ -117,6 +154,7 @@ offset_left = -16.0
 offset_top = -16.0
 offset_right = 16.0
 offset_bottom = 16.0
+mouse_filter = 2
 color = Color(0.2, 0.6, 1, 1)
 
 [node name="FarmerLabel" type="Label" parent="Farmer"]
@@ -124,6 +162,7 @@ offset_left = -60.0
 offset_top = -36.0
 offset_right = 60.0
 offset_bottom = -13.0
+mouse_filter = 2
 text = "🧑‍🌾 Ready"
 horizontal_alignment = 1
 
@@ -147,10 +186,10 @@ mouse_filter = 2
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 10.0
+offset_left = 12.0
 offset_top = 6.0
-offset_right = -10.0
-offset_bottom = 54.0
+offset_right = -12.0
+offset_bottom = 50.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
@@ -159,11 +198,11 @@ layout_mode = 2
 
 [node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="LeftCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="RegionCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
 layout_mode = 2
@@ -172,7 +211,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 [node name="RegionLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule"]
 layout_mode = 2
 text = "📍 Cotabato Basin"
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 
 [node name="WeatherCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
 layout_mode = 2
@@ -180,7 +219,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 
 [node name="WeatherLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/WeatherCapsule"]
 layout_mode = 2
-text = "🌡️ 28°C | 💧 65%"
+text = "⛅ 28°C 💧 65%"
 theme_override_font_sizes/font_size = 12
 
 [node name="CenterCluster" type="VBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
@@ -191,12 +230,12 @@ alignment = 1
 [node name="ClockBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster"]
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="DayLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
 layout_mode = 2
 text = "📅 Day: 1"
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 
 [node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
 layout_mode = 2
@@ -204,32 +243,32 @@ layout_mode = 2
 [node name="TimeLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
 layout_mode = 2
 text = "⏰ 06:00"
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 
 [node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
 layout_mode = 2
 
 [node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 3
 
 [node name="PauseButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(36, 24)
+custom_minimum_size = Vector2(30, 22)
 layout_mode = 2
 text = "⏸"
 
 [node name="Speed1xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(36, 24)
+custom_minimum_size = Vector2(30, 22)
 layout_mode = 2
 text = "1x"
 
 [node name="Speed2xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(36, 24)
+custom_minimum_size = Vector2(30, 22)
 layout_mode = 2
 text = "2x"
 
 [node name="Speed3xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(36, 24)
+custom_minimum_size = Vector2(30, 22)
 layout_mode = 2
 text = "3x"
 
@@ -241,7 +280,7 @@ theme_override_font_sizes/font_size = 11
 
 [node name="RightCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="WorkerCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
 layout_mode = 2
@@ -249,12 +288,12 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 
 [node name="WorkerLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/WorkerCapsule"]
 layout_mode = 2
-text = "🧑‍🌾 1 / 1"
+text = "🧑‍🌾 1/1"
 theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 
 [node name="StorageCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(105, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
 
@@ -265,12 +304,12 @@ alignment = 1
 
 [node name="StorageLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
 layout_mode = 2
-text = "📦 0 / 1000 kg"
+text = "📦 0/1000"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 11
 
 [node name="StorageBar" type="ProgressBar" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
-custom_minimum_size = Vector2(0, 4)
+custom_minimum_size = Vector2(0, 3)
 layout_mode = 2
 show_percentage = false
 
@@ -282,7 +321,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_gold")
 layout_mode = 2
 text = "💰 ₱1,000"
 theme_override_colors/font_color = Color(1, 0.92, 0.35, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 
 [node name="TaskCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
 layout_mode = 2
@@ -293,208 +332,216 @@ layout_mode = 2
 text = "📋 0"
 theme_override_font_sizes/font_size = 12
 
+[node name="RegionHoverCard" type="PanelContainer" parent="HUDLayer/Control"]
+visible = false
+layout_mode = 0
+offset_left = 12.0
+offset_top = 54.0
+offset_right = 420.0
+offset_bottom = 310.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hovercard")
+
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/RegionHoverCard"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+layout_mode = 2
+text = "🗺️ Cotabato Basin"
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 13
+
+[node name="DescLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+layout_mode = 2
+text = "Regional description text"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+layout_mode = 2
+
+[node name="ProsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+layout_mode = 2
+text = "✔ PROS & ADVANTAGES"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ConsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+layout_mode = 2
+text = "⚠️ CONS & RISKS"
+autowrap_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+
 [node name="TileInfoPanel" type="PanelContainer" parent="HUDLayer/Control"]
 layout_mode = 0
 offset_left = 16.0
-offset_top = 585.0
-offset_right = 930.0
-offset_bottom = 712.0
+offset_top = 618.0
+offset_right = 620.0
+offset_bottom = 708.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_console")
 script = ExtResource("5_info")
 
 [node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="PortraitBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-custom_minimum_size = Vector2(180, 0)
+custom_minimum_size = Vector2(165, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="PortraitIcon" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
-custom_minimum_size = Vector2(56, 56)
+custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 size_flags_vertical = 4
 text = "🌱"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 28
 
 [node name="Meta" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 alignment = 1
-theme_override_constants/separation = 3
+theme_override_constants/separation = 2
 
 [node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
 layout_mode = 2
 text = "📍 Tile (0, 0)"
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 
 [node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
 layout_mode = 2
 text = "Uncultivated Soil"
 theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 
 [node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
 layout_mode = 2
 text = "Empty Grass"
 theme_override_colors/font_color = Color(0.7, 0.8, 0.7, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 
 [node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
 layout_mode = 2
 
 [node name="GaugesBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-custom_minimum_size = Vector2(240, 0)
+custom_minimum_size = Vector2(210, 0)
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 4
+theme_override_constants/separation = 3
 
 [node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(65, 0)
+custom_minimum_size = Vector2(55, 0)
 layout_mode = 2
 text = "Growth:"
 theme_override_font_sizes/font_size = 11
 
 [node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(110, 14)
+custom_minimum_size = Vector2(90, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 
 [node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(35, 0)
+custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 text = "0%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 
 [node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(65, 0)
+custom_minimum_size = Vector2(55, 0)
 layout_mode = 2
 text = "Health:"
 theme_override_font_sizes/font_size = 11
 
 [node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(110, 14)
+custom_minimum_size = Vector2(90, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 value = 100.0
 
 [node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(35, 0)
+custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 text = "100%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 
 [node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
 layout_mode = 2
 
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(65, 0)
+custom_minimum_size = Vector2(55, 0)
 layout_mode = 2
-text = "Moisture:"
+text = "Moist:"
 theme_override_font_sizes/font_size = 11
 
 [node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(110, 14)
+custom_minimum_size = Vector2(90, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 value = 60.0
 
 [node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(35, 0)
+custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 text = "60%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 10
 
 [node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
 layout_mode = 2
 
 [node name="StatusBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-custom_minimum_size = Vector2(170, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 alignment = 1
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
 layout_mode = 2
 text = "Quality: Grade A"
 theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 
 [node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
 layout_mode = 2
 text = "Pests: None (Healthy)"
 theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="VSeparator3" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-layout_mode = 2
-
-[node name="Actions" type="GridContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/h_separation = 6
-theme_override_constants/v_separation = 6
-columns = 3
-
-[node name="BtnPlow" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "⛏️ Plow"
-
-[node name="BtnPlant" type="MenuButton" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
-custom_minimum_size = Vector2(95, 32)
-layout_mode = 2
-text = "🌱 Plant ▾"
-flat = false
-
-[node name="BtnWater" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "💧 Water"
-
-[node name="BtnSpray" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
-custom_minimum_size = Vector2(90, 32)
-layout_mode = 2
-text = "🧪 Spray"
-
-[node name="BtnHarvest" type="Button" parent="HUDLayer/Control/TileInfoPanel/HBox/Actions"]
-custom_minimum_size = Vector2(95, 32)
-layout_mode = 2
-text = "🧺 Harvest"
+theme_override_font_sizes/font_size = 11
 
 [node name="CommandCorner" type="VBoxContainer" parent="HUDLayer/Control"]
 layout_mode = 0
 offset_left = 944.0
-offset_top = 585.0
+offset_top = 618.0
 offset_right = 1136.0
-offset_bottom = 712.0
-theme_override_constants/separation = 8
+offset_bottom = 708.0
+theme_override_constants/separation = 6
 alignment = 1
 
 [node name="MarketButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
-custom_minimum_size = Vector2(180, 48)
+custom_minimum_size = Vector2(180, 40)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/normal = SubResource("StyleBoxFlat_market")
 text = "📈 MARKET & TRADE"
 
 [node name="ShopButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
-custom_minimum_size = Vector2(180, 56)
+custom_minimum_size = Vector2(180, 42)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.12, 0.08, 0, 1)
@@ -510,9 +557,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -380.0
-offset_top = -240.0
+offset_top = -180.0
 offset_right = 380.0
-offset_bottom = 250.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("6_market")
@@ -610,66 +657,6 @@ text = "🚚 Ship & Sell Selected Batch"
 layout_mode = 2
 horizontal_alignment = 1
 
-[node name="HSeparator2" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox"]
-layout_mode = 2
-
-[node name="RegionSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="RegTitle" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
-layout_mode = 2
-text = "🗺️ Regional Profile: Cotabato Basin"
-theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 13
-
-[node name="RegDesc" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
-layout_mode = 2
-text = "Regional description"
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 11
-
-[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="ProsBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ProsHeader" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ProsBox"]
-layout_mode = 2
-text = "✔ REGIONAL ADVANTAGES (PROS):"
-theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="ProsText" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ProsBox"]
-layout_mode = 2
-text = "Pros text"
-autowrap_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
-layout_mode = 2
-
-[node name="ConsBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ConsHeader" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ConsBox"]
-layout_mode = 2
-text = "⚠️ REGIONAL CONS & HAZARDS:"
-theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="ConsText" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/RegionSection/HBox/ConsBox"]
-layout_mode = 2
-text = "Cons text"
-autowrap_mode = 2
-theme_override_colors/font_color = Color(1, 0.88, 0.85, 1)
-theme_override_font_sizes/font_size = 11
-
 [node name="ShopPanel" type="PanelContainer" parent="HUDLayer/Control"]
 visible = false
 layout_mode = 1
@@ -763,3 +750,36 @@ offset_top = 12.0
 offset_right = -12.0
 offset_bottom = -12.0
 theme_override_constants/separation = 10
+
+[node name="ItemInfoCard" type="PanelContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_infocard")
+
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TextVBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="InfoTitle" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox"]
+layout_mode = 2
+text = "Item Details"
+theme_override_colors/font_color = Color(0.35, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="InfoDesc" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox"]
+layout_mode = 2
+text = "Details will appear here."
+autowrap_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="InfoCloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+size_flags_vertical = 0
+text = "✕"

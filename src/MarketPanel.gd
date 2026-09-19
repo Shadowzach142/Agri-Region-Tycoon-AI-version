@@ -12,12 +12,6 @@ extends PanelContainer
 @onready var sell_btn: Button = $VBox/Content/LogisticsSection/SellBtn
 @onready var status_msg: Label = $VBox/Content/LogisticsSection/StatusMsg
 
-# Regional intelligence briefing
-@onready var reg_title: Label = $VBox/RegionSection/RegTitle
-@onready var reg_desc: Label = $VBox/RegionSection/RegDesc
-@onready var reg_pros: Label = $VBox/RegionSection/HBox/ProsBox/ProsText
-@onready var reg_cons: Label = $VBox/RegionSection/HBox/ConsBox/ConsText
-
 var hub_keys: Array = [
 	"local_biyahero",
 	"tacurong",
@@ -39,7 +33,6 @@ func _ready() -> void:
 	refresh_prices()
 	refresh_forecast()
 	refresh_inventory()
-	refresh_region_info()
 	_update_hub_details(0)
 
 func _setup_hubs() -> void:
@@ -76,26 +69,6 @@ func _update_hub_details(idx: int) -> void:
 		h_data.get("description", "")
 	]
 
-func refresh_region_info() -> void:
-	var r_data: Dictionary = Data.get_region(Data.current_region)
-	reg_title.text = "🗺️ Regional Profile: %s (%s)" % [
-		r_data.get("display_name", Data.current_region.capitalize()),
-		r_data.get("specialty", "")
-	]
-	reg_desc.text = r_data.get("description", "")
-
-	var pros_arr: Array = r_data.get("pros", [])
-	var pros_str: String = ""
-	for p in pros_arr:
-		pros_str += "  ✔  %s\n" % p
-	reg_pros.text = pros_str.strip_edges()
-
-	var cons_arr: Array = r_data.get("cons", [])
-	var cons_str: String = ""
-	for c in cons_arr:
-		cons_str += "  ⚠  %s\n" % c
-	reg_cons.text = cons_str.strip_edges()
-
 func refresh_prices() -> void:
 	for child in price_list.get_children():
 		child.queue_free()
@@ -121,9 +94,30 @@ func refresh_forecast() -> void:
 	for child in forecast_list.get_children():
 		child.queue_free()
 
+	var max_days: int = 1
+	var tech_status: String = "📻 Basic AM Radio (60% Accuracy)"
+	if BuildingManager.has_tech("iot_soil_sensor"):
+		max_days = 7
+		tech_status = "🛰️ Satellite IoT (100% Accuracy)"
+	elif BuildingManager.has_tech("aws_station"):
+		max_days = 3
+		tech_status = "📡 AWS Station (90% Accuracy)"
+	elif BuildingManager.has_tech("radio_tower"):
+		max_days = 1
+		tech_status = "📻 AM Radio Tower (60% Accuracy)"
+	else:
+		tech_status = "📻 Uncalibrated (Buy AM Radio in Shop)"
+
+	var header_lbl: Label = Label.new()
+	header_lbl.text = tech_status
+	header_lbl.add_theme_font_size_override("font_size", 10)
+	header_lbl.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+	forecast_list.add_child(header_lbl)
+
 	var forecast_data = WeatherManager.get_forecast()
-	for f in forecast_data:
-		var day_idx: int = f.get("day", 1)
+	for i in range(mini(max_days, forecast_data.size())):
+		var f = forecast_data[i]
+		var day_idx: int = f.get("day", i + 1)
 		var temp: float = f.get("temperature", 28.0)
 		var hum: float = f.get("humidity", 0.6) * 100.0
 		var hazard: String = f.get("hazard", "clear")

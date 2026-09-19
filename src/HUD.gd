@@ -1,10 +1,11 @@
 # HUD.gd
-# Main HUD controller: Modern Clash of Clans style top resource bar,
-# Warcraft 3 bottom command console, and bottom-right command corner.
+# Main HUD controller: Clean Clash of Clans top bar, hover region pros/cons card,
+# lightweight bottom-left tile inspector, and bottom-right command corner.
 
 extends CanvasLayer
 
-# Top Status Bar (COC & Warcraft 3 style)
+# Top Status Bar
+@onready var region_capsule: PanelContainer = $Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule
 @onready var region_label: Label = $Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule/RegionLabel
 @onready var weather_label: Label = $Control/TopBar/Margin/HBox/LeftCluster/WeatherCapsule/WeatherLabel
 
@@ -23,7 +24,14 @@ extends CanvasLayer
 @onready var cash_label: Label = $Control/TopBar/Margin/HBox/RightCluster/CashCapsule/CashLabel
 @onready var task_label: Label = $Control/TopBar/Margin/HBox/RightCluster/TaskCapsule/TaskLabel
 
-# Bottom-Right Command Corner (COC style)
+# Hover Region Pros & Cons Card
+@onready var region_hover_card: PanelContainer = $Control/RegionHoverCard
+@onready var hover_title: Label = $Control/RegionHoverCard/VBox/TitleLabel
+@onready var hover_desc: Label = $Control/RegionHoverCard/VBox/DescLabel
+@onready var hover_pros: Label = $Control/RegionHoverCard/VBox/ProsLabel
+@onready var hover_cons: Label = $Control/RegionHoverCard/VBox/ConsLabel
+
+# Bottom-Right Command Corner
 @onready var market_btn: Button = $Control/CommandCorner/MarketButton
 @onready var shop_btn: Button = $Control/CommandCorner/ShopButton
 
@@ -63,6 +71,11 @@ func _ready() -> void:
 	if shop_panel and shop_panel.has_signal("worker_spawn_requested"):
 		shop_panel.worker_spawn_requested.connect(_on_worker_spawn_requested)
 
+	# Region hover connections
+	if region_capsule:
+		region_capsule.mouse_entered.connect(_on_region_hover_entered)
+		region_capsule.mouse_exited.connect(_on_region_hover_exited)
+
 	# Initial values
 	_on_cash_changed(EconomyManager.cash)
 	_on_day_changed(TimeManager.current_day)
@@ -70,20 +83,53 @@ func _ready() -> void:
 	_on_weather_changed(WeatherManager.temperature, WeatherManager.humidity)
 	_refresh_storage_display()
 	_refresh_workers_display()
+	_update_region_display()
 
-	var reg_data = Data.get_region(Data.current_region)
-	region_label.text = "📍 " + reg_data.get("display_name", Data.current_region.capitalize())
 	disaster_label.text = ""
 	task_label.text = "📋 0"
 
 	market_panel.visible = false
 	shop_panel.visible = false
+	if region_hover_card:
+		region_hover_card.visible = false
 
 func _process(delta: float) -> void:
 	if _disaster_timer > 0.0:
 		_disaster_timer -= delta
 		if _disaster_timer <= 0.0:
 			disaster_label.text = ""
+
+func _update_region_display() -> void:
+	var reg_data = Data.get_region(Data.current_region)
+	# Extract short name (before parenthesis) for clean, compact top bar pill
+	var full_name: String = reg_data.get("display_name", Data.current_region.capitalize())
+	var short_name: String = full_name.split("(")[0].strip_edges()
+	region_label.text = "📍 " + short_name
+
+func _on_region_hover_entered() -> void:
+	if not region_hover_card:
+		return
+	var reg_data = Data.get_region(Data.current_region)
+	hover_title.text = "🗺️ %s" % reg_data.get("display_name", "")
+	hover_desc.text = "%s\nSpecialty: %s" % [reg_data.get("description", ""), reg_data.get("specialty", "")]
+
+	var pros_arr: Array = reg_data.get("pros", [])
+	var pros_str: String = "✔ PROS & ADVANTAGES:\n"
+	for p in pros_arr:
+		pros_str += "  • %s\n" % p
+	hover_pros.text = pros_str.strip_edges()
+
+	var cons_arr: Array = reg_data.get("cons", [])
+	var cons_str: String = "⚠️ CONS & RISKS:\n"
+	for c in cons_arr:
+		cons_str += "  • %s\n" % c
+	hover_cons.text = cons_str.strip_edges()
+
+	region_hover_card.visible = true
+
+func _on_region_hover_exited() -> void:
+	if region_hover_card:
+		region_hover_card.visible = false
 
 func _on_cash_changed(amount: int) -> void:
 	if cash_label:
@@ -103,11 +149,11 @@ func _on_hour_changed(hour: int) -> void:
 func _on_weather_changed(temp: float, hum: float) -> void:
 	var climate_str: String = ""
 	match WeatherManager.current_climate:
-		WeatherManager.Climate.EL_NINO: climate_str = " 🔥 [El Niño]"
-		WeatherManager.Climate.LA_NINA: climate_str = " 🌧️ [La Niña]"
-		WeatherManager.Climate.NORMAL: climate_str = " ⛅ [Normal]"
+		WeatherManager.Climate.EL_NINO: climate_str = " 🔥"
+		WeatherManager.Climate.LA_NINA: climate_str = " 🌧️"
+		WeatherManager.Climate.NORMAL: climate_str = " ⛅"
 	if weather_label:
-		weather_label.text = "🌡️ %.1f°C | 💧 %.0f%%%s" % [temp, hum * 100.0, climate_str]
+		weather_label.text = "%s %.0f°C 💧 %.0f%%" % [climate_str, temp, hum * 100.0]
 
 func _refresh_storage_display() -> void:
 	var total_stored: int = 0
@@ -115,13 +161,13 @@ func _refresh_storage_display() -> void:
 		total_stored += int(b.get("quantity", 0))
 	var capacity: int = max(BuildingManager.total_storage_capacity, 1000)
 	if storage_label:
-		storage_label.text = "📦 %d / %d kg" % [total_stored, capacity]
+		storage_label.text = "📦 %d/%d" % [total_stored, capacity]
 	if storage_bar:
 		storage_bar.value = float(total_stored) / float(capacity) * 100.0
 
 func _refresh_workers_display() -> void:
 	if worker_label:
-		worker_label.text = "🧑‍🌾 %d / %d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
+		worker_label.text = "🧑‍🌾 %d/%d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
 
 func _on_disaster_warning(hazard_type: String) -> void:
 	if disaster_label:
@@ -155,6 +201,7 @@ func _on_worker_spawn_requested() -> void:
 	sprite.offset_top = -16.0
 	sprite.offset_right = 16.0
 	sprite.offset_bottom = 16.0
+	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite.color = Color(0.35, 0.70, 0.95, 1.0)
 	farmer.add_child(sprite)
 
@@ -164,6 +211,7 @@ func _on_worker_spawn_requested() -> void:
 	label.offset_top = -36.0
 	label.offset_right = 60.0
 	label.offset_bottom = -13.0
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.text = "🧑‍🌾 Ready"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	farmer.add_child(label)

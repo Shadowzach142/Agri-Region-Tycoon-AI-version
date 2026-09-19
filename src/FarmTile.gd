@@ -19,6 +19,8 @@ var yield_quantity: int = 100
 var freshness: float = 100.0
 var days_without_water: int = 0
 var days_overwatered: int = 0
+var hours_waterlogged: int = 0
+var soil_fertility: float = 1.0
 var pest_type: String = ""
 
 func reset() -> void:
@@ -31,4 +33,6 @@ func reset() -> void:
 	freshness = 100.0
 	days_without_water = 0
 	days_overwatered = 0
+	hours_waterlogged = 0
 	pest_type = ""
+

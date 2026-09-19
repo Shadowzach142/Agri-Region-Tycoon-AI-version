@@ -121,25 +121,27 @@ const CROPS = {
 		"display_name": "Palay (Rice)",
 		"icon": "🌾",
 		"growth_days": 30,
-		"water_min": 40,
-		"water_max": 80,
+		"water_min": 70,
+		"water_max": 90,
 		"heat_min": 20,
 		"heat_max": 35,
 		"base_price": 100,
 		"pests": ["kuhol", "rice_black_bug"],
 		"seed_cost": 25,
+		"description": "Thrives in wetland paddies (70-90% moisture). Halts growth if moisture < 30%. Waterlogging (>95% for 12+ hrs) causes destructive rot!",
 	},
 	"yellow_corn": {
 		"display_name": "Yellow Corn",
 		"icon": "🌽",
 		"growth_days": 45,
-		"water_min": 45,
-		"water_max": 85,
+		"water_min": 30,
+		"water_max": 60,
 		"heat_min": 22,
-		"heat_max": 38,
+		"heat_max": 45,
 		"base_price": 120,
 		"pests": ["armyworm"],
 		"seed_cost": 30,
+		"description": "Hardy cereal crop requiring moderate moisture (30-60%). Resilient against extreme heat up to 45°C.",
 	},
 	"arabica_coffee": {
 		"display_name": "Arabica Coffee",
@@ -152,6 +154,7 @@ const CROPS = {
 		"base_price": 200,
 		"pests": ["kuhol", "fusarium_wilt"],
 		"seed_cost": 50,
+		"description": "High-margin specialty crop with long 60-day maturation. Extremely sensitive to flooding—paddy floods permanently kill coffee trees!",
 	},
 	"banana": {
 		"display_name": "Cavendish Banana",
@@ -164,6 +167,7 @@ const CROPS = {
 		"base_price": 90,
 		"pests": ["fusarium_wilt"],
 		"seed_cost": 35,
+		"description": "Tropical export perennial. Vulnerable to fungal Fusarium Wilt (Panama Disease) in high humidity.",
 	},
 	"coconut": {
 		"display_name": "Coconut Palm",
@@ -176,6 +180,7 @@ const CROPS = {
 		"base_price": 80,
 		"pests": ["armyworm"],
 		"seed_cost": 40,
+		"description": "Drought-hardy perennial crop suited for coastal soils. Longest lifecycle with consistent yields.",
 	},
 }
 
@@ -183,27 +188,31 @@ const CROPS = {
 const PESTS = {
 	"kuhol": {
 		"display_name": "Golden Apple Snail (Kuhol)",
-		"spawn_trigger": {"soil_moisture_below": 30},
-		"spread_rate": 0.2,  # chance per day
+		"spawn_trigger": {"soil_moisture_above": 80},
+		"spread_rate": 0.20,
 		"treatment_cost": 30,
+		"description": "Spawns in oversaturated wet paddies (>80% moisture). Feeds aggressively on young rice shoots.",
 	},
 	"armyworm": {
 		"display_name": "Fall Armyworm",
-		"spawn_trigger": {"crop_density_above": 3},
-		"spread_rate": 0.3,
+		"spawn_trigger": {"soil_moisture_below": 35},
+		"spread_rate": 0.30,
 		"treatment_cost": 40,
+		"description": "Outbreaks during arid dry spells (<35% moisture). Rapidly strips corn and grain foliage.",
 	},
 	"rice_black_bug": {
 		"display_name": "Rice Black Bug",
-		"spawn_trigger": {"soil_moisture_above": 85},
+		"spawn_trigger": {"full_moon": true},
 		"spread_rate": 0.15,
 		"treatment_cost": 35,
+		"description": "Attracted by lunar illumination during full moon cycles. Sucks sap from rice stems causing bugburn.",
 	},
 	"fusarium_wilt": {
 		"display_name": "Fusarium Wilt (Panama Disease)",
 		"spawn_trigger": {"heat_index_above": 32},
 		"spread_rate": 0.10,
 		"treatment_cost": 60,
+		"description": "Soil-borne fungal pathogen triggered by high heat (>32°C). Permanently impairs crop quality.",
 	},
 }
 
@@ -255,6 +264,7 @@ const BUILDINGS = {
 		"cost": 200,
 		"storage_limit": 0,
 		"worker_capacity": 1,
+		"description": "Expands farm housing by +1 worker capacity, allowing you to hire more autonomous farm laborers.",
 	},
 	"bodega": {
 		"display_name": "Grain Bodega",
@@ -262,6 +272,7 @@ const BUILDINGS = {
 		"cost": 500,
 		"storage_limit": 1000,
 		"halts_spoilage": false,
+		"description": "Basic warehouse providing 1,000 units of crop storage. Produce in basic bodega spoils at 5% freshness per hour.",
 	},
 	"cold_storage": {
 		"display_name": "Cold Storage Facility",
@@ -269,13 +280,15 @@ const BUILDINGS = {
 		"cost": 800,
 		"storage_limit": 2000,
 		"halts_spoilage": true,
+		"description": "Industrial refrigeration with 2,000 units of storage. Completely halts warehouse spoilage and protects against transit road rot!",
 	},
 	"solar_dryer": {
 		"display_name": "Solar Dryer (Bilaran)",
 		"grid_size": Vector2i(2, 2),
 		"cost": 300,
 		"storage_limit": 0,
-		"drying_bonus": 0.05,
+		"drying_bonus": 0.25,
+		"description": "Traditional concrete sun-drying pavement. Boosts harvested grain quality and market selling value by +25%!",
 	},
 	"machine_garage": {
 		"display_name": "Machine Garage",
@@ -283,6 +296,7 @@ const BUILDINGS = {
 		"cost": 600,
 		"storage_limit": 0,
 		"unlocks_machines": true,
+		"description": "Mechanized maintenance depot required for parking heavy tractors and combine harvesters.",
 	},
 	"climate_silo": {
 		"display_name": "Climate-Controlled Silo",
@@ -290,6 +304,7 @@ const BUILDINGS = {
 		"cost": 1200,
 		"storage_limit": 5000,
 		"halts_spoilage": true,
+		"description": "High-tech airtight grain silo with 5,000 storage capacity. Eliminates moisture rot and maintains 100% grain freshness.",
 	},
 }
 
@@ -300,36 +315,42 @@ const TECH = {
 		"forecast_days": 1,
 		"accuracy": 0.60,
 		"cost": 300,
+		"description": "Unlocks 1-day weather forecasts with 60% accuracy. Gives early warning for sudden rain or drought.",
 	},
 	"aws_station": {
 		"display_name": "Automated Weather Station (Tier 2)",
 		"forecast_days": 3,
 		"accuracy": 0.90,
 		"cost": 750,
+		"description": "Upgrades radar to 3-day forecasts with 90% accuracy. Allows precision irrigation scheduling.",
 	},
 	"iot_soil_sensor": {
 		"display_name": "Satellite / IoT Sensor Net (Tier 3)",
 		"forecast_days": 7,
 		"accuracy": 1.00,
 		"cost": 1500,
+		"description": "Provides comprehensive 7-day forecasts with 100% accuracy and enables automated smart irrigation.",
 	},
 	"kuliglig": {
 		"display_name": "Kuliglig Hand-Tractor",
 		"type": "machine",
 		"work_speed_multiplier": 2.0,
 		"cost": 800,
+		"description": "Motorized two-wheel hand tractor. Multiplies worker travel and plowing speed by 2x.",
 	},
 	"combine_harvester": {
 		"display_name": "Combine Harvester",
 		"type": "machine",
 		"work_speed_multiplier": 5.0,
 		"cost": 3000,
+		"description": "Heavy industrial harvesting machine. Speeds up crop harvesting and processing by 5x.",
 	},
 	"drip_irrigation": {
 		"display_name": "Sensor-Linked Drip Irrigation",
 		"type": "automation",
 		"auto_water": true,
 		"cost": 1500,
+		"description": "Automated moisture regulation that automatically irrigates thirsty planted tiles every hour.",
 	},
 }
 

@@ -28,9 +28,19 @@ const COLOR_HARVESTABLE: Color = Color(0.88, 0.72, 0.15, 1.0) # Ripe golden yell
 const COLOR_FLOODED: Color = Color(0.15, 0.40, 0.70, 1.0)     # Rot / flood water
 const COLOR_INFECTED: Color = Color(0.75, 0.20, 0.20, 1.0)    # Pest danger red
 
-# Selection Highlight
+# Selection Highlight (single tile)
 var selected_tile_pos: Vector2i = Vector2i(-1, -1)
 var selection_indicator: Node2D = null
+
+# Drag-select (marquee box) state
+var is_box_dragging: bool = false
+var drag_start_pos: Vector2 = Vector2.ZERO
+var drag_current_pos: Vector2 = Vector2.ZERO
+var drag_button_index: int = -1
+const DRAG_THRESHOLD: float = 8.0
+
+# Multi-tile selection
+var selected_tiles: Array[Vector2i] = []
 
 @onready var action_popup: PopupMenu = get_node_or_null("../TileActionPopup")
 
@@ -47,6 +57,8 @@ func _ready() -> void:
 
 	if action_popup and action_popup.has_signal("action_selected"):
 		action_popup.action_selected.connect(_on_action_popup_selected)
+	if action_popup and action_popup.has_signal("batch_action_selected"):
+		action_popup.batch_action_selected.connect(_on_batch_action_selected)
 
 	var info_panel = get_node_or_null("../HUDLayer/Control/TileInfoPanel")
 	if info_panel and info_panel.has_method("inspect_tile"):
@@ -70,6 +82,7 @@ func _create_selection_indicator() -> void:
 	top.size = Vector2(TILE_PIXEL_SIZE, 3)
 	top.position = Vector2.ZERO
 	top.color = highlight_color
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_indicator.add_child(top)
 
 	# Bottom border bar (thickness 3)
@@ -77,6 +90,7 @@ func _create_selection_indicator() -> void:
 	btm.size = Vector2(TILE_PIXEL_SIZE, 3)
 	btm.position = Vector2(0, TILE_PIXEL_SIZE - 3)
 	btm.color = highlight_color
+	btm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_indicator.add_child(btm)
 
 	# Left border bar (thickness 3)
@@ -84,6 +98,7 @@ func _create_selection_indicator() -> void:
 	left.size = Vector2(3, TILE_PIXEL_SIZE)
 	left.position = Vector2.ZERO
 	left.color = highlight_color
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_indicator.add_child(left)
 
 	# Right border bar (thickness 3)
@@ -91,6 +106,7 @@ func _create_selection_indicator() -> void:
 	right.size = Vector2(3, TILE_PIXEL_SIZE)
 	right.position = Vector2(TILE_PIXEL_SIZE - 3, 0)
 	right.color = highlight_color
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_indicator.add_child(right)
 
 	# Soft translucent golden glow fill
@@ -98,6 +114,7 @@ func _create_selection_indicator() -> void:
 	fill.size = Vector2(TILE_PIXEL_SIZE - 6, TILE_PIXEL_SIZE - 6)
 	fill.position = Vector2(3, 3)
 	fill.color = Color(1.0, 0.95, 0.3, 0.22)
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_indicator.add_child(fill)
 
 func select_tile(pos: Vector2i) -> void:
@@ -146,6 +163,7 @@ func _create_grid() -> void:
 			border.color = COLOR_BORDER
 			border.size = Vector2(TILE_PIXEL_SIZE, TILE_PIXEL_SIZE)
 			border.position = Vector2.ZERO
+			border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(border)
 
 			# 2. Inset fill (60x60) leaving clean 2px border
@@ -153,6 +171,7 @@ func _create_grid() -> void:
 			fill.color = COLOR_EMPTY
 			fill.size = Vector2(TILE_PIXEL_SIZE - TILE_BORDER_SIZE * 2, TILE_PIXEL_SIZE - TILE_BORDER_SIZE * 2)
 			fill.position = Vector2(TILE_BORDER_SIZE, TILE_BORDER_SIZE)
+			fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(fill)
 			tile_fills[x].append(fill)
 
@@ -167,6 +186,7 @@ func _create_grid() -> void:
 			dot.size = Vector2(10, 10)
 			dot.position = Vector2(TILE_PIXEL_SIZE - 14, 4)
 			dot.color = Color.TRANSPARENT
+			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(dot)
 			tile_dots[x].append(dot)
 
@@ -178,35 +198,128 @@ func _create_grid() -> void:
 			lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			lbl.add_theme_font_size_override("font_size", 18)
 			lbl.text = ""
+			lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(lbl)
 			tile_labels[x].append(lbl)
 
 	_update_visuals()
 
 # ---------------------------------------------------------------------------
-# Mouse Input Handling
+# Mouse Input Handling  (marquee drag-select + single tile click)
 # ---------------------------------------------------------------------------
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
+	# --- Mouse Button Press: start drag tracking ---
 	if event is InputEventMouseButton and event.pressed:
-		var local_pos: Vector2 = to_local(event.position)
-		var gx: int = int(local_pos.x / TILE_PIXEL_SIZE)
-		var gy: int = int(local_pos.y / TILE_PIXEL_SIZE)
+		var button: int = (event as InputEventMouseButton).button_index
+		if button == MOUSE_BUTTON_LEFT or button == MOUSE_BUTTON_RIGHT:
+			var local_pos: Vector2 = get_local_mouse_position()
+			is_box_dragging = true
+			drag_start_pos = local_pos
+			drag_current_pos = local_pos
+			drag_button_index = button
+			get_viewport().set_input_as_handled()
+		return
 
-		if not _is_valid_pos(Vector2i(gx, gy)):
+	# --- Mouse Motion: update drag rectangle in real time ---
+	if event is InputEventMouseMotion and is_box_dragging:
+		drag_current_pos = get_local_mouse_position()
+		queue_redraw()
+		get_viewport().set_input_as_handled()
+		return
+
+	# --- Mouse Button Release: commit selection or single-click ---
+	if event is InputEventMouseButton and not event.pressed:
+		var button: int = (event as InputEventMouseButton).button_index
+		if not is_box_dragging or button != drag_button_index:
 			return
 
-		var tile_pos: Vector2i = Vector2i(gx, gy)
-		var tile: FarmTile = tiles[gx][gy]
+		var release_pos: Vector2 = get_local_mouse_position()
+		var drag_distance: float = release_pos.distance_to(drag_start_pos)
 
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			# Left-Click: Highlight this specific tile and display its stats in the inspector panel
-			select_tile(tile_pos)
+		is_box_dragging = false
+		queue_redraw()
 
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			# Right-Click: Highlight this tile and open context Action Popup menu at cursor
-			select_tile(tile_pos)
-			if action_popup:
-				action_popup.open_for_tile(event.position, tile_pos, tile)
+		if drag_distance > DRAG_THRESHOLD:
+			# === DRAG RELEASE: Marquee multi-select ===
+			var new_tiles: Array[Vector2i] = _get_drag_rect_tiles(drag_start_pos, release_pos)
+			if new_tiles.size() > 0:
+				selected_tiles = new_tiles
+				# Keep single selection indicator hidden during multi-select
+				if selection_indicator:
+					selection_indicator.visible = false
+				queue_redraw()
+
+				if button == MOUSE_BUTTON_RIGHT and action_popup:
+					action_popup.open_for_batch(
+						event.global_position,
+						selected_tiles,
+						tiles
+					)
+		else:
+			# === SINGLE CLICK ===
+			var local_pos: Vector2 = drag_start_pos
+			var gx: int = int(floor(local_pos.x / float(TILE_PIXEL_SIZE)))
+			var gy: int = int(floor(local_pos.y / float(TILE_PIXEL_SIZE)))
+
+			if not _is_valid_pos(Vector2i(gx, gy)):
+				return
+
+			var tile_pos: Vector2i = Vector2i(gx, gy)
+			var tile: FarmTile = tiles[gx][gy]
+
+			# Clear multi-selection when clicking a single tile
+			selected_tiles.clear()
+			queue_redraw()
+
+			if button == MOUSE_BUTTON_LEFT:
+				select_tile(tile_pos)
+
+			elif button == MOUSE_BUTTON_RIGHT:
+				select_tile(tile_pos)
+				if action_popup:
+					action_popup.open_for_tile(event.global_position, tile_pos, tile)
+
+		get_viewport().set_input_as_handled()
+
+# ---------------------------------------------------------------------------
+# Draw: Marquee Drag Box + Multi-selection Highlight Overlays
+# ---------------------------------------------------------------------------
+func _draw() -> void:
+	# 1) Draw active drag rectangle
+	if is_box_dragging:
+		var rect: Rect2 = Rect2(drag_start_pos, drag_current_pos - drag_start_pos).abs()
+		draw_rect(rect, Color(0.20, 0.85, 0.35, 0.18), true)
+		draw_rect(rect, Color(0.35, 1.0, 0.45, 0.95), false, 2.0)
+
+	# 2) Draw golden highlight boxes over selected tiles (multi-select only)
+	if selected_tiles.size() > 0:
+		for sel_pos in selected_tiles:
+			var tile_rect: Rect2 = Rect2(
+				Vector2(sel_pos.x, sel_pos.y) * TILE_PIXEL_SIZE,
+				Vector2(TILE_PIXEL_SIZE, TILE_PIXEL_SIZE)
+			)
+			draw_rect(tile_rect, Color(1.0, 0.85, 0.15, 0.22), true)
+			draw_rect(tile_rect, Color(1.0, 0.90, 0.20, 0.90), false, 2.5)
+
+# Returns all valid grid positions contained in the rectangle between two local points
+func _get_drag_rect_tiles(a: Vector2, b: Vector2) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var min_x: float = min(a.x, b.x)
+	var max_x: float = max(a.x, b.x)
+	var min_y: float = min(a.y, b.y)
+	var max_y: float = max(a.y, b.y)
+
+	var gx_min: int = int(floor(min_x / float(TILE_PIXEL_SIZE)))
+	var gx_max: int = int(floor(max_x / float(TILE_PIXEL_SIZE)))
+	var gy_min: int = int(floor(min_y / float(TILE_PIXEL_SIZE)))
+	var gy_max: int = int(floor(max_y / float(TILE_PIXEL_SIZE)))
+
+	for gx in range(gx_min, gx_max + 1):
+		for gy in range(gy_min, gy_max + 1):
+			var pos: Vector2i = Vector2i(gx, gy)
+			if _is_valid_pos(pos):
+				result.append(pos)
+	return result
 
 func _handle_fast_right_click(tile_pos: Vector2i, tile: FarmTile) -> void:
 	var task: Dictionary = {}
@@ -238,6 +351,20 @@ func _on_action_popup_selected(action_type: String, tile_pos: Vector2i, extra: D
 		task[key] = extra[key]
 	TaskManager.add_task(task)
 	task_queued.emit(task)
+
+## Batch action handler: queues a task for every eligible tile in the selection
+func _on_batch_action_selected(action_type: String, target_tiles: Array, extra: Dictionary) -> void:
+	for pos in target_tiles:
+		if not _is_valid_pos(pos):
+			continue
+		# Skip duplicate tasks already in the queue for this position+type
+		if TaskManager.has_task_at(pos, action_type):
+			continue
+		var task: Dictionary = {"type": action_type, "position": pos}
+		for key in extra.keys():
+			task[key] = extra[key]
+		TaskManager.add_task(task)
+		task_queued.emit(task)
 
 # ---------------------------------------------------------------------------
 # Core Farm Actions (Executed by Farmer Worker)
@@ -290,7 +417,7 @@ func spray_pest(pos: Vector2i, method: String) -> void:
 	if not _is_valid_pos(pos):
 		return
 	var tile: FarmTile = tiles[pos.x][pos.y]
-	if tile.pest_type == "":
+	if tile.state == FarmTile.TileState.EMPTY or tile.state == FarmTile.TileState.FLOODED:
 		return
 
 	var cost: int = 30 if method == "chemical" else 45
@@ -299,13 +426,14 @@ func spray_pest(pos: Vector2i, method: String) -> void:
 
 	match method:
 		"chemical":
-			# Immediate, permanently caps quality at Grade B, minor fertility loss
+			# Immediate, permanently caps quality at Grade B, degrades soil fertility 10%
 			tile.pest_type = ""
 			if tile.quality == FarmTile.QualityGrade.A:
 				tile.quality = FarmTile.QualityGrade.B
+			tile.soil_fertility = maxf(tile.soil_fertility - 0.10, 0.4)
 			tile.soil_moisture = maxf(tile.soil_moisture - 10.0, 0.0)
 		"biological":
-			# Cleans organically and preserves Grade A
+			# Cleans organically and preserves Grade A Organic status and soil fertility
 			tile.pest_type = ""
 		_:
 			tile.pest_type = ""
@@ -348,14 +476,37 @@ func _on_day_changed(_day: int) -> void:
 	_update_visuals()
 
 func _on_hour_changed(_hour: int) -> void:
-	# Hourly evaporation (accelerated during El Nino)
-	var evap: float = 0.2
+	# Hourly evaporation (3x accelerated during El Nino: 1.5/hr vs 0.5/hr baseline)
+	var evap: float = 0.5
 	if WeatherManager.current_climate == WeatherManager.Climate.EL_NINO:
-		evap = 0.5
+		evap = 1.5
+	
+	var has_drip: bool = BuildingManager.has_tech("drip_irrigation")
+
 	for x in range(GRID_SIZE.x):
 		for y in range(GRID_SIZE.y):
 			var tile: FarmTile = tiles[x][y]
 			tile.soil_moisture = maxf(tile.soil_moisture - evap, 0.0)
+
+			# Automated Smart Drip Irrigation: maintains moisture within safe crop thresholds
+			if has_drip and (tile.state == FarmTile.TileState.PLANTED or tile.state == FarmTile.TileState.GROWING):
+				var c_info: Dictionary = Data.get_crop(tile.crop_type)
+				var req_min: float = float(c_info.get("water_min", 40))
+				if tile.soil_moisture < req_min:
+					tile.soil_moisture = req_min + 5.0
+
+			# Palay 12-hour waterlogging check (>95% moisture)
+			if tile.crop_type == "palay" and tile.soil_moisture > 95.0:
+				tile.hours_waterlogged += 1
+				if tile.hours_waterlogged >= 12:
+					tile.state = FarmTile.TileState.FLOODED
+					tile.growth_progress = 0.0
+					tile.yield_quantity = int(tile.yield_quantity * 0.3)
+					tile.quality = FarmTile.QualityGrade.C
+					tile.health = 0.2
+			else:
+				tile.hours_waterlogged = 0
+
 	_update_visuals()
 
 func _process_crop_day(tile: FarmTile, _pos: Vector2i) -> void:
@@ -363,8 +514,16 @@ func _process_crop_day(tile: FarmTile, _pos: Vector2i) -> void:
 	if crop_data.is_empty():
 		return
 
+	# Agronomy Rule: Palay halts growth if soil moisture < 30%
+	var is_halted: bool = false
+	if tile.crop_type == "palay" and tile.soil_moisture < 30.0:
+		is_halted = true
+
 	var growth_days: float = float(crop_data.get("growth_days", 30))
-	tile.growth_progress = clampf(tile.growth_progress + (1.0 / growth_days), 0.0, 1.0)
+	if not is_halted:
+		# Soil fertility scales daily growth rate
+		var growth_delta: float = (1.0 / growth_days) * tile.soil_fertility
+		tile.growth_progress = clampf(tile.growth_progress + growth_delta, 0.0, 1.0)
 
 	if tile.growth_progress >= 1.0:
 		tile.state = FarmTile.TileState.HARVESTABLE
@@ -388,10 +547,17 @@ func _apply_climate_effects(tile: FarmTile, crop_data: Dictionary) -> void:
 	var water_min: float = float(crop_data.get("water_min", 40))
 	var water_max: float = float(crop_data.get("water_max", 80))
 
+	# Agronomy Rule: Arabica Coffee flooded tiles permanently kill trees!
+	if tile.crop_type == "arabica_coffee" and (tile.soil_moisture >= 90.0 or tile.state == FarmTile.TileState.FLOODED):
+		tile.reset()
+		return
+
 	match wm.current_climate:
 		WeatherManager.Climate.EL_NINO:
 			tile.soil_moisture = maxf(tile.soil_moisture - 15.0, 0.0)
-			if tile.soil_moisture < water_min:
+			# Yellow Corn resists high temps up to 45°C
+			var heat_resilient: bool = (tile.crop_type == "yellow_corn" and wm.temperature <= 45.0)
+			if tile.soil_moisture < water_min and not heat_resilient:
 				tile.days_without_water += 1
 				tile.health = maxf(tile.health - 0.20, 0.0)
 				if tile.health < 0.4:
@@ -491,6 +657,14 @@ func _update_tile_visual(pos: Vector2i) -> void:
 	else:
 		dot.color = Color.TRANSPARENT
 
+func _create_overlay_rect(r_size: Vector2, r_pos: Vector2, r_color: Color) -> ColorRect:
+	var r: ColorRect = ColorRect.new()
+	r.size = r_size
+	r.position = r_pos
+	r.color = r_color
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
 func _render_tile_texture(pos: Vector2i, tile: FarmTile) -> void:
 	var overlay: Node2D = tile_overlays[pos.x][pos.y]
 	for c in overlay.get_children():
@@ -501,73 +675,34 @@ func _render_tile_texture(pos: Vector2i, tile: FarmTile) -> void:
 			# Stippled grass blade specks
 			var speck_offsets = [Vector2(12, 14), Vector2(42, 18), Vector2(20, 42), Vector2(46, 44), Vector2(28, 24)]
 			for i in range(speck_offsets.size()):
-				var speck = ColorRect.new()
-				speck.size = Vector2(4, 4)
-				speck.position = speck_offsets[i]
-				speck.color = Color(0.44, 0.72, 0.32, 0.7) if (i % 2 == 0) else Color(0.20, 0.38, 0.14, 0.7)
-				overlay.add_child(speck)
+				var c_col = Color(0.44, 0.72, 0.32, 0.7) if (i % 2 == 0) else Color(0.20, 0.38, 0.14, 0.7)
+				overlay.add_child(_create_overlay_rect(Vector2(4, 4), speck_offsets[i], c_col))
 
 		FarmTile.TileState.PLOWED:
 			# 4 horizontal soil furrow ridges (shadow trench + highlight ridge)
 			for i in range(4):
 				var y_pos = 6 + i * 14
-				var shadow = ColorRect.new()
-				shadow.size = Vector2(56, 3)
-				shadow.position = Vector2(4, y_pos)
-				shadow.color = Color(0.22, 0.12, 0.05, 0.75)
-				overlay.add_child(shadow)
-
-				var ridge = ColorRect.new()
-				ridge.size = Vector2(56, 3)
-				ridge.position = Vector2(4, y_pos + 3)
-				ridge.color = Color(0.55, 0.36, 0.20, 0.75)
-				overlay.add_child(ridge)
+				overlay.add_child(_create_overlay_rect(Vector2(56, 3), Vector2(4, y_pos), Color(0.22, 0.12, 0.05, 0.75)))
+				overlay.add_child(_create_overlay_rect(Vector2(56, 3), Vector2(4, y_pos + 3), Color(0.55, 0.36, 0.20, 0.75)))
 
 		FarmTile.TileState.FLOODED:
 			# Waterlogged ripples & dark rot sludge
-			var ripple1 = ColorRect.new()
-			ripple1.size = Vector2(46, 3)
-			ripple1.position = Vector2(8, 16)
-			ripple1.color = Color(0.40, 0.70, 0.95, 0.6)
-			overlay.add_child(ripple1)
-
-			var ripple2 = ColorRect.new()
-			ripple2.size = Vector2(40, 3)
-			ripple2.position = Vector2(12, 42)
-			ripple2.color = Color(0.40, 0.70, 0.95, 0.6)
-			overlay.add_child(ripple2)
-
-			# Decomposed rotting crop patch
-			var rot = ColorRect.new()
-			rot.size = Vector2(20, 14)
-			rot.position = Vector2(22, 24)
-			rot.color = Color(0.14, 0.09, 0.04, 0.9)
-			overlay.add_child(rot)
+			overlay.add_child(_create_overlay_rect(Vector2(46, 3), Vector2(8, 16), Color(0.40, 0.70, 0.95, 0.6)))
+			overlay.add_child(_create_overlay_rect(Vector2(40, 3), Vector2(12, 42), Color(0.40, 0.70, 0.95, 0.6)))
+			overlay.add_child(_create_overlay_rect(Vector2(20, 14), Vector2(22, 24), Color(0.14, 0.09, 0.04, 0.9)))
 
 		FarmTile.TileState.PLANTED:
 			# Raised seedbed mound
-			var mound = ColorRect.new()
-			mound.size = Vector2(34, 10)
-			mound.position = Vector2(15, 38)
-			mound.color = Color(0.30, 0.18, 0.08, 0.85)
-			overlay.add_child(mound)
+			overlay.add_child(_create_overlay_rect(Vector2(34, 10), Vector2(15, 38), Color(0.30, 0.18, 0.08, 0.85)))
 
 		FarmTile.TileState.GROWING:
 			# Foliage growth bar
 			var f_width = clampf(tile.growth_progress * 46.0, 10.0, 46.0)
-			var foliage = ColorRect.new()
-			foliage.size = Vector2(f_width, 4)
-			foliage.position = Vector2(32 - f_width / 2.0, 50)
-			foliage.color = Color(0.25, 0.80, 0.30, 0.85)
-			overlay.add_child(foliage)
+			overlay.add_child(_create_overlay_rect(Vector2(f_width, 4), Vector2(32 - f_width / 2.0, 50), Color(0.25, 0.80, 0.30, 0.85)))
 
 		FarmTile.TileState.HARVESTABLE:
 			# Golden ripe accent
-			var gold_bar = ColorRect.new()
-			gold_bar.size = Vector2(52, 4)
-			gold_bar.position = Vector2(6, 50)
-			gold_bar.color = Color(1.0, 0.90, 0.20, 0.95)
-			overlay.add_child(gold_bar)
+			overlay.add_child(_create_overlay_rect(Vector2(52, 4), Vector2(6, 50), Color(1.0, 0.90, 0.20, 0.95)))
 
 func _is_valid_pos(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < GRID_SIZE.x and pos.y >= 0 and pos.y < GRID_SIZE.y
