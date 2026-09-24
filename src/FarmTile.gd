@@ -4,7 +4,7 @@
 class_name FarmTile
 extends Resource
 
-enum TileState {EMPTY, PLOWED, PLANTED, GROWING, HARVESTABLE, INFECTED, FLOODED}
+enum TileState {EMPTY, PLOWED, PLANTED, GROWING, HARVESTABLE, INFECTED, FLOODED, OBSTACLE, BUILDING}
 enum QualityGrade {A, B, C}
 
 # Basic properties
@@ -12,6 +12,8 @@ var state: int = TileState.EMPTY
 var soil_moisture: float = 50.0  # 0 - 100%
 var heat_index: float = 28.0     # Celsius
 var crop_type: String = ""
+var obstacle_type: String = ""   # "tree", "pine", "trunk", "rock" (COC obstacle)
+var building_ref: Node = null    # Reference to building occupying this tile
 var growth_progress: float = 0.0  # 0.0 - 1.0
 var health: float = 1.0           # 0.0 - 1.0
 var quality: int = QualityGrade.A
@@ -24,15 +26,17 @@ var soil_fertility: float = 1.0
 var pest_type: String = ""
 
 func reset() -> void:
-	state = TileState.EMPTY
-	crop_type = ""
-	growth_progress = 0.0
-	health = 1.0
-	quality = QualityGrade.A
-	yield_quantity = 100
-	freshness = 100.0
+	state            = TileState.EMPTY
+	crop_type        = ""
+	obstacle_type    = ""
+	building_ref     = null
+	growth_progress  = 0.0
+	health           = 1.0
+	quality          = QualityGrade.A
+	yield_quantity   = 100
+	freshness        = 100.0
 	days_without_water = 0
 	days_overwatered = 0
 	hours_waterlogged = 0
-	pest_type = ""
-
+	soil_fertility   = 1.0
+	pest_type        = ""

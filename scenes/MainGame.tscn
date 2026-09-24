@@ -1,5 +1,6 @@
-[gd_scene load_steps=16 format=3 uid="uid://maingameplay"]
+[gd_scene load_steps=18 format=3 uid="uid://maingameplay"]
 
+[ext_resource type="Script" path="res://scenes/MainGame.gd" id="0_maingame"]
 [ext_resource type="Script" path="res://src/FarmGrid.gd" id="1_farmgrid"]
 [ext_resource type="Script" path="res://src/Farmer.gd" id="2_farmer"]
 [ext_resource type="Script" path="res://src/HUD.gd" id="3_hud"]
@@ -7,6 +8,7 @@
 [ext_resource type="Script" path="res://src/TileInfoPanel.gd" id="5_info"]
 [ext_resource type="Script" path="res://src/MarketPanel.gd" id="6_market"]
 [ext_resource type="Script" path="res://src/ShopPanel.gd" id="7_shop"]
+[ext_resource type="Script" path="res://src/GameCamera.gd" id="8_camera"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
 content_margin_left = 10.0
@@ -139,15 +141,37 @@ shadow_color = Color(0, 0, 0, 0.45)
 shadow_size = 4
 
 [node name="MainGame" type="Node2D"]
+script = ExtResource("0_maingame")
+
+[node name="WorldBackground" type="ColorRect" parent="."]
+z_index = -100
+offset_left = -1200.0
+offset_top = -1000.0
+offset_right = 2000.0
+offset_bottom = 1800.0
+mouse_filter = 2
+color = Color(0.25, 0.42, 0.22, 1)
+
+[node name="FarmBorderPath" type="ColorRect" parent="."]
+z_index = -50
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 788.0
+offset_bottom = 788.0
+mouse_filter = 2
+color = Color(0.38, 0.28, 0.18, 1)
+
+[node name="GameCamera" type="Camera2D" parent="."]
+position = Vector2(384, 384)
+script = ExtResource("8_camera")
 
 [node name="FarmGrid" type="Node2D" parent="."]
-position = Vector2(346, 75)
-scale = Vector2(0.6, 0.6)
 script = ExtResource("1_farmgrid")
 
 [node name="Farmer" type="CharacterBody2D" parent="."]
-position = Vector2(490, 240)
+position = Vector2(384, 384)
 script = ExtResource("2_farmer")
+
 
 [node name="FarmerSprite" type="ColorRect" parent="Farmer"]
 offset_left = -16.0

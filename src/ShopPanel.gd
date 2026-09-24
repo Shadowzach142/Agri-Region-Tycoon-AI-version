@@ -198,14 +198,24 @@ func _buy_tech(tech_key: String, cost: int, btn: Button) -> void:
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 
 func _buy_building(b_key: String, cost: int) -> void:
-	if BuildingManager.buy_building(b_key):
-		status_label.text = "Constructed %s! Storage & capacity expanded." % b_key.capitalize()
-		status_label.modulate = Color(0.4, 1.0, 0.4)
-		_populate_labor() # Update worker cap display
-		item_purchased.emit(b_key, cost)
-	else:
-		status_label.text = "Insufficient funds for %s!" % b_key.capitalize()
+	# Verify funds before entering placement mode
+	if EconomyManager.cash < cost:
+		status_label.text = "Insufficient funds for %s! (₱%d required)" % [b_key.capitalize(), cost]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
+		return
+
+	# Find FarmGrid and enter placement mode
+	var farm_grid: Node = get_tree().root.find_child("FarmGrid", true, false)
+	if farm_grid == null:
+		status_label.text = "Cannot place building — FarmGrid not found!"
+		status_label.modulate = Color(1.0, 0.3, 0.3)
+		return
+
+	# Close shop so the player can see the grid
+	visible = false
+
+	# Start CoC-style ghost placement
+	farm_grid.start_building_placement(b_key)
 
 func _hire_worker() -> void:
 	if BuildingManager.hire_worker():

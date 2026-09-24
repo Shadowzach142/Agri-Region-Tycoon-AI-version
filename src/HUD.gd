@@ -1,7 +1,6 @@
 # HUD.gd
 # Main HUD controller: Clean Clash of Clans top bar, hover region pros/cons card,
 # lightweight bottom-left tile inspector, and bottom-right command corner.
-
 extends CanvasLayer
 
 # Top Status Bar
@@ -88,6 +87,9 @@ func _ready() -> void:
 	disaster_label.text = ""
 	task_label.text = "📋 0"
 
+	_setup_worker_banner()
+	TaskManager.selection_changed.connect(_on_worker_selection_changed)
+
 	market_panel.visible = false
 	shop_panel.visible = false
 	if region_hover_card:
@@ -98,6 +100,9 @@ func _process(delta: float) -> void:
 		_disaster_timer -= delta
 		if _disaster_timer <= 0.0:
 			disaster_label.text = ""
+
+	if task_label:
+		task_label.text = "📋 %d" % TaskManager.get_task_count()
 
 func _update_region_display() -> void:
 	var reg_data = Data.get_region(Data.current_region)
@@ -133,7 +138,8 @@ func _on_region_hover_exited() -> void:
 
 func _on_cash_changed(amount: int) -> void:
 	if cash_label:
-		cash_label.text = "💰 ₱%s" % _format_number(amount)
+		cash_label.text = "💰 ₱%s" % Utils.format_number(amount)
+
 
 func _on_day_changed(day: int) -> void:
 	if day_label:
@@ -165,9 +171,78 @@ func _refresh_storage_display() -> void:
 	if storage_bar:
 		storage_bar.value = float(total_stored) / float(capacity) * 100.0
 
+var _worker_banner: PanelContainer = null
+var _worker_banner_label: Label = null
+
+func _setup_worker_banner() -> void:
+	_worker_banner = PanelContainer.new()
+	_worker_banner.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_worker_banner.offset_left = 300
+	_worker_banner.offset_top = 58
+	_worker_banner.offset_right = -300
+	_worker_banner.offset_bottom = 92
+	_worker_banner.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.13, 0.18, 0.94)
+	style.border_color = Color(1.0, 0.85, 0.25, 0.95)
+	style.border_width_bottom = 2
+	style.border_width_left = 1
+	style.border_width_right = 1
+	style.border_width_top = 1
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	_worker_banner.add_theme_stylebox_override("panel", style)
+
+	var hbox := HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 12)
+	_worker_banner.add_child(hbox)
+
+	_worker_banner_label = Label.new()
+	_worker_banner_label.add_theme_font_size_override("font_size", 12)
+	_worker_banner_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.75, 1.0))
+	_worker_banner_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(_worker_banner_label)
+
+	var deselect_btn := Button.new()
+	deselect_btn.text = "✖ Deselect (Esc)"
+	deselect_btn.add_theme_font_size_override("font_size", 10)
+	deselect_btn.pressed.connect(func(): TaskManager.deselect_all_farmers())
+	hbox.add_child(deselect_btn)
+
+	$Control.add_child(_worker_banner)
+	_worker_banner.visible = false
+
+func _on_worker_selection_changed(selected_workers: Array) -> void:
+	_refresh_workers_display()
+	if _worker_banner == null or _worker_banner_label == null:
+		return
+
+	if selected_workers.is_empty():
+		_worker_banner.visible = false
+	else:
+		_worker_banner.visible = true
+		if selected_workers.size() == 1:
+			var w = selected_workers[0]
+			_worker_banner_label.text = "⭐ Selected: %s  •  Right-click tiles to assign task" % w.worker_name
+		else:
+			var names: Array = []
+			for w in selected_workers:
+				names.append(w.worker_name)
+			_worker_banner_label.text = "👥 Selected (%d): %s  •  Parallel task sharing!" % [selected_workers.size(), ", ".join(names)]
+
 func _refresh_workers_display() -> void:
 	if worker_label:
-		worker_label.text = "🧑‍🌾 %d/%d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
+		var sel_count: int = TaskManager.get_selected_farmers().size()
+		if sel_count > 0:
+			worker_label.text = "🧑‍🌾 %d/%d (⭐%d)" % [BuildingManager.active_workers, BuildingManager.worker_capacity, sel_count]
+		else:
+			worker_label.text = "🧑‍🌾 %d/%d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
 
 func _on_disaster_warning(hazard_type: String) -> void:
 	if disaster_label:
@@ -219,18 +294,7 @@ func _on_worker_spawn_requested() -> void:
 	get_parent().add_child(farmer)
 	_refresh_workers_display()
 
-func _format_number(val: int) -> String:
-	var s: String = str(val)
-	var result: String = ""
-	var count: int = 0
-	for i in range(s.length() - 1, -1, -1):
-		result = s[i] + result
-		count += 1
-		if count % 3 == 0 and i > 0:
-			result = "," + result
-	return result
-
 func _on_pause_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.PAUSE)
-func _on_1x_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.ONE_X)
-func _on_2x_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.TWO_X)
-func _on_3x_pressed() -> void: TimeManager.set_speed_mode(TimeManager.Speed.THREE_X)
+func _on_1x_pressed()    -> void: TimeManager.set_speed_mode(TimeManager.Speed.ONE_X)
+func _on_2x_pressed()    -> void: TimeManager.set_speed_mode(TimeManager.Speed.TWO_X)
+func _on_3x_pressed()    -> void: TimeManager.set_speed_mode(TimeManager.Speed.THREE_X)
