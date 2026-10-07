@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="GroundTileSprites" load_steps=27 format=3]
+
+[ext_resource type="Script" path="res://src/core/GroundTileSprites.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/NGRASS/NGRASS-01.png" id="2_ng1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/NGRASS/NGRASS-02.png" id="3_ng2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/NGRASS/NGRASS-03.png" id="4_ng3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/NGRASS/NGRASS-04.png" id="5_ng4"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/NGRASS/NGRASS-05.png" id="6_ng5"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/WGRASS/WGRASS-01.png" id="7_wg1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/WGRASS/WGRASS-02.png" id="8_wg2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/WGRASS/wGRASS-03.png" id="9_wg3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/WGRASS/wGRASS-04.png" id="10_wg4"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/WGRASS/wGRASS-05.png" id="11_wg5"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/BARE-SOIL-01.png" id="12_bs1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/BARE-SOIL-02.png" id="13_bs2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/BARE-SOIL-03.png" id="14_bs3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/BARE-SOIL-04.png" id="15_bs4"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/BARE-SOIL-05.png" id="16_bs5"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-O1.png" id="17_ds1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-02.png" id="18_ds2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-03.png" id="19_ds3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-04.png" id="20_ds4"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-05.png" id="21_ds5"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/WALK-SOIL-01.png" id="22_ws1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/WALK-SOIL-02.png" id="23_ws2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/WALK-SOIL-03.png" id="24_ws3"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/WALK-SOIL-04.png" id="25_ws4"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ground/BARE SOIL/WALK-SOIL-05.png" id="26_ws5"]
+
+[resource]
+script = ExtResource("1_script")
+normal_grass_variants = Array[Texture2D]([ExtResource("2_ng1"), ExtResource("3_ng2"), ExtResource("4_ng3"), ExtResource("5_ng4"), ExtResource("6_ng5")])
+wet_grass_variants = Array[Texture2D]([ExtResource("7_wg1"), ExtResource("8_wg2"), ExtResource("9_wg3"), ExtResource("10_wg4"), ExtResource("11_wg5")])
+bare_soil_variants = Array[Texture2D]([ExtResource("12_bs1"), ExtResource("13_bs2"), ExtResource("14_bs3"), ExtResource("15_bs4"), ExtResource("16_bs5")])
+drought_soil_variants = Array[Texture2D]([ExtResource("17_ds1"), ExtResource("18_ds2"), ExtResource("19_ds3"), ExtResource("20_ds4"), ExtResource("21_ds5")])
+walk_soil_variants = Array[Texture2D]([ExtResource("22_ws1"), ExtResource("23_ws2"), ExtResource("24_ws3"), ExtResource("25_ws4"), ExtResource("26_ws5")])
+light_grass_variants = Array[Texture2D]([ExtResource("2_ng1"), ExtResource("3_ng2"), ExtResource("4_ng3"), ExtResource("5_ng4"), ExtResource("6_ng5")])
+dark_grass_variants = Array[Texture2D]([ExtResource("7_wg1"), ExtResource("8_wg2"), ExtResource("9_wg3"), ExtResource("10_wg4"), ExtResource("11_wg5")])
+bare_variants = Array[Texture2D]([ExtResource("12_bs1"), ExtResource("13_bs2"), ExtResource("14_bs3"), ExtResource("15_bs4"), ExtResource("16_bs5")])

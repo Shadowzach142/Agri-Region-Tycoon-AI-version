@@ -1,0 +1,52 @@
+# FarmTile.gd
+# Resource representing a single farm tile's state and parameters.
+
+class_name FarmTile
+extends Resource
+
+enum TileState {EMPTY, PLOWED, PLANTED, GROWING, HARVESTABLE, INFECTED, FLOODED, OBSTACLE, BUILDING, LOCKED}
+enum QualityGrade {A, B, C}
+
+# Basic properties
+var state: int = TileState.EMPTY
+var soil_moisture: float = 50.0  # 0 - 100%
+var heat_index: float = 28.0     # Celsius
+var crop_type: String = ""
+var obstacle_type: String = ""   # "tree", "pine", "trunk", "rock" (COC obstacle)
+var building_ref: Node = null    # Reference to building occupying this tile
+var growth_progress: float = 0.0  # 0.0 - 1.0
+var health: float = 1.0           # 0.0 - 1.0
+var quality: int = QualityGrade.A
+var yield_quantity: int = 100
+var freshness: float = 100.0
+var days_without_water: int = 0
+var days_overwatered: int = 0
+var hours_waterlogged: int = 0
+var soil_fertility: float = 1.0
+var pest_type: String = ""
+
+# Multi-tile crop footprint (e.g. 2x2 Coconut Palm)
+var is_multi_tile_root: bool = false
+var multi_tile_root_pos: Vector2i = Vector2i(-1, -1)
+
+# Perennial crop regrowth status (e.g. Coconut, Coffee, Banana post-harvest)
+var is_regrowing: bool = false
+
+func reset() -> void:
+	state            = TileState.EMPTY
+	crop_type        = ""
+	obstacle_type    = ""
+	building_ref     = null
+	growth_progress  = 0.0
+	health           = 1.0
+	quality          = QualityGrade.A
+	yield_quantity   = 100
+	freshness        = 100.0
+	days_without_water = 0
+	days_overwatered = 0
+	hours_waterlogged = 0
+	soil_fertility   = 1.0
+	pest_type        = ""
+	is_multi_tile_root = false
+	multi_tile_root_pos = Vector2i(-1, -1)
+	is_regrowing     = false

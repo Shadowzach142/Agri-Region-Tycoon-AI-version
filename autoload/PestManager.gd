@@ -50,7 +50,12 @@ func evaluate_spawn(tile_pos: Vector2i, crop_type: String, soil_moisture: int) -
 		if trigger.has("full_moon") and (TimeManager.current_day % 7 == 0):
 			should_spawn = true
 
-		if should_spawn and randf() < 0.35:
+		# Nocturnal Philippine pest surge: Rice Black Bug and Kuhol swarm under darkness
+		var spawn_chance: float = 0.35
+		if TimeManager.is_night() and (pest_name == "rice_black_bug" or pest_name == "kuhol"):
+			spawn_chance = 0.55
+
+		if should_spawn and randf() < spawn_chance:
 			var key: String = "%d_%d" % [tile_pos.x, tile_pos.y]
 			if not infected_tiles.has(key):
 				infected_tiles[key] = {"pest": pest_name, "days": 0, "crop": crop_type}

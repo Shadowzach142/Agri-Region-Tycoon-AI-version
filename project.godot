@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+AudioManager="*res://autoload/AudioManager.gd"
 Data="*res://autoload/Data.gd"
 TimeManager="*res://autoload/TimeManager.gd"
 EconomyManager="*res://autoload/EconomyManager.gd"
@@ -25,12 +26,21 @@ WeatherManager="*res://autoload/WeatherManager.gd"
 PestManager="*res://autoload/PestManager.gd"
 MarketManager="*res://autoload/MarketManager.gd"
 BuildingManager="*res://autoload/BuildingManager.gd"
+LogManager="*res://autoload/LogManager.gd"
+Utils="*res://src/core/Utils.gd"
+LeaderboardManager="*res://autoload/LeaderboardManager.gd"
+SaveManager="*res://autoload/SaveManager.gd"
 
 [display]
 
+window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[gui]
+
+theme/custom_font="uid://c5k3at6s08o7n"
 
 [physics]
 
@@ -38,6 +48,7 @@ window/stretch/aspect="expand"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

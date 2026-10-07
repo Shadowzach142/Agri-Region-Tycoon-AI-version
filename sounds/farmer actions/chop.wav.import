@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cq24vcwis3udq"
+path="res://.godot/imported/chop.wav-2b201608bfe9508af54a29564c8a0738.sample"
+
+[deps]
+
+source_file="res://sounds/farmer actions/chop.wav"
+dest_files=["res://.godot/imported/chop.wav-2b201608bfe9508af54a29564c8a0738.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

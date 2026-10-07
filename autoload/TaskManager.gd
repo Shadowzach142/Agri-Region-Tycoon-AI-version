@@ -7,6 +7,7 @@ extends Node
 
 signal selection_changed(selected_workers: Array)
 signal tasks_assigned(worker_count: int, task_count: int)
+signal tasks_changed()
 
 var task_queue: Array = []
 var selected_farmers: Array = []
@@ -15,12 +16,13 @@ var selected_farmers: Array = []
 ## Expected format: {"type": String, "position": Vector2i, "crop_type": String (optional)}
 func add_task(task: Dictionary) -> void:
 	task_queue.append(task)
+	tasks_changed.emit()
 
 ## Return true if a task with the given position and optional type already exists in queue
 func has_task_at(pos: Vector2i, type: String = "") -> bool:
 	for t in task_queue:
-		if t.get("position", Vector2i(-1, -1)) == pos:
-			if type == "" or t.get("type", "") == type:
+		if type == "" or t.get("type", "") == type:
+			if _task_covers_tile(t, pos):
 				return true
 	# Also check personal queues of all workers
 	var all_farmers := get_tree().get_nodes_in_group("farmers")
@@ -30,6 +32,50 @@ func has_task_at(pos: Vector2i, type: String = "") -> bool:
 		if f.has_task_at(pos, type):
 			return true
 	return false
+
+static func _task_covers_tile(task: Dictionary, pos: Vector2i) -> bool:
+	var tpos: Vector2i = task.get("position", Vector2i(-1, -1))
+	if tpos == pos:
+		return true
+	if task.get("type", "") == "plant":
+		var c_name: String = task.get("crop_type", "")
+		if not c_name.is_empty():
+			var c_data: Dictionary = Data.get_crop(c_name)
+			var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
+			if fp.x > 1 or fp.y > 1:
+				if pos.x >= tpos.x and pos.x < tpos.x + fp.x and pos.y >= tpos.y and pos.y < tpos.y + fp.y:
+					return true
+	return false
+
+## Returns an Array of all pending and currently-executing task dictionaries
+func get_active_tasks() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+
+	# 1. Global unassigned queue
+	for t in task_queue:
+		var item: Dictionary = t.duplicate()
+		item["is_active"] = false
+		item["worker"] = null
+		result.append(item)
+
+	# 2. Worker personal queues & current active tasks
+	var all_farmers := get_tree().get_nodes_in_group("farmers")
+	for f in all_farmers:
+		if not is_instance_valid(f):
+			continue
+		if not f.current_task.is_empty() and f.target_grid_pos != Vector2i(-1, -1):
+			var cur: Dictionary = f.current_task.duplicate()
+			cur["is_active"] = true
+			cur["worker"] = f
+			cur["position"] = f.target_grid_pos
+			result.append(cur)
+		for t in f.assigned_tasks:
+			var item: Dictionary = t.duplicate()
+			item["is_active"] = false
+			item["worker"] = f
+			result.append(item)
+
+	return result
 
 ## Return the nearest pending task from the global unassigned queue.
 func get_next_task_for_farmer(farmer_pos: Vector2i) -> Dictionary:
@@ -61,7 +107,7 @@ func get_task_count() -> int:
 # ---------------------------------------------------------------------------
 # Worker Selection (Single Click & Ctrl+Click Multi-select)
 # ---------------------------------------------------------------------------
-func select_farmer(farmer: Node, is_multi: bool) -> void:
+func select_farmer(farmer: Node, is_multi: bool = false) -> void:
 	if not is_instance_valid(farmer):
 		return
 
@@ -132,8 +178,10 @@ func assign_tasks(tasks: Array) -> void:
 				var w = workers[i % workers.size()]
 				w.assign_task(tasks[i])
 		tasks_assigned.emit(workers.size(), tasks.size())
+		tasks_changed.emit()
 	else:
 		# No specific workers selected: push to global pool
 		for t in tasks:
 			add_task(t)
 		tasks_assigned.emit(0, tasks.size())
+		tasks_changed.emit()

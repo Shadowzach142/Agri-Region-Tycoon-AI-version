@@ -1,0 +1,17 @@
+[gd_resource type="StyleBoxTexture" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/hud/Buttons/Brownbutton/HUD-brown button .png" id="1_88mcd"]
+
+[resource]
+texture = ExtResource("1_88mcd")
+texture_margin_left = 10.0
+texture_margin_top = 6.0
+texture_margin_right = 10.0
+texture_margin_bottom = 9.0
+content_margin_left = 12.0
+content_margin_top = 4.0
+content_margin_right = 12.0
+content_margin_bottom = 7.0
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+modulate_color = Color(1.15, 1.15, 1.15, 1)

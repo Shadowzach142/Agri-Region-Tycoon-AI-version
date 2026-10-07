@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://pdyfkea0g0tu"
+path="res://.godot/imported/harvest.wav-59a914fcfe86e57f671e975ac030491f.sample"
+
+[deps]
+
+source_file="res://sounds/farmer actions/harvest.wav"
+dest_files=["res://.godot/imported/harvest.wav-59a914fcfe86e57f671e975ac030491f.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

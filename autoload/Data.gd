@@ -6,6 +6,50 @@ extends Node
 # Current selected region (set by MainMenu)
 var current_region: String = "cotabato"
 
+# Selected game mode: "campaign" (timed RTS sprint) or "career" (endless persistent farm with save & load)
+var game_mode: String = "campaign"
+
+const GAME_MODES = {
+	"campaign": {
+		"id": "campaign",
+		"title": "TIMED PVE CAMPAIGN",
+		"subtitle": "RTS Score Attack Challenge",
+		"badge": "⏱️ SPRINT RUN",
+		"desc": "Race against the clock in a 30, 60, or 90-day season. Maximize export revenues, achieve quality grades, and climb the Tycoon Prestige leaderboards!"
+	},
+	"career": {
+		"id": "career",
+		"title": "CAREER / ENDLESS TYCOON",
+		"subtitle": "Persistent Farm Builder",
+		"badge": "🌾 SAVE & LOAD",
+		"desc": "Build and expand your agricultural empire at your own pace with no time limits. Full support for saving your farm progress and loading it anytime to resume right where you left off!"
+	}
+}
+
+# Selected campaign duration in days (set by MainMenu: 30, 60, or 90)
+var selected_season_days: int = 60
+
+const SEASON_MODES = {
+	30: {
+		"title": "Quick Sprint",
+		"subtitle": "30 Days (1 Month)",
+		"badge": "⚡ SPRINT",
+		"desc": "Fast-paced harvest challenge — maximize quick Palay & Corn turnover!"
+	},
+	60: {
+		"title": "Standard Campaign",
+		"subtitle": "60 Days (2 Months)",
+		"badge": "⭐ STANDARD",
+		"desc": "Classic RTS agribusiness season — balanced infrastructure & full crop cycles."
+	},
+	90: {
+		"title": "Full Season",
+		"subtitle": "90 Days (3 Months)",
+		"badge": "👑 FULL QUARTER",
+		"desc": "Grand agricultural expansion — mega-infrastructure, deep export streaks, & highest scores."
+	}
+}
+
 # Regions with default soil moisture (0-100) and hazard probabilities (0-1)
 const REGIONS = {
 	"cotabato": {
@@ -32,11 +76,11 @@ const REGIONS = {
 	"south_cotabato": {
 		"display_name": "South Cotabato Highlands (Mount Matutum)",
 		"soil_moisture": 55,
-		"specialty": "Highland Specialty Crops & Volcanic Plateaus",
-		"description": "Cool volcanic slopes and upland plateaus surrounding Mount Matutum and Lake Sebu. Renowned for premium Arabica Coffee and high-grade Yellow Corn.",
+		"specialty": "Highland Specialty Crops, Coffee & Pineapple",
+		"description": "Cool volcanic slopes and upland plateaus surrounding Mount Matutum and Lake Sebu. Renowned for premium Arabica Coffee, high-grade Yellow Corn, and world-class export Pineapples.",
 		"pros": [
 			"Temperate upland climate prevents heat stress and yields Grade A produce",
-			"Volcanic soil gives +20% market value on Arabica Coffee & Corn",
+			"Volcanic soil gives +20% market value on Arabica Coffee, Pineapples & Corn",
 			"Naturally sheltered from low-elevation flash floods"
 		],
 		"cons": [
@@ -74,12 +118,12 @@ const REGIONS = {
 	"sultan_kudarat": {
 		"display_name": "Sultan Kudarat Valley (Tacurong Corridor)",
 		"soil_moisture": 58,
-		"specialty": "Large-Scale Mechanization & Crop Rotation",
-		"description": "Expansive flatlands and open agricultural corridors perfect for tractor mechanization, multi-crop rotation, and commercial grain production.",
+		"specialty": "Sugarcane Plantations & Mechanized Grains",
+		"description": "Expansive flatlands and open agricultural corridors perfect for commercial sugarcane plantations, multi-crop rotation, and high-yield grain production.",
 		"pros": [
 			"Broad flat terrain maximizes efficiency for Kuliglig tractors & harvesters",
-			"Balanced soil conditions suitable for rotating Palay, Corn, and Legumes",
-			"Substantial grain volume output and cheaper infrastructure layout"
+			"Rich alluvial soil gives +20% market value on Sugar Cane, Corn & Palay",
+			"Substantial volume output and cheaper infrastructure layout"
 		],
 		"cons": [
 			"Significant fuel expenses and maintenance demands for agricultural machinery",
@@ -120,7 +164,12 @@ const CROPS = {
 	"palay": {
 		"display_name": "Palay (Rice)",
 		"icon": "🌾",
-		"growth_days": 30,
+		"footprint": Vector2i(1, 1),
+		"growth_days": 15,
+		"regrowth_days": 0,
+		"is_perennial": false,
+		"harvest_duration": 1.0,
+		"yield_quantity": 100,
 		"water_min": 70,
 		"water_max": 90,
 		"heat_min": 20,
@@ -128,12 +177,17 @@ const CROPS = {
 		"base_price": 100,
 		"pests": ["kuhol", "rice_black_bug"],
 		"seed_cost": 25,
-		"description": "Thrives in wetland paddies (70-90% moisture). Halts growth if moisture < 30%. Waterlogging (>95% for 12+ hrs) causes destructive rot!",
+		"description": "Fast staple paddy crop (15 days). Thrives in wetland paddies (70-90% moisture). Halts growth if moisture < 30%. Waterlogging (>95% for 12+ hrs) causes destructive rot!",
 	},
 	"yellow_corn": {
 		"display_name": "Yellow Corn",
 		"icon": "🌽",
-		"growth_days": 45,
+		"footprint": Vector2i(1, 1),
+		"growth_days": 25,
+		"regrowth_days": 0,
+		"is_perennial": false,
+		"harvest_duration": 1.1,
+		"yield_quantity": 100,
 		"water_min": 30,
 		"water_max": 60,
 		"heat_min": 22,
@@ -141,12 +195,53 @@ const CROPS = {
 		"base_price": 120,
 		"pests": ["armyworm"],
 		"seed_cost": 30,
-		"description": "Hardy cereal crop requiring moderate moisture (30-60%). Resilient against extreme heat up to 45°C.",
+		"description": "Hardy cereal crop (25 days) requiring moderate moisture (30-60%). Resilient against extreme heat up to 45°C.",
+	},
+	"sugarcane": {
+		"display_name": "Sugar Cane",
+		"icon": "🎋",
+		"footprint": Vector2i(1, 1),
+		"growth_days": 28,
+		"regrowth_days": 0,
+		"is_perennial": false,
+		"harvest_duration": 1.4,
+		"yield_quantity": 120,
+		"water_min": 50,
+		"water_max": 80,
+		"heat_min": 22,
+		"heat_max": 38,
+		"base_price": 95,
+		"pests": ["armyworm", "fusarium_wilt"],
+		"seed_cost": 30,
+		"description": "Vigorous tropical C4 tall grass (28 days). Thrives in full sun with rich moisture (50-80%). High biomass yield (120 units).",
+	},
+	"pineapple": {
+		"display_name": "Smooth Cayenne Pineapple",
+		"icon": "🍍",
+		"footprint": Vector2i(1, 1),
+		"growth_days": 35,
+		"regrowth_days": 0,
+		"is_perennial": false,
+		"harvest_duration": 1.3,
+		"yield_quantity": 100,
+		"water_min": 35,
+		"water_max": 65,
+		"heat_min": 20,
+		"heat_max": 36,
+		"base_price": 160,
+		"pests": ["fusarium_wilt", "armyworm"],
+		"seed_cost": 40,
+		"description": "High-value tropical export crop (35 days). Thrives in well-drained volcanic soil with moderate moisture (35-65%). Highly sensitive to standing floodwaters and root rot.",
 	},
 	"arabica_coffee": {
 		"display_name": "Arabica Coffee",
 		"icon": "☕",
-		"growth_days": 60,
+		"footprint": Vector2i(1, 1),
+		"growth_days": 40,
+		"regrowth_days": 14,
+		"is_perennial": true,
+		"harvest_duration": 1.3,
+		"yield_quantity": 100,
 		"water_min": 35,
 		"water_max": 70,
 		"heat_min": 18,
@@ -154,33 +249,43 @@ const CROPS = {
 		"base_price": 200,
 		"pests": ["kuhol", "fusarium_wilt"],
 		"seed_cost": 50,
-		"description": "High-margin specialty crop with long 60-day maturation. Extremely sensitive to flooding—paddy floods permanently kill coffee trees!",
+		"description": "High-margin perennial shrub (40 days initial, 14-day cherry regrowth). Harvest cherries without replanting. Extremely sensitive to flooding!",
 	},
 	"banana": {
 		"display_name": "Cavendish Banana",
 		"icon": "🍌",
-		"growth_days": 120,
+		"footprint": Vector2i(2, 2),
+		"growth_days": 50,
+		"regrowth_days": 18,
+		"is_perennial": true,
+		"harvest_duration": 2.2,
+		"yield_quantity": 400,
 		"water_min": 55,
 		"water_max": 85,
 		"heat_min": 24,
 		"heat_max": 36,
 		"base_price": 90,
 		"pests": ["fusarium_wilt"],
-		"seed_cost": 35,
-		"description": "Tropical export perennial. Vulnerable to fungal Fusarium Wilt (Panama Disease) in high humidity.",
+		"seed_cost": 140,
+		"description": "2×2 plantation perennial tree (50 days initial, 18-day bunch regrowth). Yields massive harvests (400 units). Continuous harvests without replanting. Vulnerable to Fusarium Wilt.",
 	},
 	"coconut": {
-		"display_name": "Coconut Palm",
+		"display_name": "Tall Coconut Palm",
 		"icon": "🥥",
-		"growth_days": 365,
+		"footprint": Vector2i(2, 2),
+		"growth_days": 50,
+		"regrowth_days": 16,
+		"is_perennial": true,
+		"harvest_duration": 2.4,
+		"yield_quantity": 400,
 		"water_min": 40,
 		"water_max": 75,
 		"heat_min": 20,
 		"heat_max": 38,
-		"base_price": 80,
+		"base_price": 85,
+		"seed_cost": 160,
 		"pests": ["armyworm"],
-		"seed_cost": 40,
-		"description": "Drought-hardy perennial crop suited for coastal soils. Longest lifecycle with consistent yields.",
+		"description": "Perennial multi-tile coconut palm (2×2). Takes 50 days to establish, but bears fruit indefinitely (16-day regrowth cycles) without replanting! Yields 400 coconuts.",
 	},
 }
 
@@ -260,28 +365,34 @@ const MARKET_HUBS = {
 const BUILDINGS = {
 	"bahay_kubo": {
 		"display_name": "Bahay Kubo (Farm Shack)",
+		"shop_category": "housing",
+		"unique": false,
 		"icon": "🏠",
 		"grid_size": Vector2i(2, 2),
 		"cost": 200,
-		"build_time": 15.0,
+		"build_time": 8.0,
 		"max_level": 3,
 		"storage_limit": 0,
 		"worker_capacity": 1,
 		"description": "Expands farm housing by +1 worker capacity, allowing you to hire more autonomous farm laborers.",
 	},
 	"bodega": {
-		"display_name": "Grain Bodega",
+		"display_name": "Grain Silo Compound",
+		"shop_category": "storage",
+		"unique": false,
 		"icon": "🏛️",
-		"grid_size": Vector2i(3, 3),
+		"grid_size": Vector2i(2, 2),
 		"cost": 500,
 		"build_time": 25.0,
 		"max_level": 3,
-		"storage_limit": 1000,
+		"storage_limit": 200,
 		"halts_spoilage": false,
-		"description": "Basic warehouse providing 1,000 units of crop storage. Produce in basic bodega spoils at 5% freshness per hour.",
+		"description": "Corrugated steel grain silo bin compound providing 200 units of crop storage (upgrades to 400 at Lv. 2). Produce in basic silos spoils at 5% freshness per hour.",
 	},
 	"cold_storage": {
 		"display_name": "Cold Storage Facility",
+		"shop_category": "storage",
+		"unique": false,
 		"icon": "❄️",
 		"grid_size": Vector2i(3, 3),
 		"cost": 800,
@@ -293,8 +404,10 @@ const BUILDINGS = {
 	},
 	"solar_dryer": {
 		"display_name": "Solar Dryer (Bilaran)",
+		"shop_category": "storage",
+		"unique": false,
 		"icon": "☀️",
-		"grid_size": Vector2i(2, 2),
+		"grid_size": Vector2i(2, 3),
 		"cost": 300,
 		"build_time": 20.0,
 		"max_level": 3,
@@ -303,18 +416,22 @@ const BUILDINGS = {
 		"description": "Traditional concrete sun-drying pavement. Boosts harvested grain quality and market selling value by +25%!",
 	},
 	"machine_garage": {
-		"display_name": "Machine Garage",
+		"display_name": "Machine Shed & Depot",
+		"shop_category": "machinery",
+		"unique": true,
 		"icon": "🚜",
 		"grid_size": Vector2i(3, 2),
 		"cost": 600,
-		"build_time": 30.0,
+		"build_time": 25.0,
 		"max_level": 3,
 		"storage_limit": 0,
 		"unlocks_machines": true,
-		"description": "Mechanized maintenance depot required for parking heavy tractors and combine harvesters.",
+		"description": "Mechanized maintenance depot required for deploying heavy field machinery. Upgrading equips your farm with Kuliglig hand-tractors (Lv. 1, 2x plowing speed), Combine Harvesters (Lv. 2, 5x harvest speed), and a Heavy Mechanized Fleet (Lv. 3, +20% bonus speed and multi-unit support). Farmers visibly drive these vehicles across your fields!",
 	},
 	"climate_silo": {
 		"display_name": "Climate-Controlled Silo",
+		"shop_category": "storage",
+		"unique": false,
 		"icon": "🗼",
 		"grid_size": Vector2i(3, 3),
 		"cost": 1200,
@@ -323,6 +440,58 @@ const BUILDINGS = {
 		"storage_limit": 5000,
 		"halts_spoilage": true,
 		"description": "High-tech airtight grain silo with 5,000 storage capacity. Eliminates moisture rot and maintains 100% grain freshness.",
+	},
+	"drone_station": {
+		"display_name": "Drone Command Hangar",
+		"shop_category": "machinery",
+		"unique": true,
+		"icon": "🛸",
+		"grid_size": Vector2i(2, 2),
+		"cost": 800,
+		"build_time": 20.0,
+		"max_level": 3,
+		"storage_limit": 0,
+		"unlocks_drones": true,
+		"description": "Automated drone hangar with telemetry antenna and solar charging pads. Unlocks drone labor in the Labor shop. Upgrading the hangar enhances drone automation (Lv.1 Plow, Lv.2 Seeder, Lv.3 Harvester). Each active drone requires 1 farmer to operate the remote control.",
+	},
+	"weather_station": {
+		"display_name": "PAGASA Telemetry Station",
+		"shop_category": "weather",
+		"unique": true,
+		"icon": "📡",
+		"grid_size": Vector2i(3, 3),
+		"cost": 450,
+		"build_time": 16.0,
+		"max_level": 3,
+		"storage_limit": 0,
+		"forecast_equipment": true,
+		"description": "Meteorological monitoring station linked to regional PAGASA telemetry. Upgrading advances equipment from an AM Radio Mast (Lv. 1, 60% accuracy, 1-day forecast, 8s disaster warning) to an Automated Weather Station (Lv. 2, 90% accuracy, 3-day forecast, 12s disaster warning) and a Satellite Uplink Dish (Lv. 3, 100% accuracy, 7-day forecast, 18s disaster warning).",
+	},
+	"water_tower": {
+		"display_name": "Irrigation Pump & Tower",
+		"shop_category": "weather",
+		"unique": true,
+		"icon": "🚰",
+		"grid_size": Vector2i(2, 2),
+		"cost": 500,
+		"build_time": 18.0,
+		"max_level": 3,
+		"storage_limit": 0,
+		"irrigation_equipment": true,
+		"description": "Automated farm irrigation system. Upgrading advances equipment from a Groundwater Well Pump (Lv. 1, auto-hydrates thirsty crops to min+5%, 15% drought resist) to an Elevated Water Tower (Lv. 2, maintains min+12% moisture, 25% evap reduction, 20% flood drainage) and a Solar-Powered Drip Network (Lv. 3, full-farm pressurized drip lines, precision moisture regulation, 30% disaster resilience).",
+	},
+	"sprinkler": {
+		"display_name": "Rotary Field Sprinkler",
+		"shop_category": "weather",
+		"unique": false,
+		"icon": "🚿",
+		"grid_size": Vector2i(1, 1),
+		"cost": 120,
+		"build_time": 4.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_sprinkler": true,
+		"description": "Ground-mounted rotary impact sprinkler. Automatically sprays and hydrates surrounding crop plots every morning (3×3 diamond at Lv.1, 5×5 at Lv.2+) and suppresses daytime heat stress. Requires water pressure from an active Irrigation Pump & Tower.",
 	},
 }
 
@@ -389,3 +558,58 @@ func get_tech(name: String) -> Dictionary:
 
 func get_market_hub(name: String) -> Dictionary:
 	return MARKET_HUBS.get(name, {})
+
+# ---------------------------------------------------------------------------
+# Land Expansion Parcels (10x10 each)
+# ---------------------------------------------------------------------------
+const LAND_PARCELS: Array[Dictionary] = [
+	{
+		"id": "homestead",
+		"name": "Central Homestead",
+		"rect": Rect2i(0, 0, 12, 12),
+		"cost": 0,
+		"unlocked_by_default": true,
+		"sign_tile": Vector2i(5, 5),
+		"description": "Your starting farm estate. 12x12 cultivated area (144 plots).",
+	},
+	{
+		"id": "east_meadows",
+		"name": "Eastern Riverbanks",
+		"rect": Rect2i(12, 0, 12, 12),
+		"cost": 1500,
+		"unlocked_by_default": false,
+		"sign_tile": Vector2i(14, 2),
+		"description": "Rich alluvial flatlands. Adds 12x12 (144 plots) eastward for rice paddies, buildings, and canals.",
+	},
+	{
+		"id": "south_plains",
+		"name": "Southern Lowlands",
+		"rect": Rect2i(0, 12, 12, 12),
+		"cost": 2400,
+		"unlocked_by_default": false,
+		"sign_tile": Vector2i(2, 14),
+		"description": "Expansive flatlands. Adds 12x12 (144 plots) southward for crop rows, warehouses, and mills.",
+	},
+	{
+		"id": "highland_plateau",
+		"name": "Highland Foothills",
+		"rect": Rect2i(12, 12, 12, 12),
+		"cost": 4200,
+		"unlocked_by_default": false,
+		"sign_tile": Vector2i(14, 14),
+		"description": "Elevated volcanic plateau. Adds 12x12 (144 plots) southeastward with shelter from low-elevation floods.",
+	},
+]
+
+func get_parcel(id: String) -> Dictionary:
+	for p in LAND_PARCELS:
+		if p.get("id") == id:
+			return p
+	return {}
+
+func get_parcel_for_tile(pos: Vector2i) -> Dictionary:
+	for p in LAND_PARCELS:
+		var r: Rect2i = p["rect"]
+		if r.has_point(pos):
+			return p
+	return {}

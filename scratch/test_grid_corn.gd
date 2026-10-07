@@ -1,0 +1,43 @@
+extends SceneTree
+
+func _init():
+	var canvas = Image.create(512, 384, false, Image.FORMAT_RGBA8)
+	canvas.fill(Color(0.2, 0.25, 0.15))
+	
+	var origin = Vector2i(256, 96)
+	var tile_coords = []
+	for x in range(4):
+		for y in range(4):
+			tile_coords.append(Vector2i(x, y))
+	tile_coords.sort_custom(func(a, b):
+		return (a.x + a.y) < (b.x + b.y)
+	)
+	
+	var grass_img = Image.load_from_file("res://assets/sprites/ground/GROUND-Light-Grass/LightGrass1.png")
+	var corn_img = Image.load_from_file("res://assets/sprites/Field/Crops/Corn/CORN-P3.png")
+	
+	for coord in tile_coords:
+		var pos_px = origin + Vector2i((coord.x - coord.y) * 64, (coord.x + coord.y) * 32)
+		var is_crop = (coord.x >= 1 and coord.x <= 2 and coord.y >= 1 and coord.y <= 2)
+		var tex = corn_img if is_crop else grass_img
+		
+		var tex_w = tex.get_width()
+		var tex_h = tex.get_height()
+		# Formula: offset_y = -(tex_h - 32) / 2.0
+		var offset_y = -int((tex_h - 32) / 2.0)
+		var top_left = pos_px + Vector2i(-tex_w * 2, (-tex_h / 2 + offset_y) * 4)
+		
+		for y in range(tex_h):
+			for x in range(tex_w):
+				var c = tex.get_pixel(x, y)
+				if c.a > 0.05:
+					for dy in range(4):
+						for dx in range(4):
+							var px = top_left.x + x * 4 + dx
+							var py = top_left.y + y * 4 + dy
+							if px >= 0 and px < canvas.get_width() and py >= 0 and py < canvas.get_height():
+								canvas.set_pixel(px, py, c)
+	
+	canvas.save_png("res://scratch/grid_corn_test.png")
+	print("Saved scratch/grid_corn_test.png")
+	quit()

@@ -1,158 +1,144 @@
-[gd_scene load_steps=18 format=3 uid="uid://maingameplay"]
+[gd_scene format=3 uid="uid://maingameplay"]
 
-[ext_resource type="Script" path="res://scenes/MainGame.gd" id="0_maingame"]
-[ext_resource type="Script" path="res://src/FarmGrid.gd" id="1_farmgrid"]
-[ext_resource type="Script" path="res://src/Farmer.gd" id="2_farmer"]
-[ext_resource type="Script" path="res://src/HUD.gd" id="3_hud"]
-[ext_resource type="Script" path="res://src/TileActionPopup.gd" id="4_popup"]
-[ext_resource type="Script" path="res://src/TileInfoPanel.gd" id="5_info"]
-[ext_resource type="Script" path="res://src/MarketPanel.gd" id="6_market"]
-[ext_resource type="Script" path="res://src/ShopPanel.gd" id="7_shop"]
-[ext_resource type="Script" path="res://src/GameCamera.gd" id="8_camera"]
+[ext_resource type="Script" uid="uid://dlyg5pjoeh7yn" path="res://scenes/MainGame.gd" id="0_maingame"]
+[ext_resource type="Script" uid="uid://frbnwxc1e4my" path="res://src/core/FarmGrid.gd" id="1_farmgrid"]
+[ext_resource type="Script" uid="uid://dsrtbjor0roog" path="res://src/farmer/Farmer.gd" id="2_farmer"]
+[ext_resource type="Script" uid="uid://cn46gttf7c3wb" path="res://src/ui/HUD.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://b0gc1mtyb1ola" path="res://src/ui/TileActionPopup.gd" id="4_popup"]
+[ext_resource type="Script" uid="uid://1mbfbsiujt8" path="res://src/ui/TileInfoPanel.gd" id="5_info"]
+[ext_resource type="Script" uid="uid://cbdctrweaunax" path="res://src/market/MarketPanel.gd" id="6_market"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopRight/BrownBox.tres" id="7_lupq4"]
+[ext_resource type="StyleBox" uid="uid://c6rwbh287wq68" path="res://assets/sprites/hud/BottomLeft/Clipboard.tres" id="7_rtryj"]
+[ext_resource type="Script" uid="uid://dql5xwusenybg" path="res://src/market/ShopPanel.gd" id="7_shop"]
+[ext_resource type="Script" uid="uid://gmhueitfmjoq" path="res://src/world/GameCamera.gd" id="8_camera"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres" id="9_vs82q"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres" id="10_7d840"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres" id="10_qsiih"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres" id="12_vtnxl"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres" id="13_16xnu"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres" id="13_lupq4"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/BottomLeft/PlantBox.tres" id="14_i1eed"]
+[ext_resource type="Script" uid="uid://bgsiiyjtviqi" path="res://src/world/WeatherEffects.gd" id="14_weather_fx"]
+[ext_resource type="Script" uid="uid://djkhjpxxwhv1h" path="res://src/market/SellPanel.gd" id="15_sell"]
+[ext_resource type="StyleBox" uid="uid://cdf2xexh075qd" path="res://assets/sprites/hud/Shop/Shop Backgroud.tres" id="23_0e2px"]
+[ext_resource type="Script" uid="uid://5vbxaco44i1c" path="res://src/ui/PlantHotbar.gd" id="24_planthotbar"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopBar/Button/TopBarButtonBrown.tres" id="StyleBox_topbar_btn_brown"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopBar/Button/TopBarButtonHover.tres" id="StyleBox_topbar_btn_hover"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopBar/Button/TopBarButtonYellow.tres" id="StyleBox_topbar_btn_yellow"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopBar/HudUpperMid.tres" id="StyleBox_uppermid"]
+[ext_resource type="Texture2D" uid="uid://2l0rhm8k1xvo" path="res://assets/sprites/hud/TopLeft/DaynNight-Time.png" id="Texture_daynight_time"]
+[ext_resource type="Texture2D" uid="uid://cwyjac34v5nto" path="res://assets/sprites/hud/TopBar/Disaster-box.png" id="Texture_disaster_box"]
+[ext_resource type="Texture2D" uid="uid://h03bdl6jbu3g" path="res://assets/icons/Topright/Farmer icon.png" id="Texture_farmer_icon"]
+[ext_resource type="Texture2D" uid="uid://deiey7xydl0o7" path="res://assets/sprites/hud/TopLeft/Region-climate-humidity.png" id="Texture_region_climate_humidity"]
+[ext_resource type="Texture2D" uid="uid://ytwcf0xfu3hb" path="res://assets/icons/Topleft/Sun.png" id="Texture_sun_icon"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-content_margin_left = 10.0
-content_margin_top = 3.0
-content_margin_right = 10.0
-content_margin_bottom = 3.0
-bg_color = Color(0.08, 0.10, 0.14, 0.92)
-border_width_bottom = 2
-border_color = Color(0.85, 0.70, 0.20, 0.85)
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.35)
-shadow_size = 5
-shadow_offset = Vector2(0, 2)
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_tab_panel"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_capsule"]
-content_margin_left = 8.0
-content_margin_top = 2.0
-content_margin_right = 8.0
-content_margin_bottom = 2.0
-bg_color = Color(0.12, 0.15, 0.20, 0.85)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.25, 0.32, 0.42, 0.8)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gold"]
-content_margin_left = 10.0
-content_margin_top = 2.0
-content_margin_right = 10.0
-content_margin_bottom = 2.0
-bg_color = Color(0.18, 0.14, 0.05, 0.9)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.82, 0.2, 0.95)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-shadow_color = Color(0.9, 0.7, 0.1, 0.2)
-shadow_size = 3
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hovercard"]
-content_margin_left = 12.0
-content_margin_top = 10.0
-content_margin_right = 12.0
-content_margin_bottom = 10.0
-bg_color = Color(0.06, 0.08, 0.12, 0.96)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(0.24, 0.15, 0.1, 1)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.40, 0.65, 0.95, 0.85)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.6)
-shadow_size = 8
-shadow_offset = Vector2(0, 4)
+border_color = Color(0.42, 0.26, 0.16, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_console"]
-content_margin_left = 12.0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_growth_fill"]
+bg_color = Color(0.52, 0.34, 0.18, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_fill"]
+bg_color = Color(0.35, 0.75, 0.25, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_moist_fill"]
+bg_color = Color(0.24, 0.62, 0.9, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_status_card"]
+content_margin_left = 10.0
 content_margin_top = 6.0
-content_margin_right = 12.0
+content_margin_right = 10.0
 content_margin_bottom = 6.0
-bg_color = Color(0.08, 0.10, 0.14, 0.94)
+bg_color = Color(0.88, 0.72, 0.52, 0.95)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.35, 0.42, 0.52, 0.8)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-shadow_color = Color(0, 0, 0, 0.5)
-shadow_size = 6
-shadow_offset = Vector2(0, -2)
+border_color = Color(0.68, 0.48, 0.32, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_shop"]
-bg_color = Color(0.85, 0.65, 0.15, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_unselected"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+bg_color = Color(0.18, 0.12, 0.08, 0.7)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_color = Color(0.45, 0.3, 0.18, 0.6)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_hovered"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+bg_color = Color(0.38, 0.24, 0.14, 0.95)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
-border_width_bottom = 3
-border_color = Color(1, 0.9, 0.45, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0.95, 0.75, 0.15, 0.35)
-shadow_size = 4
+border_color = Color(0.9, 0.75, 0.42, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_market"]
-bg_color = Color(0.15, 0.45, 0.60, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_selected"]
+content_margin_left = 16.0
+content_margin_top = 6.0
+content_margin_right = 16.0
+content_margin_bottom = 6.0
+bg_color = Color(0.28, 0.17, 0.1, 0.95)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
-border_width_bottom = 3
-border_color = Color(0.40, 0.75, 0.95, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_infocard"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.09, 0.12, 0.17, 0.98)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.35, 0.70, 0.95, 0.9)
+border_color = Color(0.78, 0.62, 0.35, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-shadow_color = Color(0, 0, 0, 0.45)
-shadow_size = 4
 
-[node name="MainGame" type="Node2D"]
+
+[node name="MainGame" type="Node2D" unique_id=430836027]
+y_sort_enabled = true
 script = ExtResource("0_maingame")
 
-[node name="WorldBackground" type="ColorRect" parent="."]
+[node name="WorldBackground" type="ColorRect" parent="." unique_id=2125439641]
 z_index = -100
-offset_left = -1200.0
-offset_top = -1000.0
-offset_right = 2000.0
-offset_bottom = 1800.0
+offset_left = -1504.0
+offset_top = -1696.0
+offset_right = 3996.0
+offset_bottom = 2304.0
 mouse_filter = 2
-color = Color(0.25, 0.42, 0.22, 1)
+color = Color(0.12, 0.22, 0.13, 1)
 
-[node name="FarmBorderPath" type="ColorRect" parent="."]
+[node name="FarmBorderPath" type="ColorRect" parent="." unique_id=855186235]
+visible = false
 z_index = -50
 offset_left = -20.0
 offset_top = -20.0
@@ -161,43 +147,45 @@ offset_bottom = 788.0
 mouse_filter = 2
 color = Color(0.38, 0.28, 0.18, 1)
 
-[node name="GameCamera" type="Camera2D" parent="."]
-position = Vector2(384, 384)
+[node name="GameCamera" type="Camera2D" parent="." unique_id=857115497]
+position = Vector2(768, 480)
+zoom = Vector2(1.25, 1.25)
 script = ExtResource("8_camera")
 
-[node name="FarmGrid" type="Node2D" parent="."]
+[node name="FarmGrid" type="Node2D" parent="." unique_id=1964100399]
+y_sort_enabled = true
 script = ExtResource("1_farmgrid")
 
-[node name="Farmer" type="CharacterBody2D" parent="."]
-position = Vector2(384, 384)
+[node name="Farmer" type="CharacterBody2D" parent="." unique_id=460287838]
+position = Vector2(768, 480)
 script = ExtResource("2_farmer")
 
+[node name="FarmerSprite" type="Sprite2D" parent="Farmer" unique_id=2140608536]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(1.25, 1.25)
+texture = ExtResource("Texture_farmer_icon")
 
-[node name="FarmerSprite" type="ColorRect" parent="Farmer"]
-offset_left = -16.0
-offset_top = -16.0
-offset_right = 16.0
-offset_bottom = 16.0
-mouse_filter = 2
-color = Color(0.2, 0.6, 1, 1)
-
-[node name="FarmerLabel" type="Label" parent="Farmer"]
+[node name="FarmerLabel" type="Label" parent="Farmer" unique_id=411401969]
 offset_left = -60.0
 offset_top = -36.0
 offset_right = 60.0
 offset_bottom = -13.0
-mouse_filter = 2
-text = "🧑‍🌾 Ready"
+text = "Ready!"
 horizontal_alignment = 1
 
-[node name="TileActionPopup" type="PopupMenu" parent="."]
+[node name="TileActionPopup" type="PopupMenu" parent="." unique_id=1071264976]
 size = Vector2i(220, 200)
 script = ExtResource("4_popup")
 
-[node name="HUDLayer" type="CanvasLayer" parent="."]
+[node name="WeatherEffects" type="Node2D" parent="." unique_id=1849372105]
+script = ExtResource("14_weather_fx")
+
+[node name="HUDLayer" type="CanvasLayer" parent="." unique_id=821513771]
+layer = 10
 script = ExtResource("3_hud")
 
-[node name="Control" type="Control" parent="HUDLayer"]
+[node name="Control" type="Control" parent="HUDLayer" unique_id=415437746]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -206,373 +194,667 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TopBar" type="PanelContainer" parent="HUDLayer/Control"]
+[node name="RegionWeatherBox" type="Control" parent="HUDLayer/Control" unique_id=1469091706]
+texture_filter = 1
+anchors_preset = 0
+offset_right = 227.0
+offset_bottom = 123.0
+
+[node name="Background" type="TextureRect" parent="HUDLayer/Control/RegionWeatherBox" unique_id=200100001]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("Texture_region_climate_humidity")
+expand_mode = 1
+
+[node name="RegionCapsule" type="Control" parent="HUDLayer/Control/RegionWeatherBox" unique_id=1469091707]
+anchors_preset = 0
+offset_left = 29.0
+offset_top = 16.0
+offset_right = 195.0
+offset_bottom = 41.0
+mouse_filter = 1
+
+[node name="RegionLabel" type="Label" parent="HUDLayer/Control/RegionWeatherBox/RegionCapsule" unique_id=358642301]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 22
+text = "Cotabato Basin"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="WeatherLabel" type="Label" parent="HUDLayer/Control/RegionWeatherBox" unique_id=245671810]
+layout_mode = 0
+offset_left = 29.0
+offset_top = 53.0
+offset_right = 112.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = "☀️ 28°C"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="HumidityLabel" type="Label" parent="HUDLayer/Control/RegionWeatherBox" unique_id=245671811]
+layout_mode = 0
+offset_left = 112.0
+offset_top = 53.0
+offset_right = 195.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = "💧 65%"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="DayNightBox" type="Control" parent="HUDLayer/Control" unique_id=200200001]
+texture_filter = 1
+anchors_preset = 0
+offset_left = 248.0
+offset_right = 472.0
+offset_bottom = 87.0
+
+[node name="Background" type="TextureRect" parent="HUDLayer/Control/DayNightBox" unique_id=200200002]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -32.0
+offset_top = -10.0
+offset_right = 21.84613
+offset_bottom = 15.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("Texture_daynight_time")
+expand_mode = 1
+
+[node name="DayLabel" type="Label" parent="HUDLayer/Control/DayNightBox" unique_id=1767090056]
+layout_mode = 0
+offset_left = 13.0
+offset_top = 30.0
+offset_right = 94.0
+offset_bottom = 56.0
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = "Day: 1"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="TimeRow" type="HBoxContainer" parent="HUDLayer/Control/DayNightBox" unique_id=1115152644]
+layout_mode = 0
+offset_left = 126.0
+offset_top = 26.0
+offset_right = 206.0
+offset_bottom = 58.0
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="TimeIcon" type="TextureRect" parent="HUDLayer/Control/DayNightBox/TimeRow" unique_id=1849182745]
+texture_filter = 1
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("Texture_sun_icon")
+stretch_mode = 3
+
+[node name="TimeLabel" type="Label" parent="HUDLayer/Control/DayNightBox/TimeRow" unique_id=129464269]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = "07:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SpeedPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=288909925]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -90.0
+offset_top = 10.0
+offset_right = 90.0
+offset_bottom = 46.0
+grow_horizontal = 2
+theme_override_styles/panel = ExtResource("StyleBox_uppermid")
+
+[node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control/SpeedPanel" unique_id=1904784341]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PauseButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1711548302]
+custom_minimum_size = Vector2(30, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
+theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
+theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
+text = "⏸"
+
+[node name="Speed1xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1535824092]
+custom_minimum_size = Vector2(30, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
+theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
+theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
+text = "1x"
+
+[node name="Speed2xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1723419154]
+custom_minimum_size = Vector2(30, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
+theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
+theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
+text = "2x"
+
+[node name="Speed3xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=18402505]
+custom_minimum_size = Vector2(30, 24)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
+theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
+theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
+text = "3x"
+
+[node name="DisasterBox" type="Control" parent="HUDLayer/Control" unique_id=200300001]
+visible = false
+modulate = Color(1, 1, 1, 0)
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -112.0
+offset_top = 48.0
+offset_right = 112.0
+offset_bottom = 135.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="Background" type="TextureRect" parent="HUDLayer/Control/DisasterBox" unique_id=200300002]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("Texture_disaster_box")
+expand_mode = 1
+
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/DisasterBox" unique_id=200300003]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 12.0
-offset_top = 6.0
-offset_right = -12.0
-offset_bottom = 50.0
+offset_left = 22.0
+offset_top = 22.0
+offset_right = -22.0
+offset_bottom = 43.0
 grow_horizontal = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
-
-[node name="Margin" type="MarginContainer" parent="HUDLayer/Control/TopBar"]
-layout_mode = 2
-
-[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="LeftCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="RegionCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
-
-[node name="RegionLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/RegionCapsule"]
-layout_mode = 2
-text = "📍 Cotabato Basin"
-theme_override_font_sizes/font_size = 12
-
-[node name="WeatherCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
-
-[node name="WeatherLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/LeftCluster/WeatherCapsule"]
-layout_mode = 2
-text = "⛅ 28°C 💧 65%"
-theme_override_font_sizes/font_size = 12
-
-[node name="CenterCluster" type="VBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-alignment = 1
-
-[node name="ClockBox" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 6
-
-[node name="DayLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
-layout_mode = 2
-text = "📅 Day: 1"
-theme_override_font_sizes/font_size = 12
-
-[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
-layout_mode = 2
-
-[node name="TimeLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
-layout_mode = 2
-text = "⏰ 06:00"
-theme_override_font_sizes/font_size = 12
-
-[node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
-layout_mode = 2
-
-[node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox"]
-layout_mode = 2
-theme_override_constants/separation = 3
-
-[node name="PauseButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(30, 22)
-layout_mode = 2
-text = "⏸"
-
-[node name="Speed1xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(30, 22)
-layout_mode = 2
-text = "1x"
-
-[node name="Speed2xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(30, 22)
-layout_mode = 2
-text = "2x"
-
-[node name="Speed3xButton" type="Button" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster/ClockBox/SpeedBar"]
-custom_minimum_size = Vector2(30, 22)
-layout_mode = 2
-text = "3x"
-
-[node name="DisasterLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/CenterCluster"]
-layout_mode = 2
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(1, 0.25, 0.25, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="RightCluster" type="HBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="WorkerCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
-
-[node name="WorkerLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/WorkerCapsule"]
-layout_mode = 2
-text = "🧑‍🌾 1/1"
-theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
-theme_override_font_sizes/font_size = 12
-
-[node name="StorageCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
-custom_minimum_size = Vector2(105, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
-
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule"]
-layout_mode = 2
-theme_override_constants/separation = 2
-alignment = 1
-
-[node name="StorageLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
-layout_mode = 2
-text = "📦 0/1000"
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 11
-
-[node name="StorageBar" type="ProgressBar" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/StorageCapsule/VBox"]
-custom_minimum_size = Vector2(0, 3)
-layout_mode = 2
-show_percentage = false
-
-[node name="CashCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_gold")
-
-[node name="CashLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/CashCapsule"]
-layout_mode = 2
-text = "💰 ₱1,000"
-theme_override_colors/font_color = Color(1, 0.92, 0.35, 1)
+theme_override_colors/font_color = Color(0.85, 0.15, 0.15, 1)
 theme_override_font_sizes/font_size = 13
+text = "⚠️ INCOMING HAZARD!"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
 
-[node name="TaskCapsule" type="PanelContainer" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_capsule")
+[node name="SubLabel" type="Label" parent="HUDLayer/Control/DisasterBox" unique_id=200300004]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 22.0
+offset_top = 40.0
+offset_right = -22.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.28, 0.18, 0.1, 1)
+theme_override_font_sizes/font_size = 10
+text = "Salvage crops or prepare your farm!"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
 
-[node name="TaskLabel" type="Label" parent="HUDLayer/Control/TopBar/Margin/HBox/RightCluster/TaskCapsule"]
+[node name="RightCluster" type="HBoxContainer" parent="HUDLayer/Control" unique_id=1514266111]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -440.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = 44.0
+grow_horizontal = 0
+theme_override_constants/separation = 6
+alignment = 2
+
+[node name="WorkerCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=1044957698]
+texture_filter = 1
 layout_mode = 2
-text = "📋 0"
+theme_override_styles/panel = ExtResource("7_lupq4")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HUDLayer/Control/RightCluster/WorkerCapsule" unique_id=673087251]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="TextureRect" type="TextureRect" parent="HUDLayer/Control/RightCluster/WorkerCapsule/HBoxContainer" unique_id=1372614827]
+texture_filter = 1
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+texture = ExtResource("Texture_farmer_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="WorkerLabel" type="Label" parent="HUDLayer/Control/RightCluster/WorkerCapsule/HBoxContainer" unique_id=1077930326]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.8, 1)
 theme_override_font_sizes/font_size = 12
+text = "1/1"
 
-[node name="RegionHoverCard" type="PanelContainer" parent="HUDLayer/Control"]
+[node name="StorageCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=626771739]
+texture_filter = 1
+layout_mode = 2
+theme_override_styles/panel = ExtResource("7_lupq4")
+
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/RightCluster/StorageCapsule" unique_id=420371831]
+layout_mode = 2
+alignment = 1
+
+[node name="StorageLabel" type="Label" parent="HUDLayer/Control/RightCluster/StorageCapsule/HBox" unique_id=1632546562]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "0/200"
+
+[node name="StorageBar" type="ProgressBar" parent="HUDLayer/Control/RightCluster/StorageCapsule/HBox" unique_id=114996434]
+visible = false
+layout_mode = 2
+
+[node name="CashCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=496540793]
+texture_filter = 1
+layout_mode = 2
+theme_override_styles/panel = ExtResource("7_lupq4")
+
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/RightCluster/CashCapsule" unique_id=1421288582]
+layout_mode = 2
+alignment = 1
+
+[node name="CashLabel" type="Label" parent="HUDLayer/Control/RightCluster/CashCapsule/HBox" unique_id=157742538]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.92, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "₱250"
+
+[node name="PointsCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=1981135433]
+texture_filter = 1
+layout_mode = 2
+theme_override_styles/panel = ExtResource("7_lupq4")
+
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/RightCluster/PointsCapsule" unique_id=2023549322]
+layout_mode = 2
+alignment = 1
+
+[node name="PointsLabel" type="Label" parent="HUDLayer/Control/RightCluster/PointsCapsule/HBox" unique_id=349041162]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "🏆 0 pts"
+
+[node name="TaskCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=685294491]
+visible = false
+texture_filter = 1
+layout_mode = 2
+theme_override_styles/panel = ExtResource("7_lupq4")
+
+[node name="TaskLabel" type="Label" parent="HUDLayer/Control/RightCluster/TaskCapsule" unique_id=1421288583]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "📋 0"
+
+[node name="SettingsButton" type="Button" parent="HUDLayer/Control/RightCluster" unique_id=1982736451]
+texture_filter = 1
+custom_minimum_size = Vector2(30, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
+theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
+theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
+text = "⚙️"
+
+[node name="RegionHoverCard" type="PanelContainer" parent="HUDLayer/Control" unique_id=161728692]
 visible = false
 layout_mode = 0
-offset_left = 12.0
-offset_top = 54.0
-offset_right = 420.0
-offset_bottom = 310.0
+offset_left = 14.0
+offset_top = 214.0
+offset_right = 422.0
+offset_bottom = 470.0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_hovercard")
+theme_override_styles/panel = ExtResource("7_lupq4")
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/RegionHoverCard"]
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/RegionHoverCard" unique_id=329915660]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="TitleLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox" unique_id=1224466558]
 layout_mode = 2
-text = "🗺️ Cotabato Basin"
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 14
+text = "🗺️ Cotabato Basin"
 
-[node name="DescLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+[node name="DescLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox" unique_id=892697082]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.95, 0.92, 1)
+theme_override_font_sizes/font_size = 12
 text = "Regional description text"
 autowrap_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.9, 0.85, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/RegionHoverCard/VBox" unique_id=982815390]
 layout_mode = 2
 
-[node name="ProsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+[node name="ProsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox" unique_id=807351556]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 1, 0.5, 1)
+theme_override_font_sizes/font_size = 12
 text = "✔ PROS & ADVANTAGES"
 autowrap_mode = 2
-theme_override_colors/font_color = Color(0.4, 0.95, 0.4, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="ConsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox"]
+[node name="ConsLabel" type="Label" parent="HUDLayer/Control/RegionHoverCard/VBox" unique_id=1912604461]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 12
 text = "⚠️ CONS & RISKS"
 autowrap_mode = 2
-theme_override_colors/font_color = Color(1, 0.45, 0.35, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="TileInfoPanel" type="PanelContainer" parent="HUDLayer/Control"]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 618.0
-offset_right = 620.0
-offset_bottom = 708.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_console")
+[node name="TileInfoPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=2121556193]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -276.0
+offset_right = 488.0
+offset_bottom = -10.0
+grow_vertical = 0
+theme_override_styles/panel = ExtResource("7_rtryj")
 script = ExtResource("5_info")
 
-[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel"]
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel" unique_id=960626539]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 16
 
-[node name="PortraitBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-custom_minimum_size = Vector2(165, 0)
+[node name="PortraitBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox" unique_id=1357478827]
+custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 4
+alignment = 1
 
-[node name="PortraitIcon" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
-custom_minimum_size = Vector2(48, 48)
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox" unique_id=60542567]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
+text = "Tile (0, 0)"
+horizontal_alignment = 1
+
+[node name="PlantBox" type="PanelContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox" unique_id=610940770]
+layout_mode = 2
+size_flags_horizontal = 4
 size_flags_vertical = 4
+theme_override_styles/panel = ExtResource("14_i1eed")
+
+[node name="PortraitIcon" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/PlantBox" unique_id=1727596214]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 38
 text = "🌱"
 horizontal_alignment = 1
 vertical_alignment = 1
-theme_override_font_sizes/font_size = 28
 
-[node name="Meta" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox"]
+[node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox" unique_id=1955108444]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
+text = "Uncultivated Soil"
+horizontal_alignment = 1
+
+[node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox" unique_id=1681950663]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.38, 0.26, 0.16, 1)
+theme_override_font_sizes/font_size = 12
+text = "Empty Grass"
+horizontal_alignment = 1
+
+[node name="RightDataBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox" unique_id=1806252230]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 10
 alignment = 1
-theme_override_constants/separation = 2
 
-[node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
+[node name="GaugesBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox" unique_id=1806252233]
 layout_mode = 2
-text = "📍 Tile (0, 0)"
-theme_override_font_sizes/font_size = 12
+theme_override_constants/separation = 6
 
-[node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
-layout_mode = 2
-text = "Uncultivated Soil"
-theme_override_colors/font_color = Color(0.85, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/PortraitBox/Meta"]
-layout_mode = 2
-text = "Empty Grass"
-theme_override_colors/font_color = Color(0.7, 0.8, 0.7, 1)
-theme_override_font_sizes/font_size = 10
-
-[node name="VSeparator" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+[node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox" unique_id=76857415]
 layout_mode = 2
 
-[node name="GaugesBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
-custom_minimum_size = Vector2(210, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/GrowthBox" unique_id=1740912574]
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 3
-
-[node name="GrowthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(55, 0)
-layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "Growth:"
-theme_override_font_sizes/font_size = 11
 
-[node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(90, 12)
+[node name="GrowthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/GrowthBox" unique_id=1123513522]
+custom_minimum_size = Vector2(90, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_growth_fill")
+show_percentage = false
 
-[node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/GrowthBox"]
-custom_minimum_size = Vector2(30, 0)
+[node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/GrowthBox" unique_id=2074738848]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "0%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 10
 
-[node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
+[node name="HealthBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox" unique_id=1563681451]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(55, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/HealthBox" unique_id=86996367]
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "Health:"
-theme_override_font_sizes/font_size = 11
 
-[node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(90, 12)
+[node name="HealthBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/HealthBox" unique_id=1435187433]
+custom_minimum_size = Vector2(90, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_health_fill")
 value = 100.0
+show_percentage = false
 
-[node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/HealthBox"]
-custom_minimum_size = Vector2(30, 0)
+[node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/HealthBox" unique_id=932369578]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "100%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 10
 
-[node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox"]
+[node name="MoistureBox" type="HBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox" unique_id=1975404303]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(55, 0)
+[node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/MoistureBox" unique_id=1461235007]
+custom_minimum_size = Vector2(52, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "Moist:"
-theme_override_font_sizes/font_size = 11
 
-[node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(90, 12)
+[node name="MoistureBar" type="ProgressBar" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/MoistureBox" unique_id=1792015674]
+custom_minimum_size = Vector2(90, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_moist_fill")
 value = 60.0
+show_percentage = false
 
-[node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/GaugesBox/MoistureBox"]
-custom_minimum_size = Vector2(30, 0)
+[node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/GaugesBox/MoistureBox" unique_id=1013795459]
+custom_minimum_size = Vector2(35, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 15
 text = "60%"
 horizontal_alignment = 2
-theme_override_font_sizes/font_size = 10
 
-[node name="VSeparator2" type="VSeparator" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+[node name="StatusBox" type="PanelContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox" unique_id=554888866]
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_status_card")
 
-[node name="StatusBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox"]
+[node name="StatusVBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/StatusBox" unique_id=554888867]
 layout_mode = 2
-size_flags_horizontal = 3
-alignment = 1
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
-[node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
+[node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/StatusBox/StatusVBox" unique_id=203942587]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 13
 text = "Quality: Grade A"
-theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/StatusBox"]
+[node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/HBox/RightDataBox/StatusBox/StatusVBox" unique_id=1819283945]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 13
 text = "Pests: None (Healthy)"
-theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="CommandCorner" type="VBoxContainer" parent="HUDLayer/Control"]
-layout_mode = 0
-offset_left = 944.0
-offset_top = 618.0
-offset_right = 1136.0
-offset_bottom = 708.0
-theme_override_constants/separation = 6
+[node name="BacklogButton" type="Button" parent="HUDLayer/Control" unique_id=1982736452]
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -175.0
+offset_top = 54.0
+offset_right = -12.0
+offset_bottom = 94.0
+grow_horizontal = 0
+tooltip_text = "View Farm Chronicle & Backlog (L)"
+theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("9_vs82q")
+theme_override_styles/pressed = ExtResource("10_7d840")
+theme_override_styles/hover = ExtResource("10_qsiih")
+text = "BACKLOG (L)"
+
+[node name="CommandCorner" type="VBoxContainer" parent="HUDLayer/Control" unique_id=1584430631]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -215.0
+offset_top = -140.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 4
 alignment = 1
 
-[node name="MarketButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
-custom_minimum_size = Vector2(180, 40)
+[node name="MarketButton" type="Button" parent="HUDLayer/Control/CommandCorner" unique_id=1161754860]
+custom_minimum_size = Vector2(200, 38)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/normal = SubResource("StyleBoxFlat_market")
-text = "📈 MARKET & TRADE"
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("9_vs82q")
+theme_override_styles/pressed = ExtResource("10_7d840")
+theme_override_styles/hover = ExtResource("10_qsiih")
+text = "MARKET (M)"
 
-[node name="ShopButton" type="Button" parent="HUDLayer/Control/CommandCorner"]
-custom_minimum_size = Vector2(180, 42)
+[node name="SellButton" type="Button" parent="HUDLayer/Control/CommandCorner" unique_id=1161754861]
+custom_minimum_size = Vector2(200, 38)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.12, 0.08, 0, 1)
-theme_override_styles/normal = SubResource("StyleBoxFlat_shop")
-text = "🛒 AGRI SHOP"
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_colors/font_hover_color = Color(0.10, 0.05, 0.02, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("12_vtnxl")
+theme_override_styles/pressed = ExtResource("13_lupq4")
+theme_override_styles/hover = ExtResource("13_16xnu")
+text = "SELL (K)"
 
-[node name="MarketPanel" type="PanelContainer" parent="HUDLayer/Control"]
+[node name="ShopButton" type="Button" parent="HUDLayer/Control/CommandCorner" unique_id=1724981348]
+custom_minimum_size = Vector2(200, 38)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("9_vs82q")
+theme_override_styles/pressed = ExtResource("10_7d840")
+theme_override_styles/hover = ExtResource("10_qsiih")
+text = "AGRI SHOP (B)"
+
+[node name="PlantHotbar" type="Control" parent="HUDLayer/Control" unique_id=2089104712]
+texture_filter = 1
+layout_mode = 1
+anchor_left = 0.6
+anchor_top = 1.0
+anchor_right = 0.6
+anchor_bottom = 1.0
+offset_left = -225.0
+offset_top = -280.0
+offset_right = 225.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("24_planthotbar")
+
+[node name="MarketPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=90257860]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -580,108 +862,15 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -380.0
-offset_top = -180.0
-offset_right = 380.0
-offset_bottom = 190.0
+offset_left = -390.0
+offset_top = -240.0
+offset_right = 390.0
+offset_bottom = 240.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("6_market")
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Header" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
-layout_mode = 2
-
-[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "📈 Regional Commodity Exchange & Logistics"
-theme_override_font_sizes/font_size = 16
-
-[node name="CloseBtn" type="Button" parent="HUDLayer/Control/MarketPanel/VBox/Header"]
-custom_minimum_size = Vector2(30, 0)
-layout_mode = 2
-text = "✕"
-
-[node name="Content" type="HBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 16
-
-[node name="PricesSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
-layout_mode = 2
-text = "🌾 Live Commodity Prices"
-theme_override_font_sizes/font_size = 14
-
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
-layout_mode = 2
-
-[node name="PriceList" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content/PricesSection"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="ForecastSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 4
-
-[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
-layout_mode = 2
-text = "🌦️ 3-Day Climate Forecast"
-theme_override_font_sizes/font_size = 14
-
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
-layout_mode = 2
-
-[node name="ForecastList" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content/ForecastSection"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="LogisticsSection" type="VBoxContainer" parent="HUDLayer/Control/MarketPanel/VBox/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Title" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-layout_mode = 2
-text = "📦 Stored Crop Batches"
-theme_override_font_sizes/font_size = 14
-
-[node name="HSeparator" type="HSeparator" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-layout_mode = 2
-
-[node name="StorageList" type="ItemList" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-custom_minimum_size = Vector2(0, 130)
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="HubSelector" type="OptionButton" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-layout_mode = 2
-
-[node name="HubDetailsLabel" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-layout_mode = 2
-text = "Distance: 0 km | Fuel: ₱0"
-autowrap_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.9, 0.7, 1)
-theme_override_font_sizes/font_size = 11
-
-[node name="SellBtn" type="Button" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-text = "🚚 Ship & Sell Selected Batch"
-
-[node name="StatusMsg" type="Label" parent="HUDLayer/Control/MarketPanel/VBox/Content/LogisticsSection"]
-layout_mode = 2
-horizontal_alignment = 1
-
-[node name="ShopPanel" type="PanelContainer" parent="HUDLayer/Control"]
+[node name="SellPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=90257861]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -689,121 +878,132 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -380.0
-offset_top = -240.0
-offset_right = 380.0
-offset_bottom = 250.0
+offset_left = -360.0
+offset_top = -190.0
+offset_right = 360.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("15_sell")
+
+[node name="ShopPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=1603964492]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -390.0
+offset_top = -230.0
+offset_right = 390.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("23_0e2px")
 script = ExtResource("7_shop")
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel"]
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel" unique_id=1432333648]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 10
 
-[node name="Header" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
+[node name="Header" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox" unique_id=2125673114]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
+[node name="Title" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header" unique_id=1600530592]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "🛒 Regional Agri-Tech & Farm Equipment Shop"
-theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.24, 0.15, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0.95, 0.88, 0.75, 0.6)
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 22
+text = "Agri-Shop & Equipment"
 
-[node name="CashLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
+[node name="CashLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/Header" unique_id=1031725067]
 layout_mode = 2
-text = "Funds: 💰 ₱1000"
-theme_override_colors/font_color = Color(0.4, 1, 0.4, 1)
+theme_override_colors/font_color = Color(0.12, 0.48, 0.15, 1)
+theme_override_colors/font_shadow_color = Color(0.95, 0.88, 0.75, 0.5)
+theme_override_font_sizes/font_size = 17
+text = "Funds: ₱250"
 
-[node name="CloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/Header"]
-custom_minimum_size = Vector2(30, 0)
+[node name="CloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/Header" unique_id=295511917]
+custom_minimum_size = Vector2(34, 30)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = ExtResource("9_vs82q")
+theme_override_styles/pressed = ExtResource("10_7d840")
+theme_override_styles/hover = ExtResource("10_qsiih")
 text = "✕"
 
-[node name="StatusLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox"]
+[node name="StatusLabel" type="Label" parent="HUDLayer/Control/ShopPanel/VBox" unique_id=1412119708]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.22, 0.12, 1)
+theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 
-[node name="TabContainer" type="TabContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
+[node name="TabContainer" type="TabContainer" parent="HUDLayer/Control/ShopPanel/VBox" unique_id=1450404158]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_colors/font_selected_color = Color(1, 0.94, 0.82, 1)
+theme_override_colors/font_hovered_color = Color(1, 1, 0.9, 1)
+theme_override_colors/font_unselected_color = Color(0.72, 0.65, 0.55, 0.85)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/panel = SubResource("StyleBoxEmpty_tab_panel")
+theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_tab_unselected")
+theme_override_styles/tab_hovered = SubResource("StyleBoxFlat_tab_hovered")
+theme_override_styles/tab_selected = SubResource("StyleBoxFlat_tab_selected")
+theme_override_styles/tab_focus = SubResource("StyleBoxEmpty_tab_panel")
+current_tab = 0
 
-[node name="Machinery" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
+[node name="Labor" type="ScrollContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer" unique_id=845105787]
 layout_mode = 2
-metadata/_tab_title = "Machinery & Tech"
+horizontal_scroll_mode = 0
+metadata/_tab_title = "👷 Housing & Labor"
+metadata/_tab_index = 0
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Machinery"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
-theme_override_constants/separation = 10
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Labor" unique_id=1924123907]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
 
-[node name="Infrastructure" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
+[node name="ItemInfoCard" type="PanelContainer" parent="HUDLayer/Control/ShopPanel/VBox" unique_id=1842323215]
 visible = false
 layout_mode = 2
-metadata/_tab_title = "Infrastructure & Storage"
+theme_override_styles/panel = ExtResource("7_lupq4")
 
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Infrastructure"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
-theme_override_constants/separation = 10
-
-[node name="Labor" type="TabBar" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer"]
-visible = false
-layout_mode = 2
-metadata/_tab_title = "Labor & Workers"
-
-[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer/Labor"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = -12.0
-offset_bottom = -12.0
-theme_override_constants/separation = 10
-
-[node name="ItemInfoCard" type="PanelContainer" parent="HUDLayer/Control/ShopPanel/VBox"]
-visible = false
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_infocard")
-
-[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard"]
+[node name="HBox" type="HBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard" unique_id=1565966924]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="TextVBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox"]
+[node name="TextVBox" type="VBoxContainer" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox" unique_id=1301581490]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="InfoTitle" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox"]
+[node name="InfoTitle" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox" unique_id=1818045049]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.45, 1)
+theme_override_font_sizes/font_size = 16
 text = "Item Details"
-theme_override_colors/font_color = Color(0.35, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 12
 
-[node name="InfoDesc" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox"]
+[node name="InfoDesc" type="Label" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox/TextVBox" unique_id=2071608396]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.95, 0.88, 1)
+theme_override_font_sizes/font_size = 13
 text = "Details will appear here."
 autowrap_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
-theme_override_font_sizes/font_size = 11
 
-[node name="InfoCloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox"]
-custom_minimum_size = Vector2(26, 26)
+[node name="InfoCloseBtn" type="Button" parent="HUDLayer/Control/ShopPanel/VBox/ItemInfoCard/HBox" unique_id=1746661363]
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 size_flags_vertical = 0
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = ExtResource("9_vs82q")
+theme_override_styles/pressed = ExtResource("10_7d840")
+theme_override_styles/hover = ExtResource("10_qsiih")
 text = "✕"

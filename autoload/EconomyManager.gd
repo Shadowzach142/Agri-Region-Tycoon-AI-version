@@ -5,7 +5,7 @@ extends Node
 
 signal cash_changed(amount: int)
 
-var cash: int = 1000  # Starting cash
+var cash: int = 250  # Starting cash
 
 func _ready() -> void:
 	cash_changed.emit(cash)
@@ -19,4 +19,5 @@ func deduct_cash(amount: int) -> bool:
 		cash -= amount
 		cash_changed.emit(cash)
 		return true
+	AudioManager.play_ui("error")
 	return false
