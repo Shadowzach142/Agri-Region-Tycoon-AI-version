@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://5auaiipilshg"]
+
+[ext_resource type="Script" path="res://scratch/render_hud_icons_check.gd" id="1_check"]
+
+[node name="CheckRoot" type="Node"]
+script = ExtResource("1_check")

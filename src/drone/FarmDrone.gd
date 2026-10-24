@@ -1,4 +1,4 @@
-﻿# FarmDrone.gd
+# FarmDrone.gd
 # Automated Farm Drone — remote-controlled from the worker hotbar "Drone" slot.
 #
 # The player drags a rectangular ZONE on the farm; the drone then flies around visibly
@@ -20,7 +20,14 @@ enum State { IDLE, FLYING, WORKING }
 
 const FLY_SPEED: float = 300.0          # px/s at 1x game speed
 const HOVER_HEIGHT: float = 44.0        # px the drone floats above the ground
-const WORK_TIME: Dictionary = {"plow": 0.55, "plant": 0.55, "harvest": 1.0}
+const WORK_TIME: Dictionary = {
+	"plow": 0.55,
+	"plant": 0.55,
+	"water": 0.50,
+	"spray": 0.60,
+	"harvest": 1.0,
+	"clear": 1.2
+}
 const RESCAN_SECONDS: float = 1.5
 const SPRITE_PATH: String = "res://assets/sprites/drone/drone.png"
 const SPRITE_SCALE: float = 3.0
@@ -38,9 +45,27 @@ const LEVEL_ACCENT: Array[Color] = [
 const JOB_COLORS: Dictionary = {
 	"plow": Color(0.78, 0.58, 0.32),
 	"plant": Color(0.45, 0.95, 0.45),
+	"water": Color(0.25, 0.75, 1.0),
+	"spray": Color(0.35, 1.0, 0.55),
 	"harvest": Color(1.0, 0.82, 0.25),
+	"clear": Color(0.95, 0.35, 0.35),
 }
-const JOB_LABELS: Dictionary = {"plow": "PLOWING", "plant": "SEEDING", "harvest": "HARVESTING"}
+const JOB_LABELS: Dictionary = {
+	"plow": "PLOWING",
+	"plant": "SEEDING",
+	"water": "WATERING",
+	"spray": "TREATING",
+	"harvest": "HARVESTING",
+	"clear": "CLEARING"
+}
+
+# Automation Directives Toggles (Configurable via Drone Command Deck)
+var auto_plow: bool = true
+var auto_plant: bool = true
+var auto_water: bool = true
+var auto_spray: bool = true
+var auto_harvest: bool = true
+var auto_clear: bool = false
 
 var farm_grid: Node2D = null
 var zone: Array[Vector2i] = []
@@ -130,6 +155,61 @@ func recall() -> void:
 		LogManager.log_event("crops", "🛸 Farm Drone recalled — zone cleared (%d jobs completed)." % jobs_done, "🛸", Color(0.45, 0.85, 1.0))
 	if is_instance_valid(_zone_layer):
 		_zone_layer.queue_redraw()
+
+func deploy_whole_farm(crop: String = "") -> void:
+	if farm_grid == null:
+		return
+	var all_tiles: Array = []
+	for x in range(farm_grid.GRID_SIZE.x):
+		for y in range(farm_grid.GRID_SIZE.y):
+			var p := Vector2i(x, y)
+			if farm_grid.is_tile_unlocked(p):
+				all_tiles.append(p)
+	deploy(all_tiles, crop if not crop.is_empty() else crop_type)
+	LogManager.log_event("crops", "🛸 Farm Drone deployed on Whole Farm Autonomous Patrol (%d plots)!" % zone.size(), "🛸", Color(0.40, 0.88, 1.0))
+
+func get_telemetry() -> Dictionary:
+	var data := {
+		"level": _level,
+		"state": state,
+		"state_name": ["IDLE", "FLYING", "WORKING"][clampi(state, 0, 2)],
+		"current_action": str(JOB_LABELS.get(job.get("type", ""), "Idle")),
+		"crop_type": crop_type,
+		"jobs_done": jobs_done,
+		"zone_count": zone.size(),
+		"is_whole_farm": zone.size() > 50,
+		"auto_plow": auto_plow,
+		"auto_plant": auto_plant,
+		"auto_water": auto_water,
+		"auto_spray": auto_spray,
+		"auto_harvest": auto_harvest,
+		"auto_clear": auto_clear,
+		"blocked_reason": _blocked_reason,
+		"growing_count": 0,
+		"thirsty_count": 0,
+		"infected_count": 0,
+		"harvestable_count": 0,
+		"plowable_count": 0,
+		"empty_plowed_count": 0
+	}
+	if farm_grid != null and "tiles" in farm_grid:
+		for p in zone:
+			if not farm_grid._is_valid(p):
+				continue
+			var t: FarmTile = farm_grid.tiles[p.x][p.y]
+			if t.state == FarmTile.TileState.HARVESTABLE:
+				data["harvestable_count"] += 1
+			elif t.state == FarmTile.TileState.GROWING:
+				data["growing_count"] += 1
+				if t.soil_moisture < 50.0:
+					data["thirsty_count"] += 1
+			elif t.state == FarmTile.TileState.INFECTED or t.pest_type != "":
+				data["infected_count"] += 1
+			elif t.state == FarmTile.TileState.PLOWED:
+				data["empty_plowed_count"] += 1
+			elif farm_grid.is_tile_plowable(p):
+				data["plowable_count"] += 1
+	return data
 
 func has_zone() -> bool:
 	return not zone.is_empty()
@@ -242,7 +322,7 @@ func _scan_for_job() -> Dictionary:
 	var crop_data: Dictionary = Data.get_crop(crop_type)
 	var crop_fp: Vector2i = crop_data.get("footprint", Vector2i(1, 1))
 	var seed_cost: int = int(crop_data.get("seed_cost", 25))
-	var can_afford: bool = EconomyManager.cash >= seed_cost
+	var can_afford_seeds: bool = EconomyManager.cash >= seed_cost
 	var storage_full: bool = BuildingManager.is_storage_full()
 	var seen_roots: Dictionary = {}
 
@@ -254,36 +334,83 @@ func _scan_for_job() -> Dictionary:
 		var root_t: FarmTile = farm_grid.tiles[root.x][root.y]
 		var dist: float = float(absi(p.x - here.x) + absi(p.y - here.y)) * 10.0
 
-		# Lv.3 — harvest fully ripe crops only (never early-harvests)
-		if _level >= 3 and root_t.crop_type != "" and root_t.state == FarmTile.TileState.HARVESTABLE and not seen_roots.has(root):
+		# 1. Lv.2+ — Spray & cure blighted/infected crops (Emergency Priority: Tier 0)
+		if auto_spray and _level >= 2 and (root_t.state == FarmTile.TileState.INFECTED or root_t.pest_type != "") and not seen_roots.has(root):
 			seen_roots[root] = true
-			if storage_full:
-				_blocked_reason = "Storage full — sell crops at the Bodega"
+			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(root, self):
+				pass
+			elif EconomyManager.cash < 30:
+				_blocked_reason = "Waiting for funds (₱30 treatment)"
+			elif not TaskManager.has_task_at(root, "spray_pest"):
+				var s_fp: Vector2i = Data.get_crop(root_t.crop_type).get("footprint", Vector2i(1, 1)) if root_t.crop_type != "" else Vector2i(1, 1)
+				var score: float = dist + 0.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "spray", "pos": root, "fp": s_fp, "crop": root_t.crop_type}
+
+		# 2. Lv.3 — Harvest fully ripe crops (Tier 1: 1000 base)
+		if auto_harvest and _level >= 3 and root_t.crop_type != "" and root_t.state == FarmTile.TileState.HARVESTABLE and not seen_roots.has(root):
+			seen_roots[root] = true
+			var can_store_crop: bool = BuildingManager.has_storage_for_crop(root_t.crop_type, 100)
+			if storage_full or not can_store_crop:
+				if storage_full:
+					_blocked_reason = "Storage full — sell crops at the Bodega"
+				else:
+					_blocked_reason = "No storage accepting %s has space" % root_t.crop_type.capitalize()
 			elif farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(root, self):
 				pass
 			elif not TaskManager.has_task_at(root, "harvest"):
 				var h_fp: Vector2i = Data.get_crop(root_t.crop_type).get("footprint", Vector2i(1, 1))
-				if dist < best_score:
-					best_score = dist
+				var score: float = dist + 1000.0
+				if score < best_score:
+					best_score = score
 					best = {"type": "harvest", "pos": root, "fp": h_fp, "crop": root_t.crop_type}
 
-		# Lv.2 — plant on plowed soil
-		if _level >= 2 and tile.state == FarmTile.TileState.PLOWED and farm_grid.can_plant_crop(p, crop_type) and _footprint_in_zone(p, crop_fp):
-			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
+		# 3. Lv.1+ — Hydrate thirsty crops (moisture < 50%, Tier 2: 2000 base)
+		if auto_water and _level >= 1 and root_t.crop_type != "" and root_t.soil_moisture < 50.0 and root_t.state != FarmTile.TileState.FLOODED and not seen_roots.has(root):
+			seen_roots[root] = true
+			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(root, self):
 				pass
-			elif not can_afford:
-				_blocked_reason = "Waiting for funds (₱%d seed)" % seed_cost
-			elif dist + 1.0 < best_score:
-				best_score = dist + 1.0
-				best = {"type": "plant", "pos": p, "fp": crop_fp, "crop": crop_type}
+			elif not TaskManager.has_task_at(root, "water"):
+				var w_fp: Vector2i = Data.get_crop(root_t.crop_type).get("footprint", Vector2i(1, 1))
+				var score: float = dist + 2000.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "water", "pos": root, "fp": w_fp, "crop": root_t.crop_type}
 
-		# Lv.1 — plow untilled / receded land
-		if _level >= 1 and farm_grid.is_tile_plowable(p):
+		# 4. Lv.2+ — Plant designated crop on plowed soil (Tier 3: 3000 base)
+		if auto_plant and _level >= 2 and tile.state == FarmTile.TileState.PLOWED and farm_grid.can_plant_crop(p, crop_type) and _footprint_in_zone(p, crop_fp):
 			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
 				pass
-			elif dist + 2.0 < best_score:
-				best_score = dist + 2.0
-				best = {"type": "plow", "pos": p, "fp": Vector2i(1, 1), "crop": ""}
+			elif not can_afford_seeds:
+				_blocked_reason = "Waiting for funds (₱%d seed)" % seed_cost
+			else:
+				var score: float = dist + 3000.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "plant", "pos": p, "fp": crop_fp, "crop": crop_type}
+
+		# 5. Lv.1+ — Plow untilled / receded land (Tier 4: 4000 base)
+		if auto_plow and _level >= 1 and farm_grid.is_tile_plowable(p):
+			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
+				pass
+			else:
+				var score: float = dist + 4000.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "plow", "pos": p, "fp": Vector2i(1, 1), "crop": ""}
+
+		# 6. Lv.3+ — Clear obstacles / fallen timber & rocks (Tier 5: 5000 base)
+		if auto_clear and _level >= 3 and tile.state == FarmTile.TileState.OBSTACLE:
+			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
+				pass
+			elif EconomyManager.cash < 50:
+				_blocked_reason = "Waiting for funds (₱50 clearing)"
+			else:
+				var score: float = dist + 5000.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "clear", "pos": p, "fp": Vector2i(1, 1), "crop": ""}
 
 	return best
 
@@ -295,9 +422,18 @@ func _job_still_valid(j: Dictionary) -> bool:
 			return farm_grid.is_tile_plowable(j.pos)
 		"plant":
 			return farm_grid.can_plant_crop(j.pos, str(j.crop))
+		"water":
+			var t: FarmTile = farm_grid.tiles[j.pos.x][j.pos.y]
+			return t.crop_type != "" and t.soil_moisture < 50.0 and t.state != FarmTile.TileState.FLOODED
+		"spray":
+			var t: FarmTile = farm_grid.tiles[j.pos.x][j.pos.y]
+			return t.state == FarmTile.TileState.INFECTED or t.pest_type != ""
 		"harvest":
 			var t: FarmTile = farm_grid.tiles[j.pos.x][j.pos.y]
-			return t.state == FarmTile.TileState.HARVESTABLE and t.crop_type != "" and not BuildingManager.is_storage_full()
+			return t.state == FarmTile.TileState.HARVESTABLE and t.crop_type != "" and BuildingManager.has_storage_for_crop(t.crop_type, 100)
+		"clear":
+			var t: FarmTile = farm_grid.tiles[j.pos.x][j.pos.y]
+			return t.state == FarmTile.TileState.OBSTACLE
 	return false
 
 func _complete_job() -> void:
@@ -310,9 +446,19 @@ func _complete_job() -> void:
 		"plant":
 			farm_grid.plant_crop(job.pos, str(job.crop))
 			AudioManager.play_farmer("plant")
+		"water":
+			farm_grid.water_tile(job.pos, 25.0)
+			AudioManager.play_farmer("water")
+		"spray":
+			var method: String = "biological" if EconomyManager.cash >= 45 else "chemical"
+			farm_grid.spray_pest(job.pos, method)
+			AudioManager.play_farmer("spray")
 		"harvest":
 			farm_grid.harvest_tile(job.pos)
 			AudioManager.play_farmer("harvest")
+		"clear":
+			farm_grid.clear_obstacle(job.pos)
+			AudioManager.play_farmer("chop")
 	jobs_done += 1
 
 func _job_target_local(j: Dictionary) -> Vector2:
@@ -338,8 +484,24 @@ func _draw() -> void:
 		var col: Color = JOB_COLORS.get(job.type, Color.WHITE)
 		var pulse: float = 0.55 + 0.45 * sin(_rotor_phase * 0.6)
 		var beam_col := Color(col.r, col.g, col.b, 0.55 * pulse)
-		draw_line(body + Vector2(0, 8), Vector2.ZERO, beam_col, 3.0)
-		draw_line(body + Vector2(0, 8), Vector2.ZERO, Color(1, 1, 1, 0.35 * pulse), 1.0)
+		draw_line(body + Vector2(0, 8), Vector2.ZERO, beam_col, 3.5)
+		draw_line(body + Vector2(0, 8), Vector2.ZERO, Color(1, 1, 1, 0.45 * pulse), 1.5)
+
+		# Type-specific work particles & visuals
+		match str(job.get("type", "")):
+			"water":
+				for i in range(3):
+					var ang: float = _rotor_phase * 2.0 + float(i) * 2.1
+					var p_offset := Vector2(cos(ang) * 6.0, sin(ang) * 3.0)
+					draw_circle(p_offset, 2.5, Color(0.35, 0.85, 1.0, 0.65))
+			"spray":
+				for i in range(3):
+					var ang: float = -_rotor_phase * 1.5 + float(i) * 2.1
+					var p_offset := Vector2(cos(ang) * 8.0, sin(ang) * 4.0)
+					draw_circle(p_offset, 3.0, Color(0.40, 1.0, 0.60, 0.55))
+			"clear":
+				var sp: float = sin(_rotor_phase * 5.0) * 4.0
+				draw_line(body + Vector2(0, 8), Vector2(sp, 0), Color(1.0, 0.4, 0.2, 0.8), 2.0)
 
 	if _custom_tex != null:
 		var sz: Vector2 = _custom_tex.get_size() * SPRITE_SCALE

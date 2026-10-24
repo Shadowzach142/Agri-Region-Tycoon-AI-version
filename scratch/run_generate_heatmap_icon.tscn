@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8k2s42aa2q66"]
+
+[ext_resource type="Script" path="res://scratch/generate_heatmap_icon.gd" id="1_gen"]
+
+[node name="IconGen" type="Node"]
+script = ExtResource("1_gen")

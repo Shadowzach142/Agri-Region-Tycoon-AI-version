@@ -17,12 +17,7 @@ var _backlog_panel: CanvasLayer = null
 var _leaderboard_panel: CanvasLayer = null
 
 func _ready() -> void:
-	var flag_nodes: Array = get_tree().get_nodes_in_group(ADMIN_FLAG_GROUP)
-	var admin_enabled: bool = flag_nodes.size() > 0
-
-	if admin_enabled:
-		_spawn_admin_panel()
-
+	_spawn_admin_panel()
 	_spawn_pause_menu()
 	_spawn_backlog_panel()
 	_spawn_leaderboard_panel()
@@ -85,27 +80,6 @@ func _spawn_admin_panel() -> void:
 	_admin_panel = CanvasLayer.new()
 	_admin_panel.set_script(script)
 	_admin_panel.name = "AdminPanel"
+	_admin_panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_admin_panel)
 	_admin_panel.is_enabled = true
-
-	_show_admin_hint()
-
-func _show_admin_hint() -> void:
-	var hint_label := Label.new()
-	hint_label.text = "Admin Mode ON  --  Press ` to open panel"
-	hint_label.add_theme_font_size_override("font_size", 13)
-	hint_label.add_theme_color_override("font_color", Color(1, 1, 0.3, 0.92))
-	hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	hint_label.offset_left   = 12
-	hint_label.offset_bottom = -8
-	hint_label.offset_top    = -36
-	hint_label.offset_right  = 400
-	hint_label.mouse_filter  = Control.MOUSE_FILTER_IGNORE
-
-	var hint_layer := CanvasLayer.new()
-	hint_layer.layer = 199
-	hint_layer.add_child(hint_label)
-	add_child(hint_layer)
-
-	var timer := get_tree().create_timer(5.0)
-	timer.timeout.connect(func(): if is_instance_valid(hint_layer): hint_layer.queue_free())

@@ -62,6 +62,23 @@ const CROP_ICONS: Dictionary = {
 	"coconut": "res://assets/icons/Plants/Coconut.png"
 }
 
+# Dedicated UI tool icons in assets/icons/Tools/
+const TOOL_ICONS: Dictionary = {
+	"plow": "res://assets/icons/Tools/Pick.png",
+	"water": "res://assets/icons/Tools/watering.png",
+	"harvest": "res://assets/icons/Tools/Basket.png",
+	"clear": "res://assets/icons/Tools/Axe.png",
+	"spray_chemical": "res://assets/icons/Tools/Chem.png",
+	"spray_biological": "res://assets/icons/Tools/duck.png"
+}
+
+static func get_tool_sprite_texture(tool_id: String) -> Texture2D:
+	if TOOL_ICONS.has(tool_id):
+		var p: String = TOOL_ICONS[tool_id]
+		if ResourceLoader.exists(p):
+			return load(p) as Texture2D
+	return null
+
 const CATEGORY_DATA: Dictionary = {
 	"seeds": {
 		"id": "seeds",
@@ -170,13 +187,17 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(160, 52)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Load HUD box textures from Hopbar files
-	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/small-dark-box.png"):
+	# Load HUD square button textures from Squarebutton folder (fallback to Hopbar)
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/brown-button.png"):
+		tex_dark_box = load("res://assets/sprites/hud/Buttons/Squarebutton/brown-button.png")
+	elif ResourceLoader.exists("res://assets/sprites/hud/Hopbar/small-dark-box.png"):
 		tex_dark_box = load("res://assets/sprites/hud/Hopbar/small-dark-box.png")
 	elif ResourceLoader.exists("res://assets/sprites/hud/Small-Rectangular-Box/small-dark-box.png"):
 		tex_dark_box = load("res://assets/sprites/hud/Small-Rectangular-Box/small-dark-box.png")
 
-	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/small-ligh-box.png"):
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/Light-button.png"):
+		tex_light_box = load("res://assets/sprites/hud/Buttons/Squarebutton/Light-button.png")
+	elif ResourceLoader.exists("res://assets/sprites/hud/Hopbar/small-ligh-box.png"):
 		tex_light_box = load("res://assets/sprites/hud/Hopbar/small-ligh-box.png")
 	elif ResourceLoader.exists("res://assets/sprites/hud/Small-Rectangular-Box/small-ligh-box.png"):
 		tex_light_box = load("res://assets/sprites/hud/Small-Rectangular-Box/small-ligh-box.png")
@@ -450,7 +471,9 @@ func _setup_flyout_drawer(parent: VBoxContainer) -> void:
 	flyout_drawer.mouse_filter = Control.MOUSE_FILTER_STOP
 	flyout_drawer.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
-	if ResourceLoader.exists("res://assets/sprites/hud/TopRight/BrownBox.tres"):
+	if ResourceLoader.exists("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"):
+		flyout_drawer.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"))
+	elif ResourceLoader.exists("res://assets/sprites/hud/TopRight/BrownBox.tres"):
 		flyout_drawer.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/TopRight/BrownBox.tres"))
 	else:
 		var draw_style := StyleBoxFlat.new()
@@ -492,14 +515,18 @@ func _setup_flyout_drawer(parent: VBoxContainer) -> void:
 
 	var min_btn := Button.new()
 	min_btn.text = "✕"
-	min_btn.custom_minimum_size = Vector2(16, 14)
+	min_btn.custom_minimum_size = Vector2(18, 18)
 	min_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"):
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"):
+		min_btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+		min_btn.add_theme_stylebox_override("hover", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+		min_btn.add_theme_stylebox_override("pressed", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
+	elif ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"):
 		min_btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
 		min_btn.add_theme_stylebox_override("hover", load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
 		min_btn.add_theme_stylebox_override("pressed", load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
-		min_btn.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
-		min_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.06, 0.02, 1.0))
+	min_btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.80))
+	min_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60))
 	min_btn.pressed.connect(func(): _close_flyout())
 	h_row.add_child(min_btn)
 
@@ -514,7 +541,7 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	hover_card = PanelContainer.new()
 	hover_card.name = "CropHoverCard"
 	hover_card.visible = false
-	hover_card.custom_minimum_size = Vector2(250, 140)
+	hover_card.custom_minimum_size = Vector2(340, 0)
 	hover_card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -528,7 +555,7 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 		sbt.content_margin_left = 22
 		sbt.content_margin_right = 22
 		sbt.content_margin_top = 10
-		sbt.content_margin_bottom = 14
+		sbt.content_margin_bottom = 16
 		hover_card.add_theme_stylebox_override("panel", sbt)
 	else:
 		var card_style := StyleBoxFlat.new()
@@ -544,10 +571,10 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 		card_style.corner_radius_bottom_right = 5
 		card_style.shadow_size = 6
 		card_style.shadow_color = Color(0, 0, 0, 0.55)
-		card_style.content_margin_left = 10
-		card_style.content_margin_right = 10
-		card_style.content_margin_top = 6
-		card_style.content_margin_bottom = 6
+		card_style.content_margin_left = 12
+		card_style.content_margin_right = 12
+		card_style.content_margin_top = 8
+		card_style.content_margin_bottom = 8
 		hover_card.add_theme_stylebox_override("panel", card_style)
 	parent.add_child(hover_card)
 
@@ -590,7 +617,7 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	card_title.text = "Item Name"
 	card_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	card_title.add_theme_font_size_override("font_size", 11)
+	card_title.add_theme_font_size_override("font_size", 14)
 	card_title.add_theme_color_override("font_color", Color(0.24, 0.14, 0.08, 1.0))
 	card_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(card_title)
@@ -598,7 +625,7 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	card_price = Label.new()
 	card_price.text = "₱0"
 	card_price.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	card_price.add_theme_font_size_override("font_size", 10)
+	card_price.add_theme_font_size_override("font_size", 13)
 	card_price.add_theme_color_override("font_color", Color(0.48, 0.28, 0.08, 1.0))
 	card_price.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(card_price)
@@ -617,14 +644,14 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 
 	card_type = Label.new()
 	card_type.text = "Type description"
-	card_type.add_theme_font_size_override("font_size", 9)
+	card_type.add_theme_font_size_override("font_size", 11)
 	card_type.add_theme_color_override("font_color", Color(0.38, 0.24, 0.12, 1.0))
 	card_type.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_type)
 
 	card_stats = Label.new()
 	card_stats.text = "Stats..."
-	card_stats.add_theme_font_size_override("font_size", 9)
+	card_stats.add_theme_font_size_override("font_size", 12)
 	card_stats.add_theme_color_override("font_color", Color(0.26, 0.16, 0.10, 1.0))
 	card_stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_stats)
@@ -632,14 +659,16 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	card_desc = Label.new()
 	card_desc.text = "Description text..."
 	card_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_desc.add_theme_font_size_override("font_size", 9)
+	card_desc.custom_minimum_size = Vector2(296, 0)
+	card_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_desc.add_theme_font_size_override("font_size", 12)
 	card_desc.add_theme_color_override("font_color", Color(0.20, 0.14, 0.08, 1.0))
 	card_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_desc)
 
 	card_region_title = Label.new()
 	card_region_title.text = "📍 Regional Affinity"
-	card_region_title.add_theme_font_size_override("font_size", 9)
+	card_region_title.add_theme_font_size_override("font_size", 12)
 	card_region_title.add_theme_color_override("font_color", Color(0.18, 0.40, 0.15, 1.0))
 	card_region_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_region_title)
@@ -647,7 +676,9 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	card_buffs = Label.new()
 	card_buffs.text = "✔ Buffs"
 	card_buffs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_buffs.add_theme_font_size_override("font_size", 9)
+	card_buffs.custom_minimum_size = Vector2(296, 0)
+	card_buffs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_buffs.add_theme_font_size_override("font_size", 12)
 	card_buffs.add_theme_color_override("font_color", Color(0.12, 0.45, 0.15, 1.0))
 	card_buffs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_buffs)
@@ -655,7 +686,9 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 	card_debuffs = Label.new()
 	card_debuffs.text = "⚠️ Debuffs"
 	card_debuffs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_debuffs.add_theme_font_size_override("font_size", 9)
+	card_debuffs.custom_minimum_size = Vector2(296, 0)
+	card_debuffs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_debuffs.add_theme_font_size_override("font_size", 12)
 	card_debuffs.add_theme_color_override("font_color", Color(0.65, 0.18, 0.12, 1.0))
 	card_debuffs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content_vbox.add_child(card_debuffs)
@@ -664,6 +697,12 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 # Category Slot Interactions & Flyout Populating
 # ---------------------------------------------------------------------------
 func _on_category_slot_pressed(cat_id: String) -> void:
+	if cat_id == "drone":
+		var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
+		if deck and deck.has_method("open"):
+			deck.open()
+			return
+
 	if open_flyout_category == cat_id:
 		_close_flyout()
 	else:
@@ -736,6 +775,16 @@ func _open_flyout_for_category(cat_id: String) -> void:
 				ic.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				center_box.add_child(ic)
+		elif (cat_id == "tools" or cat_id == "treatments") and get_tool_sprite_texture(item_id) != null:
+			var t_tex: Texture2D = get_tool_sprite_texture(item_id)
+			var tr := TextureRect.new()
+			tr.texture = t_tex
+			tr.custom_minimum_size = Vector2(26, 26)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			center_box.add_child(tr)
 		elif cat_id == "drone" and item_id == "drone_zone":
 			var drone_ctrl := Control.new()
 			drone_ctrl.custom_minimum_size = Vector2(26, 26)
@@ -797,6 +846,12 @@ func _on_flyout_item_selected(cat_id: String, item_id: String) -> void:
 		_highlight_active_selection()
 		_close_flyout()
 		return
+	elif cat_id == "drone" and item_id == "drone_zone":
+		var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
+		if deck and deck.has_method("open"):
+			deck.open()
+			_close_flyout()
+			return
 
 	selected_category_items[cat_id] = item_id
 	active_category = cat_id
@@ -849,6 +904,16 @@ func _update_category_slots_display() -> void:
 				ic.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 				ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				icon_container.add_child(ic)
+		elif (cat_id == "tools" or cat_id == "treatments") and get_tool_sprite_texture(cur_item_id) != null:
+			var t_tex: Texture2D = get_tool_sprite_texture(cur_item_id)
+			var tr := TextureRect.new()
+			tr.texture = t_tex
+			tr.custom_minimum_size = Vector2(28, 28)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon_container.add_child(tr)
 		elif cat_id == "drone" and cur_item_id == "drone_zone":
 			var drone_ctrl := Control.new()
 			drone_ctrl.custom_minimum_size = Vector2(28, 28)
@@ -959,8 +1024,14 @@ func _populate_hover_card(item_id: String) -> void:
 		_populate_tool_or_treatment_hover(item_id)
 
 func _populate_tool_or_treatment_hover(tool_id: String) -> void:
-	card_texture.visible = false
-	card_icon.visible = true
+	var t_tex: Texture2D = get_tool_sprite_texture(tool_id)
+	if t_tex != null:
+		card_texture.texture = t_tex
+		card_texture.visible = true
+		card_icon.visible = false
+	else:
+		card_texture.visible = false
+		card_icon.visible = true
 	card_region_title.visible = false
 	card_buffs.visible = false
 	card_debuffs.visible = false
@@ -1086,8 +1157,9 @@ func _populate_crop_hover(crop_key: String) -> void:
 
 	var cur_reg: String = Data.current_region
 	var reg_data: Dictionary = Data.get_region(cur_reg)
+	var reg_short: String = reg_data.get("display_name", cur_reg.capitalize()).split("(")[0].strip_edges()
 	card_region_title.visible = true
-	card_region_title.text = "📍 Region: %s" % reg_data.get("display_name", cur_reg.capitalize())
+	card_region_title.text = "📍 Region: %s" % reg_short
 
 	var analysis: Dictionary = get_regional_crop_analysis(crop_key, cur_reg)
 	var buffs: Array = analysis.get("buffs", [])
@@ -1110,42 +1182,43 @@ static func get_regional_crop_analysis(crop_key: String, region_key: String) -> 
 	var region: Dictionary = Data.get_region(region_key)
 	var reg_moisture: float = float(region.get("soil_moisture", 50))
 	var hazards: Dictionary = region.get("hazards", {})
+	var reg_short: String = region.get("display_name", region_key).split("(")[0].strip_edges()
 
 	var buffs: Array[String] = []
 	var debuffs: Array[String] = []
 
 	var specialties: Array = LeaderboardManager.REGION_SPECIALTIES.get(region_key, [])
 	if specialties.has(crop_key):
-		buffs.append("✨ Regional Specialty: +20%% Market Value in %s!" % region.get("display_name", region_key))
+		buffs.append("✨ Specialty: +20%% Market Value in %s!" % reg_short)
 
 	var w_min: float = float(crop.get("water_min", 40))
 	var w_max: float = float(crop.get("water_max", 70))
 
 	if reg_moisture >= w_min and reg_moisture <= w_max:
-		buffs.append("✔ Optimal Climate: Baseline moisture (%.0f%%) fosters bumper Grade A yields." % reg_moisture)
+		buffs.append("✔ Optimal Climate: Baseline moisture (%.0f%%) ideal for Grade A." % reg_moisture)
 	elif reg_moisture < w_min:
-		debuffs.append("⚠️ Moisture Deficit: Regional moisture (%.0f%%) is below minimum (%.0f%%)." % [reg_moisture, w_min])
+		debuffs.append("⚠️ Moisture Deficit: Regional (%.0f%%) is below ideal (%.0f%%)." % [reg_moisture, w_min])
 	elif reg_moisture > w_max:
-		debuffs.append("⚠️ Over-saturation: Regional moisture (%.0f%%) exceeds ideal threshold (%.0f%%)." % [reg_moisture, w_max])
+		debuffs.append("⚠️ Over-saturation: Regional (%.0f%%) exceeds ideal (%.0f%%)." % [reg_moisture, w_max])
 
 	var flood_risk: float = float(hazards.get("flash_flood", 0.0))
 	var drought_risk: float = float(hazards.get("el_nino_drought", 0.0))
 
 	if flood_risk >= 0.10 and w_max <= 75.0:
-		debuffs.append("⚠️ Flood Susceptibility: River overflow risks drowning crops without drainage.")
+		debuffs.append("⚠️ Flood Susceptibility: River overflow risks drowning crops.")
 	if drought_risk >= 0.10 and w_min >= 50.0:
-		debuffs.append("⚠️ Drought Threat: Blistering dry spells halt growth; needs steady irrigation.")
+		debuffs.append("⚠️ Drought Threat: Blistering dry spells halt growth without irrigation.")
 
 	var crop_pests: Array = crop.get("pests", [])
 	if crop_pests.has("kuhol") and region_key == "cotabato":
-		debuffs.append("⚠️ Pest Risk: Wetland paddies heavily attract Golden Apple Snails (Kuhol).")
+		debuffs.append("⚠️ Pest Risk: Wetland paddies attract Golden Apple Snails (Kuhol).")
 	if crop_pests.has("fusarium_wilt") and (region_key == "south_cotabato" or region_key == "general_santos"):
-		debuffs.append("⚠️ Disease Risk: Upland and coastal humidity favors Fusarium Wilt.")
+		debuffs.append("⚠️ Disease Risk: High humidity triggers Fusarium Wilt.")
 	if crop_pests.has("armyworm") and (region_key == "sarangani" or region_key == "sultan_kudarat"):
-		debuffs.append("⚠️ Pest Risk: Arid spells trigger sudden Fall Armyworm outbreaks.")
+		debuffs.append("⚠️ Pest Risk: Arid spells trigger Fall Armyworm outbreaks.")
 
 	if crop.get("is_perennial", false):
-		buffs.append("✔ Living Perennial: Regrows automatically in %d days without seed costs." % int(crop.get("regrowth_days", 14)))
+		buffs.append("✔ Living Perennial: Regrows automatically in %dd without seed costs." % int(crop.get("regrowth_days", 14)))
 
 	return {
 		"buffs": buffs,

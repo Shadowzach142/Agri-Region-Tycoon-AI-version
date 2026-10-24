@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://capture_ui_01"]
+
+[ext_resource type="Script" path="res://scratch/capture_ui_improvements.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

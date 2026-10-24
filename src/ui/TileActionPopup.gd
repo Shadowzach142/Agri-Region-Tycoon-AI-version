@@ -30,6 +30,7 @@ enum ActionId {
 	CANCEL_TASKS = 600,
 	CLEAR_OBSTACLE = 700,
 	UNLOCK_LAND = 800,
+	PARCEL_DIRECTIVES = 850,
 }
 
 var is_batch_mode: bool = false
@@ -91,12 +92,9 @@ func _add_cancel_tasks_option_if_applicable() -> void:
 		add_item("🛑 Cancel Worker's Assigned Tasks", ActionId.CANCEL_TASKS)
 
 func open_for_tile(global_mouse_pos: Vector2, tile_pos: Vector2i, tile: FarmTile) -> void:
-	is_batch_mode = false
-	current_tile_pos = tile_pos
-	current_tile = tile
-	batch_tiles.clear()
-	clear()
-	set_item_count(0)
+	# Right-click context menu feature removed/disabled
+	hide()
+	return
 	
 	_add_worker_assignment_header()
 	
@@ -194,9 +192,9 @@ func open_for_tile(global_mouse_pos: Vector2, tile_pos: Vector2i, tile: FarmTile
 		popup()
 
 func open_for_batch(global_mouse_pos: Vector2, target_tiles: Array, tiles_grid: Array) -> void:
-	is_batch_mode = true
-	clear()
-	set_item_count(0)
+	# Right-click context menu feature removed/disabled
+	hide()
+	return
 
 	batch_tiles.clear()
 	batch_empty_or_flooded.clear()
@@ -322,7 +320,6 @@ func _on_id_pressed(id: int) -> void:
 			hotbar.visible = true
 			if hotbar.has_method("open_tray"):
 				hotbar.open_tray()
-		return
 
 	var action_type: String = ""
 	var extra: Dictionary = {}

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scratch/debug_middle_card.gd" id="1_dbg"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_dbg")

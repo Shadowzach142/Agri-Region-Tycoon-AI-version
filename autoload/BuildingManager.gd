@@ -14,11 +14,15 @@ signal drone_commissioned(total_drones: int)
 signal weather_station_updated(level: int)
 signal irrigation_updated(level: int)
 signal machinery_updated(level: int)
+signal bayanihan_updated(level: int)
+signal directive_changed(parcel_id: String, directive: Dictionary)
 signal sprinklers_updated(active_count: int, capacity: int)
+signal batch_processed(facility_name: String, input_crop: String, input_qty: int, outputs: Array)
 
 var placed_buildings: Array = []          # Array of placed Building instances
 var purchased_buildings: Dictionary = {}		 # building_type -> count (for backward compatibility)
 var unlocked_techs: Array = []
+var bayanihan_directives: Dictionary = {} # parcel_id -> {"mode": String, "crop": String}
 
 var total_storage_capacity: int = 200
 var used_storage: int = 0
@@ -28,7 +32,8 @@ var active_workers: int = 1
 var active_drones: int = 0
 
 func _ready() -> void:
-	pass
+	if TimeManager.has_signal("hour_changed"):
+		TimeManager.hour_changed.connect(_on_hour_changed)
 
 # ---------------------------------------------------------------------------
 # Placed Building Registry
@@ -100,6 +105,7 @@ func recalculate_bonuses() -> void:
 	weather_station_updated.emit(get_weather_station_level())
 	irrigation_updated.emit(get_irrigation_level())
 	machinery_updated.emit(get_machine_garage_level())
+	bayanihan_updated.emit(get_bayanihan_center_level())
 	sprinklers_updated.emit(get_active_sprinkler_count(), get_sprinkler_capacity())
 
 ## Returns the primary active storage building (Bodega, Silo, etc.) or null
@@ -292,6 +298,12 @@ func get_weather_station_badge() -> String:
 		3: return "🛰️ SAT 100%"
 		_: return "📜 35%"
 
+func get_weather_station_upgrade_perks(to_level: int) -> String:
+	match to_level:
+		2: return "+2 Forecast Days (3-Day Outlook) • 90% Radar Accuracy • +4s Disaster Warning"
+		3: return "+4 Forecast Days (7-Day Outlook) • 100% Precision Radar • +6s Disaster Warning"
+		_: return "Advanced Meteorological Telemetry"
+
 # ---------------------------------------------------------------------------
 # Irrigation Infrastructure & Automated Water Towers
 # ---------------------------------------------------------------------------
@@ -392,43 +404,49 @@ func get_all_sprinklers() -> Array:
 	return list
 
 # ---------------------------------------------------------------------------
-# Field Machinery Depot & Mobile Ground Units
+# Bayanihan Cooperative Center & Communal Field Directives
 # ---------------------------------------------------------------------------
-func get_machine_garage() -> Node:
+func get_bayanihan_center() -> Node:
 	for b in placed_buildings:
-		if is_instance_valid(b) and b.building_type == "machine_garage" and b.state == b.BuildingState.ACTIVE:
+		if is_instance_valid(b) and b.building_type == "bayanihan_center" and b.state == b.BuildingState.ACTIVE:
 			return b
 	return null
 
-func has_machine_garage() -> bool:
-	return get_machine_garage() != null
+func has_bayanihan_center() -> bool:
+	return get_bayanihan_center() != null
 
-func get_machine_garage_level() -> int:
+func get_bayanihan_center_level() -> int:
 	var max_lvl: int = 0
 	for b in placed_buildings:
-		if is_instance_valid(b) and b.building_type == "machine_garage" and b.state == b.BuildingState.ACTIVE:
+		if is_instance_valid(b) and b.building_type == "bayanihan_center" and b.state == b.BuildingState.ACTIVE:
 			max_lvl = maxi(max_lvl, b.level)
 	return max_lvl
 
-func has_kuliglig() -> bool:
-	return unlocked_techs.has("kuliglig") or (has_machine_garage() and get_machine_garage_level() >= 1)
+func set_bayanihan_directive(parcel_id: String, directive: Dictionary) -> void:
+	bayanihan_directives[parcel_id] = directive
+	directive_changed.emit(parcel_id, directive)
 
-func has_combine_harvester() -> bool:
-	return unlocked_techs.has("combine_harvester") or (has_machine_garage() and get_machine_garage_level() >= 2)
+func get_bayanihan_directive(parcel_id: String) -> Dictionary:
+	return bayanihan_directives.get(parcel_id, {"mode": "manual", "crop": "palay"})
 
-func get_machinery_tier_name() -> String:
-	match get_machine_garage_level():
-		1: return "Kuliglig Tractor Bay (Lv.1)"
-		2: return "Combine Harvester Bay (Lv.2)"
-		3: return "Heavy Mechanized Fleet (Lv.3)"
-		_: return "Hand Tools Only"
+func get_cooperative_tier_name() -> String:
+	if get_bayanihan_center_level() > 0:
+		return "Biyahero Trading Post"
+	return "Independent Labor (Manual)"
 
-func get_machinery_badge() -> String:
-	if has_combine_harvester():
-		return "🚜 Combine 5x"
-	elif has_kuliglig():
-		return "🚜 Kuliglig 2x"
+func get_cooperative_badge() -> String:
+	if get_bayanihan_center_level() > 0:
+		return "🤝 Biyahero +%d%%" % int(round(get_biyahero_price_bonus() * 100.0))
 	return "⛏️ Manual"
+
+# Backward-compatibility stubs for legacy queries
+func get_machine_garage() -> Node: return null
+func has_machine_garage() -> bool: return false
+func get_machine_garage_level() -> int: return 0
+func has_kuliglig() -> bool: return false
+func has_combine_harvester() -> bool: return false
+func get_machinery_tier_name() -> String: return get_cooperative_tier_name()
+func get_machinery_badge() -> String: return get_cooperative_badge()
 
 func hire_worker() -> bool:
 	if active_workers >= worker_capacity:
@@ -480,18 +498,22 @@ func owns_building(building_type: String) -> bool:
 	return get_building_of_type(building_type) != null
 
 func get_worker_speed_multiplier() -> float:
-	var mult: float = 1.0
-	if has_combine_harvester():
-		mult = 3.5
-	elif has_kuliglig():
-		mult = 1.8
+	# The Biyahero Trading Post no longer affects worker speed (it is a market buff only).
+	return 1.0
 
-	# Machine Garage level speed bonus
-	var g_lvl: int = get_machine_garage_level()
-	if g_lvl > 0:
-		mult += 0.10 + (g_lvl - 1) * 0.15
+## Extra price multiplier when selling to the Local Biyahero (0.0 without an active Trading Post).
+func get_biyahero_price_bonus() -> float:
+	if has_building("bayanihan_center"):
+		return float(Data.get_building("bayanihan_center").get("biyahero_price_bonus", 0.08))
+	return 0.0
 
-	return mult
+## True if the Sell Hub is usable (no requirement, or its building is active).
+func is_hub_unlocked(hub_id: String) -> bool:
+	return Data.is_hub_available(hub_id)
+
+## True once the Field Survey Kit (F-key heatmap) has been purchased.
+func has_heatmap() -> bool:
+	return unlocked_techs.has("field_survey_kit")
 
 func has_cold_storage() -> bool:
 	return has_building("cold_storage") or has_building("climate_silo")
@@ -519,3 +541,164 @@ func get_remaining_storage() -> int:
 	if m_mgr and m_mgr.has_method("get_total_stored_units"):
 		used_storage = m_mgr.get_total_stored_units()
 	return maxi(total_storage_capacity - used_storage, 0)
+
+## Returns all active storage facility buildings (Bodega, Cold Storage, Climate Silo)
+func get_storage_buildings() -> Array:
+	var list: Array = []
+	for b in placed_buildings:
+		if is_instance_valid(b) and b.state == b.BuildingState.ACTIVE:
+			if b.has_method("is_storage_building") and b.is_storage_building():
+				list.append(b)
+			elif int(Data.get_building(b.building_type).get("storage_limit", 0)) > 0:
+				list.append(b)
+	return list
+
+## Finds the best active storage building that accepts this crop and has space.
+## Priority:
+## 1. Explicitly assigned storage buildings (where crop is in assigned_crops)
+## 2. Cold storage / climate silo for perishable crops
+## 3. General unassigned storage buildings with available capacity
+func get_best_storage_for_crop(crop_name: String, amount: int = 100) -> Node:
+	var candidates := get_storage_buildings()
+	if candidates.is_empty():
+		return null
+
+	var is_perishable: bool = (crop_name in ["arabica_coffee", "banana", "pineapple", "coconut"])
+	var explicit_matches: Array = []
+	var general_matches: Array = []
+
+	for b in candidates:
+		if not b.has_space(amount):
+			continue
+		if b.assigned_crops.size() > 0:
+			if b.assigned_crops.has(crop_name):
+				explicit_matches.append(b)
+		else:
+			general_matches.append(b)
+
+	# 1. Prefer explicit assignments
+	if not explicit_matches.is_empty():
+		# If perishable, prefer cold storage within explicit matches
+		if is_perishable:
+			for b in explicit_matches:
+				if b.building_type in ["cold_storage", "climate_silo"]:
+					return b
+		# Pick the one with the most free space
+		explicit_matches.sort_custom(func(a, b):
+			var free_a: int = a.get_storage_capacity() - a.used_storage
+			var free_b: int = b.get_storage_capacity() - b.used_storage
+			return free_a > free_b
+		)
+		return explicit_matches[0]
+
+	# 2. Prefer cold storage for perishables among general storages
+	if is_perishable:
+		for b in general_matches:
+			if b.building_type in ["cold_storage", "climate_silo"]:
+				return b
+
+	# 3. Fallback to general storage with most free space
+	if not general_matches.is_empty():
+		general_matches.sort_custom(func(a, b):
+			var free_a: int = a.get_storage_capacity() - a.used_storage
+			var free_b: int = b.get_storage_capacity() - b.used_storage
+			return free_a > free_b
+		)
+		return general_matches[0]
+
+	return null
+
+## Checks whether there is active storage capacity accepting this specific crop
+func has_storage_for_crop(crop_name: String, amount: int = 100) -> bool:
+	return get_best_storage_for_crop(crop_name, amount) != null
+
+func is_storage_full_for_crop(crop_name: String, amount: int = 100) -> bool:
+	return not has_storage_for_crop(crop_name, amount)
+
+# ---------------------------------------------------------------------------
+# Agro-Industrial Milling & Value-Added Automated Processing Loop
+# ---------------------------------------------------------------------------
+func _on_hour_changed(hour: int) -> void:
+	# Automated milling run triggers every 4 in-game hours
+	if hour % 4 != 0:
+		return
+	_process_industrial_facilities()
+
+func _process_industrial_facilities() -> void:
+	var m_mgr = get_node_or_null("/root/MarketManager")
+	if m_mgr == null:
+		return
+
+	# Iterate over all placed buildings to check for industrial facilities
+	for b in placed_buildings:
+		if not is_instance_valid(b) or b.state != b.BuildingState.ACTIVE:
+			continue
+		var b_data: Dictionary = Data.get_building(b.building_type)
+		var recipe: Dictionary = b_data.get("recipe", {})
+		if recipe.is_empty():
+			continue
+
+		var input_crop: String = str(recipe.get("input_crop", ""))
+		var input_qty: int     = int(recipe.get("input_qty", 0))
+		var outputs: Array     = recipe.get("outputs", [])
+
+		if input_crop.is_empty() or input_qty <= 0 or outputs.is_empty():
+			continue
+
+		# Verify raw crop availability in stored inventory
+		if m_mgr.get_stored_units_for_crop(input_crop) >= input_qty:
+			# Verify storage capacity headroom
+			var total_output_qty: int = 0
+			for out_item in outputs:
+				total_output_qty += int(out_item.get("qty", 0))
+			var net_growth: int = total_output_qty - input_qty
+			if net_growth > 0 and not can_store(net_growth):
+				continue # Grain silo full
+
+			# Consume raw crop batches (prioritizing lowest freshness first)
+			if m_mgr.consume_crop_quantity(input_crop, input_qty):
+				var output_summaries: Array[String] = []
+				for out_item in outputs:
+					var item_name: String = str(out_item.get("item", ""))
+					var out_qty: int      = int(out_item.get("qty", 0))
+					var prod_d: Dictionary = Data.get_crop(item_name)
+					var out_disp: String   = str(prod_d.get("display_name", item_name.capitalize())).split("(")[0].strip_edges()
+					var out_icon: String   = str(prod_d.get("icon", "📦"))
+					m_mgr.add_processed_to_storage(item_name, out_qty, "Grade A")
+					output_summaries.append("%s %d %s" % [out_icon, out_qty, out_disp])
+
+				var b_name: String = str(b_data.get("display_name", b.building_type.capitalize()))
+				var b_icon: String = str(b_data.get("icon", "🏭"))
+				var in_data: Dictionary = Data.get_crop(input_crop)
+				var in_disp: String = str(in_data.get("display_name", input_crop.capitalize())).split("(")[0].strip_edges()
+				
+				# Log Chronicle Entry
+				var log_msg: String = "%s automatically processed %d %s into %s!" % [
+					b_name, input_qty, in_disp, ", ".join(output_summaries)
+				]
+				LogManager.log_event("processing", log_msg, b_icon, Color(0.40, 0.95, 0.65, 1.0))
+				AudioManager.play_building("complete")
+				batch_processed.emit(b_name, input_crop, input_qty, outputs)
+
+## Validates mid-to-late game prerequisites for establishing agro-industrial processing facilities
+func get_processing_prerequisites(facility_type: String) -> Dictionary:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	var has_land_deed: bool = false
+	if farm_grid and "unlocked_parcels" in farm_grid:
+		has_land_deed = farm_grid.unlocked_parcels.size() > 1
+	var has_storage_cap: bool = (total_storage_capacity >= 400) or has_cold_storage()
+	var can_build: bool = has_land_deed and has_storage_cap
+
+	var reasons: Array[String] = []
+	if not has_land_deed:
+		reasons.append("Requires Land Expansion Deed")
+	if not has_storage_cap:
+		reasons.append("Requires Lv.2 Silo (400+ cap) or Cold Storage")
+
+	return {
+		"allowed": can_build,
+		"has_land_deed": has_land_deed,
+		"has_storage_cap": has_storage_cap,
+		"reasons": reasons,
+		"requirement_text": " • ".join(reasons) if not reasons.is_empty() else "All requirements met"
+	}

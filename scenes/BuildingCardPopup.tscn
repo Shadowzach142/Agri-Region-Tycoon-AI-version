@@ -8,6 +8,13 @@
 [ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres" id="6_gold_btn"]
 [ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres" id="7_gold_hover"]
 [ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres" id="8_gold_pressed"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres" id="StyleBox_sq_brown"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres" id="StyleBox_sq_brown_hover"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres" id="StyleBox_sq_brown_pressed"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareYellowButton.tres" id="StyleBox_sq_yellow"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareYellowButtonHover.tres" id="StyleBox_sq_yellow_hover"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/Squarebutton/SquareYellowButtonPressed.tres" id="StyleBox_sq_yellow_pressed"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/TopRight/BrownBox.tres" id="StyleBox_brown_box"]
 
 [node name="BuildingCardPopup" type="CanvasLayer"]
 layer = 160
@@ -30,20 +37,20 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(490, 0)
+custom_minimum_size = Vector2(850, 0)
 layout_mode = 2
 theme_override_styles/panel = ExtResource("2_samplebox")
 
 [node name="Margin" type="MarginContainer" parent="CenterContainer/Panel"]
 layout_mode = 2
-theme_override_constants/margin_left = 26
-theme_override_constants/margin_top = 22
-theme_override_constants/margin_right = 26
-theme_override_constants/margin_bottom = 22
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 
 [node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="Header" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
 layout_mode = 2
@@ -56,57 +63,189 @@ theme_override_font_sizes/font_size = 20
 text = "🏛️ Building Name"
 
 [node name="CloseBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/Header"]
-custom_minimum_size = Vector2(34, 30)
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.9, 0.8, 1)
 theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = ExtResource("3_brown_btn")
-theme_override_styles/hover = ExtResource("4_brown_hover")
-theme_override_styles/pressed = ExtResource("5_brown_pressed")
+theme_override_styles/normal = ExtResource("StyleBox_sq_brown")
+theme_override_styles/hover = ExtResource("StyleBox_sq_brown_hover")
+theme_override_styles/pressed = ExtResource("StyleBox_sq_brown_pressed")
 text = "✕"
 
-[node name="LevelLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.42, 0.28, 0.1, 1)
-theme_override_font_sizes/font_size = 15
-text = "⭐ Level 1 / 3"
-
-[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.12, 0.45, 0.16, 1)
-theme_override_font_sizes/font_size = 15
-text = "✅ Active & Operating"
-
-[node name="CurrentStats" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.22, 0.15, 0.1, 1)
-theme_override_font_sizes/font_size = 15
-text = "• Stats"
-
-[node name="NextStats" type="Label" parent="CenterContainer/Panel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.12, 0.4, 0.16, 1)
-theme_override_font_sizes/font_size = 15
-text = "Next Tier"
-
-[node name="ButtonHBox" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
+[node name="SplitHBox" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="DemolishBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/ButtonHBox"]
-custom_minimum_size = Vector2(140, 42)
+[node name="FeatureBox" type="PanelContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.95, 0.88, 0.8, 1)
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.45
+theme_override_styles/panel = ExtResource("StyleBox_brown_box")
+
+[node name="FeatureMargin" type="MarginContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="FeatureVBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StorageSection" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StorageTitleLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 1)
 theme_override_font_sizes/font_size = 14
+text = "📦 Facility Storage Meter & Logistics Routing"
+
+[node name="FillHeader" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+layout_mode = 2
+
+[node name="FillTitleLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection/FillHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 1)
+theme_override_font_sizes/font_size = 13
+text = "Current Facility Load:"
+
+[node name="FillValueLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection/FillHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 13
+text = "0 / 200 units (0%)"
+
+[node name="FillProgressBar" type="ProgressBar" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+max_value = 200.0
+show_percentage = false
+
+[node name="RoutingTitleLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 1)
+theme_override_font_sizes/font_size = 13
+text = "🌾 Accepted Crop Routing (Deliveries Allowed):"
+
+[node name="PresetHBox" type="HBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PresetAllBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection/PresetHBox"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = ExtResource("3_brown_btn")
 theme_override_styles/hover = ExtResource("4_brown_hover")
 theme_override_styles/pressed = ExtResource("5_brown_pressed")
-text = "🗑️ Demolish"
+text = "✨ All Crops"
 
-[node name="UpgradeBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/ButtonHBox"]
-custom_minimum_size = Vector2(210, 42)
+[node name="PresetGrainsBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection/PresetHBox"]
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("3_brown_btn")
+theme_override_styles/hover = ExtResource("4_brown_hover")
+theme_override_styles/pressed = ExtResource("5_brown_pressed")
+text = "🌾 Grains Only"
+
+[node name="PresetPerishablesBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection/PresetHBox"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = ExtResource("3_brown_btn")
+theme_override_styles/hover = ExtResource("4_brown_hover")
+theme_override_styles/pressed = ExtResource("5_brown_pressed")
+text = "❄️ Perishables"
+
+[node name="CropButtonsGrid" type="GridContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/StorageSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="GenericFeatureSection" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FeatureTitleLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/GenericFeatureSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.9, 0.82, 1)
+theme_override_font_sizes/font_size = 14
+text = "⚙️ Facility Operations & Main Feature"
+
+[node name="FeatureContentVBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/FeatureBox/FeatureMargin/FeatureVBox/GenericFeatureSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SideBox" type="PanelContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.95
+theme_override_styles/panel = ExtResource("StyleBox_brown_box")
+
+[node name="SideMargin" type="MarginContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="SideVBox" type="VBoxContainer" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LevelLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1.0, 0.88, 0.45, 1)
+theme_override_font_sizes/font_size = 15
+text = "⭐ Level 1 / 3"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.9, 0.5, 1)
+theme_override_font_sizes/font_size = 14
+text = "✅ Active & Operating"
+
+[node name="TopSep" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+
+[node name="CurrentStats" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.86, 0.78, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+text = "Stats"
+
+[node name="MidSep" type="HSeparator" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+
+[node name="NextStats" type="Label" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+text = "Next Tier"
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="UpgradeBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
 theme_override_colors/font_color = Color(0.22, 0.14, 0.08, 1)
 theme_override_colors/font_hover_color = Color(0.12, 0.06, 0.02, 1)
 theme_override_font_sizes/font_size = 14
@@ -114,4 +253,14 @@ theme_override_styles/normal = ExtResource("6_gold_btn")
 theme_override_styles/hover = ExtResource("7_gold_hover")
 theme_override_styles/pressed = ExtResource("8_gold_pressed")
 text = "⬆️ Upgrade"
+
+[node name="DemolishBtn" type="Button" parent="CenterContainer/Panel/Margin/VBox/SplitHBox/SideBox/SideMargin/SideVBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.88, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("3_brown_btn")
+theme_override_styles/hover = ExtResource("4_brown_hover")
+theme_override_styles/pressed = ExtResource("5_brown_pressed")
+text = "🗑️ Demolish"
 

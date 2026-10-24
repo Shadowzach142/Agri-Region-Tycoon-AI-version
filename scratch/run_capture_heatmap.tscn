@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://run_capture_heatmap"]
+
+[ext_resource type="Script" path="res://scratch/capture_heatmap.gd" id="1_cap"]
+
+[node name="RunCaptureHeatmap" type="Node2D"]
+script = ExtResource("1_cap")

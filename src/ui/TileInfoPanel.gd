@@ -46,16 +46,23 @@ func _ready() -> void:
 		inspect_tile(selected_pos, selected_tile)
 
 var portrait_texture: TextureRect = null
+var _tile_renderer: TileRenderer = null
+
+func _get_renderer() -> TileRenderer:
+	if _tile_renderer == null:
+		_tile_renderer = TileRenderer.new()
+	return _tile_renderer
 
 func _discover_nodes() -> void:
 	portrait_icon = find_child("PortraitIcon", true, false)
+	portrait_texture = find_child("PortraitTexture", true, false) as TextureRect
 	var plant_box = find_child("PlantBox", true, false)
-	if plant_box:
+	if plant_box and not portrait_texture:
 		portrait_texture = plant_box.find_child("PortraitTexture", true, false) as TextureRect
 		if not portrait_texture:
 			portrait_texture = TextureRect.new()
 			portrait_texture.name = "PortraitTexture"
-			portrait_texture.custom_minimum_size = Vector2(56, 56)
+			portrait_texture.custom_minimum_size = Vector2(60, 60)
 			portrait_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			portrait_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			portrait_texture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -82,26 +89,85 @@ func _discover_nodes() -> void:
 	quality_label = find_child("QualityLabel", true, false) as Label
 	pest_label    = find_child("PestLabel", true, false) as Label
 
-func _set_portrait(icon_text: String, crop_key: String = "") -> void:
-	if not crop_key.is_empty():
-		var tex: Texture2D = null
-		if PlantHotbar.CROP_ICONS.has(crop_key):
-			var p: String = PlantHotbar.CROP_ICONS[crop_key]
-			if ResourceLoader.exists(p):
-				tex = load(p) as Texture2D
-		if tex != null and portrait_texture != null:
-			portrait_texture.texture = tex
-			portrait_texture.visible = true
-			if portrait_icon:
-				portrait_icon.visible = false
-			return
+func _set_portrait_texture(tex: Texture2D, fallback_icon: String = "") -> void:
+	if tex != null and portrait_texture != null:
+		portrait_texture.texture = tex
+		portrait_texture.visible = true
+		if portrait_icon:
+			portrait_icon.visible = false
+		return
 
 	if portrait_texture:
+		portrait_texture.texture = null
 		portrait_texture.visible = false
 	if portrait_icon:
 		portrait_icon.visible = true
 		if "text" in portrait_icon:
-			portrait_icon.text = icon_text
+			portrait_icon.text = fallback_icon if not fallback_icon.is_empty() else "🌱"
+
+func _set_portrait(icon_text: String, crop_key: String = "") -> void:
+	var tex: Texture2D = null
+	if not crop_key.is_empty():
+		tex = _get_renderer().get_crop_sprite_texture(crop_key)
+	_set_portrait_texture(tex, icon_text)
+
+func _get_tile_texture(tile: FarmTile) -> Texture2D:
+	if tile == null:
+		return null
+
+	var rnd := _get_renderer()
+
+	# 1. Crops & Groves (perennial or annual)
+	var effective_crop: String = tile.crop_type
+	if effective_crop.is_empty() and tile.multi_tile_root_pos != Vector2i(-1, -1):
+		var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+		if farm_grid and "tiles" in farm_grid:
+			var rp: Vector2i = tile.multi_tile_root_pos
+			if rp.x >= 0 and rp.x < farm_grid.tiles.size() and rp.y >= 0 and rp.y < farm_grid.tiles[0].size():
+				effective_crop = farm_grid.tiles[rp.x][rp.y].crop_type
+
+	if not effective_crop.is_empty():
+		var c_data: Dictionary = Data.get_crop(effective_crop)
+		if c_data.get("is_perennial", false) and tile.state == FarmTile.TileState.GROWING and tile.health > 0.4:
+			var regr_days: float = float(c_data.get("regrowth_days", 0.0))
+			var tot_days: float = float(c_data.get("growth_days", 1.0))
+			var regrowth_start_pct: float = 1.0 - (regr_days / tot_days)
+			if tile.growth_progress < regrowth_start_pct + 0.05:
+				var regr_tex := rnd.get_regrowth_texture(effective_crop)
+				if regr_tex != null:
+					return regr_tex
+
+		var stage: int = rnd.get_tile_crop_stage(tile)
+		var stage_tex := rnd.get_crop_stage_texture(effective_crop, stage)
+		if stage_tex != null:
+			return stage_tex
+		return rnd.get_crop_sprite_texture(effective_crop)
+
+	# 2. Tile Grounds & Placed Buildings
+	match tile.state:
+		FarmTile.TileState.PLOWED:
+			return preload("res://assets/sprites/ground/BARE SOIL/BARE-SOIL-01.png")
+		FarmTile.TileState.EMPTY:
+			return preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
+		FarmTile.TileState.FLOODED:
+			return preload("res://assets/sprites/ground/WGRASS/WGRASS-01.png")
+		FarmTile.TileState.LOCKED:
+			return preload("res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-O1.png")
+		FarmTile.TileState.BUILDING:
+			var b_ref: Node = tile.building_ref
+			if b_ref != null and is_instance_valid(b_ref):
+				match b_ref.building_type:
+					"bahay_kubo": return preload("res://assets/sprites/buildings/KUBO.png")
+					"solar_dryer": return preload("res://assets/sprites/buildings/DRYER.PNG")
+					"cold_storage": return preload("res://assets/sprites/buildings/Cold Storage.png")
+					"drone_station": return preload("res://assets/sprites/buildings/Drone Station.png")
+					"water_station": return preload("res://assets/sprites/buildings/Water Station.png")
+					"weather_station": return preload("res://assets/sprites/buildings/Weather Station.png")
+					"grain_silo": return preload("res://assets/sprites/buildings/Silo/SILO-0.PNG")
+					_: return null
+			return null
+		_:
+			return null
 
 func _on_time_tick(_arg: int = 0) -> void:
 	if is_batch_inspect and batch_selected_tiles.size() > 0:
@@ -119,8 +185,9 @@ func inspect_selection(tiles_pos_list: Array, tiles_grid: Array) -> void:
 
 	var count: int = tiles_pos_list.size()
 	if title_label:
-		title_label.text = "📦 Selected: %d Tiles" % count
-	_set_portrait("🗺️")
+		title_label.text = "📦 Selected: %d" % count
+	var batch_tex: Texture2D = preload("res://assets/sprites/ground/BARE SOIL/BARE-SOIL-01.png")
+	_set_portrait_texture(batch_tex, "🗺️")
 
 	var empty_count: int = 0
 	var plowed_count: int = 0
@@ -164,7 +231,7 @@ func inspect_selection(tiles_pos_list: Array, tiles_grid: Array) -> void:
 	if crop_label:
 		crop_label.text = " | ".join(summary_parts) if summary_parts.size() > 0 else "All Empty"
 	if state_label:
-		state_label.text = "Right-Click for Batch Actions"
+		state_label.text = "Select Tool & Left-Click/Drag"
 
 	var avg_moisture: float = sum_moisture / float(max(1, count))
 	var avg_health: float = sum_health / float(max(1, count))
@@ -191,10 +258,10 @@ func inspect_selection(tiles_pos_list: Array, tiles_grid: Array) -> void:
 	if pest_label:
 		if infected_count > 0:
 			pest_label.text = "⚠️ %d Infestations!" % infected_count
-			pest_label.modulate = Color(0.85, 0.20, 0.15)
+			pest_label.add_theme_color_override("font_color", Color(0.85, 0.20, 0.15))
 		else:
 			pest_label.text = "✅ 0 Infestations"
-			pest_label.modulate = Color(0.12, 0.48, 0.18)
+			pest_label.add_theme_color_override("font_color", Color(0.12, 0.50, 0.18))
 
 func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 	is_batch_inspect = false
@@ -210,61 +277,39 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		else:
 			state_label.text = _tile_state_string(tile.state)
 
+	var tile_tex := _get_tile_texture(tile)
+	var fallback_icon := "🌱"
 	match tile.state:
-		FarmTile.TileState.EMPTY: _set_portrait("🌱")
-		FarmTile.TileState.PLOWED: _set_portrait("⛏️")
-		FarmTile.TileState.PLANTED, FarmTile.TileState.GROWING:
-			var c_type: String = tile.crop_type
-			if c_type.is_empty() and tile.multi_tile_root_pos != Vector2i(-1, -1):
-				var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
-				if farm_grid and "tiles" in farm_grid:
-					c_type = farm_grid.tiles[tile.multi_tile_root_pos.x][tile.multi_tile_root_pos.y].crop_type
-			var c_data = Data.get_crop(c_type)
-			_set_portrait(c_data.get("icon", "🌿"), c_type)
-		FarmTile.TileState.HARVESTABLE:
-			var c_type: String = tile.crop_type
-			if c_type.is_empty() and tile.multi_tile_root_pos != Vector2i(-1, -1):
-				var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
-				if farm_grid and "tiles" in farm_grid:
-					c_type = farm_grid.tiles[tile.multi_tile_root_pos.x][tile.multi_tile_root_pos.y].crop_type
-			var c_data = Data.get_crop(c_type)
-			_set_portrait(c_data.get("icon", "🌾"), c_type)
-		FarmTile.TileState.FLOODED: _set_portrait("🌊")
-		FarmTile.TileState.INFECTED: _set_portrait("🐛")
-		FarmTile.TileState.OBSTACLE:
-			if tile.obstacle_type == "rock":
-				_set_portrait("🪨")
-			else:
-				_set_portrait("🌳")
-		FarmTile.TileState.BUILDING: _set_portrait("🏛️")
-		FarmTile.TileState.LOCKED: _set_portrait("🔒")
-		_: _set_portrait("🌱")
+		FarmTile.TileState.EMPTY: fallback_icon = "🌱"
+		FarmTile.TileState.PLOWED: fallback_icon = "⛏️"
+		FarmTile.TileState.PLANTED, FarmTile.TileState.GROWING: fallback_icon = "🌿"
+		FarmTile.TileState.HARVESTABLE: fallback_icon = "🌾"
+		FarmTile.TileState.FLOODED: fallback_icon = "🌊"
+		FarmTile.TileState.INFECTED: fallback_icon = "🐛"
+		FarmTile.TileState.OBSTACLE: fallback_icon = "🪨" if tile.obstacle_type == "rock" else "🌳"
+		FarmTile.TileState.BUILDING: fallback_icon = "🏛️"
+		FarmTile.TileState.LOCKED: fallback_icon = "🔒"
+
+	_set_portrait_texture(tile_tex, fallback_icon)
 
 	if crop_label:
 		if tile.state == FarmTile.TileState.LOCKED:
 			var p: Dictionary = Data.get_parcel_for_tile(pos)
-			crop_label.text = "🔒 %s" % p.get("name", "Wild Territory")
+			crop_label.text = p.get("name", "Wild Territory")
 			if state_label:
-				var r_sz: Vector2i = p.get("rect", Rect2i()).size
-				state_label.text = "%d×%d Land • ₱%s (Right-Click to Unlock)" % [r_sz.x, r_sz.y, Utils.format_number(p.get("cost", 1000))]
+				state_label.text = "₱%s to Unlock" % Utils.format_number(p.get("cost", 1000))
 		elif tile.state == FarmTile.TileState.OBSTACLE:
-			if tile.obstacle_type == "rock":
-				crop_label.text = "🪨 Granite Boulder (Obstacle)"
-			else:
-				crop_label.text = "🌲 Tree Obstacle (Blocks Building)"
+			crop_label.text = "Boulder Obstacle" if tile.obstacle_type == "rock" else "Tree Obstacle"
 		elif tile.state == FarmTile.TileState.BUILDING:
 			var b_ref: Node = tile.building_ref
 			if b_ref != null and is_instance_valid(b_ref):
 				var b_data := Data.get_building(b_ref.building_type)
 				var b_name: String = b_data.get("display_name", b_ref.building_type)
-				var stars := ""
-				for _i in range(b_ref.level):
-					stars += "⭐"
-				crop_label.text = "%s %s Lv.%d" % [b_data.get("icon", "🏛️"), b_name, b_ref.level]
+				crop_label.text = "%s Lv.%d" % [b_name, b_ref.level]
 				if state_label:
-					state_label.text = "Click building to Inspect / Upgrade"
+					state_label.text = "Building Active"
 			else:
-				crop_label.text = "🏛️ Farm Building"
+				crop_label.text = "Farm Building"
 		elif tile.crop_type != "" or tile.multi_tile_root_pos != Vector2i(-1, -1):
 			var effective_crop: String = tile.crop_type
 			var root_pos: Vector2i = tile.multi_tile_root_pos
@@ -273,12 +318,7 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 				if farm_grid and "tiles" in farm_grid:
 					effective_crop = farm_grid.tiles[root_pos.x][root_pos.y].crop_type
 			var c_data = Data.get_crop(effective_crop)
-			var suffix: String = ""
-			if c_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2):
-				suffix += " (2×2 Grove)"
-			if c_data.get("is_perennial", false):
-				suffix += " • Perennial"
-			crop_label.text = "%s %s%s" % [c_data.get("icon", "🌱"), c_data.get("display_name", effective_crop), suffix]
+			crop_label.text = c_data.get("display_name", effective_crop)
 		else:
 			crop_label.text = "Uncultivated Soil"
 
@@ -305,11 +345,11 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 	if pest_label:
 		if tile.pest_type != "":
 			var p_data = Data.get_pest(tile.pest_type)
-			pest_label.text = "Infestation: 🐛 " + p_data.get("display_name", tile.pest_type)
-			pest_label.modulate = Color(0.85, 0.20, 0.15)
+			pest_label.text = "Infestation: " + p_data.get("display_name", tile.pest_type)
+			pest_label.add_theme_color_override("font_color", Color(0.85, 0.20, 0.15))
 		else:
 			pest_label.text = "Pests: None (Healthy)"
-			pest_label.modulate = Color(0.12, 0.48, 0.18)
+			pest_label.add_theme_color_override("font_color", Color(0.12, 0.50, 0.18))
 
 func _tile_state_string(state_val: int) -> String:
 	match state_val:
@@ -318,11 +358,11 @@ func _tile_state_string(state_val: int) -> String:
 		FarmTile.TileState.PLANTED: return "Newly Seeded"
 		FarmTile.TileState.GROWING: return "Growing Crop"
 		FarmTile.TileState.HARVESTABLE: return "Ready for Harvest!"
-		FarmTile.TileState.FLOODED: return "Flooded / Crop Rot"
+		FarmTile.TileState.FLOODED: return "Flooded Soil"
 		FarmTile.TileState.INFECTED: return "Pest Infested"
-		FarmTile.TileState.OBSTACLE: return "⛔ Tree Obstacle (COC)"
-		FarmTile.TileState.BUILDING: return "🏛️ Farm Building (Occupied)"
-		FarmTile.TileState.LOCKED: return "🔒 Wild Territory (Locked 10x10)"
+		FarmTile.TileState.OBSTACLE: return "Obstacle"
+		FarmTile.TileState.BUILDING: return "Occupied"
+		FarmTile.TileState.LOCKED: return "Wild Land"
 		_: return "Unknown"
 
 func _quality_string(grade_val: int) -> String:

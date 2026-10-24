@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://run_test_heatmap"]
+
+[ext_resource type="Script" path="res://scratch/test_heatmap_overlay.gd" id="1_test"]
+
+[node name="TestHeatmap" type="Node2D"]
+script = ExtResource("1_test")

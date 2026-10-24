@@ -163,7 +163,40 @@ func _ready() -> void:
 	print("✔ MainGame: CommandCorner buttons have warm ivory font, RegionHoverCard text enlarged")
 	mg.queue_free()
 
+	# 14. Test Square Buttons & PlantHotbar
+	var sq_brown = load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres")
+	assert(sq_brown != null, "SquareBrownButton.tres must load")
+	var sq_yellow = load("res://assets/sprites/hud/Buttons/Squarebutton/SquareYellowButton.tres")
+	assert(sq_yellow != null, "SquareYellowButton.tres must load")
+	var sq_light = load("res://assets/sprites/hud/Buttons/Squarebutton/SquareLightButton.tres")
+	assert(sq_light != null, "SquareLightButton.tres must load")
+
+	var hotbar_script = load("res://src/ui/PlantHotbar.gd")
+	assert(hotbar_script != null, "PlantHotbar script must load")
+	var hotbar = hotbar_script.new()
+	add_child(hotbar)
+	hotbar._setup_ui()
+	assert(hotbar.flyout_drawer != null, "Flyout drawer must exist")
+	hotbar.queue_free()
+	print("✔ Square Buttons: 32x32 square button suite verified and hotbar slots loaded")
+
+	# 15. Test ShopPanel COC-Style Card Grid
+	var shop_inst = mg_scene.instantiate()
+	add_child(shop_inst)
+	var shop = shop_inst.find_child("ShopPanel", true, false)
+	assert(shop != null, "ShopPanel must exist")
+	shop.visible = true
+	shop.refresh()
+	assert(shop.labor_grid != null and shop.labor_grid.get_child_count() == 3, "Shop Labor grid must have 3 cards")
+	assert(shop.storage_grid != null and shop.storage_grid.get_child_count() == 4, "Shop Storage grid must have 4 cards")
+	assert(shop.weather_grid != null and shop.weather_grid.get_child_count() == 4, "Shop Weather grid must have 4 cards (incl. Field Survey Kit)")
+	assert(shop.machinery_grid != null and shop.machinery_grid.get_child_count() == 1, "Shop Machinery grid must have 1 card (Drone Hangar)")
+	assert(shop.trade_grid != null and shop.trade_grid.get_child_count() == 4, "Shop Trade grid must have 4 cards (Trading Post + 3 Hubs)")
+	assert(shop.land_grid != null and shop.land_grid.get_child_count() == 4, "Shop Land grid must have 4 cards")
+	print("✔ ShopPanel: COC-Style 3-column card grid verified across all categories (including Trade & Survey Kit)")
+	shop_inst.queue_free()
+
 	print("========================================")
-	print("ALL 13 UI OVERHAUL ASSERTIONS PASSED!")
+	print("ALL 15 UI OVERHAUL ASSERTIONS PASSED!")
 	print("========================================")
 	get_tree().quit(0)

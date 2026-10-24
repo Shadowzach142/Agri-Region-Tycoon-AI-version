@@ -41,6 +41,7 @@ var ground_layer:  Node2D = null  # Dedicated ground layer (Z=0) for terrain sla
 # ---------------------------------------------------------------------------
 var renderer: TileRenderer = null  # Owns all visual update logic
 var drones: Array = []              # Autonomous precision farm drone fleet
+var is_drone_targeting: bool = false # Independent drone zone designation mode
 var drone: FarmDrone:               # Backward-compatible accessor for drone #0
 	get:
 		for d in drones:
@@ -53,6 +54,8 @@ var drone: FarmDrone:               # Backward-compatible accessor for drone #0
 # ---------------------------------------------------------------------------
 var selected_tile_pos:  Vector2i = Vector2i(-1, -1)
 var selection_indicator: Node2D  = null
+var hover_indicator:     Node2D  = null
+var parcel_boundaries_node: Node2D = null
 var hovered_grid_pos:   Vector2i = Vector2i(-1, -1)
 
 # ---------------------------------------------------------------------------
@@ -66,6 +69,7 @@ const DRAG_THRESHOLD: float   = 8.0
 
 var selected_tiles: Array[Vector2i] = []
 var drag_overlay:   Node2D          = null  # Drawn above all tiles (z_index 200)
+var heatmap_overlay: FarmHeatmapOverlay = null # Soil & Farm Diagnostic Heatmap (z_index 195)
 
 # ---------------------------------------------------------------------------
 # Building Placement & Management State
@@ -76,6 +80,12 @@ var placing_footprint: Vector2i      = Vector2i(2, 2)
 var placing_hover_grid_pos: Vector2i = Vector2i.ZERO
 var placement_overlay: Node2D        = null
 var building_card_popup: Node        = null
+var weather_app_modal: WeatherAppModal = null
+
+# ---------------------------------------------------------------------------
+# Foliage & Crop Occlusion State (See-through transparency for workers)
+# ---------------------------------------------------------------------------
+var _occluded_tiles: Dictionary = {}
 
 # ---------------------------------------------------------------------------
 # Node reference
@@ -91,6 +101,8 @@ func _ready() -> void:
 	if not SaveManager.has_pending_save_data():
 		_spawn_starting_homestead_buildings()
 	_create_selection_indicator()
+	_create_hover_indicator()
+	_update_parcel_boundaries()
 
 	renderer = TileRenderer.new()
 	renderer.setup(tile_fills, tile_overlays, tile_dots, tile_labels, tile_sprites)
@@ -135,6 +147,17 @@ func _ready() -> void:
 	add_child(drag_overlay)
 	drag_overlay.farm_grid = self
 
+	# Coastal Sea Water Layer (z_index -40)
+	var sea_water = SeaWater.new()
+	sea_water.name = "SeaWater"
+	add_child(sea_water)
+
+	# Soil & Farm Diagnostic Heatmap Overlay (z_index 195)
+	heatmap_overlay = FarmHeatmapOverlay.new()
+	heatmap_overlay.name = "FarmHeatmapOverlay"
+	heatmap_overlay.farm_grid = self
+	add_child(heatmap_overlay)
+
 	# Building placement overlay
 	var b_overlay_script: GDScript = load("res://src/buildings/BuildingPlacementOverlay.gd")
 	placement_overlay = Node2D.new()
@@ -155,6 +178,11 @@ func _ready() -> void:
 	if card_scene:
 		building_card_popup = card_scene.instantiate()
 		get_parent().call_deferred("add_child", building_card_popup)
+
+	# Weather App Modal (PAGASA Meteorological Telemetry & Predictions Dashboard)
+	weather_app_modal = WeatherAppModal.new()
+	weather_app_modal.name = "WeatherAppModal"
+	get_parent().call_deferred("add_child", weather_app_modal)
 
 	# Land Expansion Modal
 	land_modal = LandExpansionModal.new()
@@ -181,6 +209,108 @@ func _ready() -> void:
 		TaskManager.tasks_assigned.connect(func(_w, _t): if drag_overlay: drag_overlay.queue_redraw())
 
 	select_tile.call_deferred(Vector2i(0, 0))
+
+func _process(delta: float) -> void:
+	_update_foliage_occlusion(delta)
+	_update_hover_cursor()
+
+## Checks all active workers against standing crops, 2x2 groves, and obstacle trees,
+## smoothly fading occluding foliage to 35% translucent alpha so workers are never hidden.
+func _update_foliage_occlusion(delta: float) -> void:
+	var farmers := get_tree().get_nodes_in_group("farmers")
+	if farmers.is_empty():
+		if not _occluded_tiles.is_empty():
+			var restored: Array = []
+			for tp in _occluded_tiles.keys():
+				if _is_valid(tp):
+					var ov: Node2D = tile_overlays[tp.x][tp.y]
+					if is_instance_valid(ov):
+						ov.modulate.a = move_toward(ov.modulate.a, 1.0, delta * 6.0)
+						if ov.modulate.a >= 0.99:
+							ov.modulate.a = 1.0
+							restored.append(tp)
+				else:
+					restored.append(tp)
+			for tp in restored:
+				_occluded_tiles.erase(tp)
+		return
+
+	var new_occluded: Dictionary = {}
+
+	for f_node in farmers:
+		var f := f_node as Node2D
+		if f == null or not is_instance_valid(f):
+			continue
+
+		var f_local: Vector2 = to_local(f.global_position)
+		var fg: Vector2i = FarmerMovement.pixel_to_grid(f.global_position, self)
+
+		# Inspect candidate tiles around and south of the worker that could occlude them
+		for dx in range(-1, 3):
+			for dy in range(-1, 3):
+				var tp := fg + Vector2i(dx, dy)
+				if not _is_valid(tp):
+					continue
+
+				var tile: FarmTile = tiles[tp.x][tp.y]
+				var has_standing_foliage: bool = false
+				if tile.crop_type != "" and tile.state in [
+					FarmTile.TileState.PLANTED,
+					FarmTile.TileState.GROWING,
+					FarmTile.TileState.HARVESTABLE,
+					FarmTile.TileState.INFECTED,
+					FarmTile.TileState.FLOODED
+				]:
+					has_standing_foliage = true
+				elif tile.state == FarmTile.TileState.OBSTACLE or (tile.state == FarmTile.TileState.LOCKED and tile.obstacle_type != ""):
+					has_standing_foliage = true
+
+				if not has_standing_foliage:
+					continue
+
+				# Bounding box check in local pixel space
+				var root_pos: Vector2 = tile_roots[tp.x][tp.y].position
+				var dx_px: float = absf(f_local.x - root_pos.x)
+				var dy_px: float = (root_pos.y + 24.0) - f_local.y
+
+				var max_w: float = 88.0 if tile.is_multi_tile_root else 52.0
+				var max_h: float = 240.0 if tile.is_multi_tile_root else 180.0
+
+				# If farmer is horizontally within sprite spread and vertically under foliage
+				if dx_px <= max_w and dy_px >= -12.0 and dy_px <= max_h:
+					new_occluded[tp] = true
+					if tile.is_multi_tile_root:
+						for mdx in range(2):
+							for mdy in range(2):
+								var sub_p := tp + Vector2i(mdx, mdy)
+								if _is_valid(sub_p):
+									new_occluded[sub_p] = true
+
+	# Fade in occlusion transparency (0.35) for occluding tiles
+	for tp in new_occluded.keys():
+		_occluded_tiles[tp] = true
+		var ov: Node2D = tile_overlays[tp.x][tp.y]
+		if is_instance_valid(ov):
+			ov.modulate.a = move_toward(ov.modulate.a, 0.35, delta * 8.0)
+
+	# Fade out restored tiles back to opaque (1.0)
+	var to_clean: Array = []
+	for tp in _occluded_tiles.keys():
+		if not new_occluded.has(tp):
+			if _is_valid(tp):
+				var ov: Node2D = tile_overlays[tp.x][tp.y]
+				if is_instance_valid(ov):
+					ov.modulate.a = move_toward(ov.modulate.a, 1.0, delta * 6.0)
+					if ov.modulate.a >= 0.99:
+						ov.modulate.a = 1.0
+						to_clean.append(tp)
+				else:
+					to_clean.append(tp)
+			else:
+				to_clean.append(tp)
+
+	for tp in to_clean:
+		_occluded_tiles.erase(tp)
 
 # ---------------------------------------------------------------------------
 # Grid construction
@@ -282,12 +412,14 @@ func _create_grid() -> void:
 			root.name     = "Tile_%d_%d" % [x, y]
 			root.position = tile_pos_px
 			root.z_index  = 10
+			root.y_sort_enabled = true
 			add_child(root)
 			tile_roots[x].append(root)
 
 			# 4. Texture detail overlay (trees, crops, weeds)
 			var overlay := Node2D.new()
 			overlay.name = "Overlay"
+			overlay.y_sort_enabled = true
 			root.add_child(overlay)
 			tile_overlays[x].append(overlay)
 
@@ -344,12 +476,14 @@ func _procedural_generate_obstacles_in_rect(rect: Rect2i, num_trees: int, num_ro
 			if rect.position == Vector2i(0, 0) and compound_clearance.has_point(pos):
 				continue
 
-			# 4. Never layer on parcel purchase signposts
+			# 4. Never layer on parcel purchase signposts or Bayanihan field posts
 			var is_sign_tile: bool = false
 			for p in Data.LAND_PARCELS:
 				if p.get("sign_tile", Vector2i(-1, -1)) == pos:
 					is_sign_tile = true
 					break
+			if pos in [Vector2i(0, 4), Vector2i(12, 4), Vector2i(4, 12), Vector2i(12, 16)]:
+				is_sign_tile = true
 			if is_sign_tile:
 				continue
 
@@ -480,6 +614,9 @@ func open_land_expansion_modal(parcel_id: String) -> void:
 	if land_modal:
 		land_modal.open_for_parcel(parcel_id, self)
 
+func open_bayanihan_modal(_parcel_id: String = "homestead") -> void:
+	pass
+
 func is_tile_unlocked(pos: Vector2i) -> bool:
 	if not _is_valid(pos):
 		return false
@@ -500,6 +637,7 @@ func unlock_parcel(parcel_id: String) -> bool:
 
 	EconomyManager.deduct_cash(cost)
 	unlocked_parcels.append(parcel_id)
+	AudioManager.play_tech("tech_unlock")
 
 	var rect: Rect2i = p.get("rect", Rect2i())
 	var region_data: Dictionary = Data.get_region(Data.current_region)
@@ -530,6 +668,7 @@ func unlock_parcel(parcel_id: String) -> bool:
 		land_modal.close()
 
 	renderer.update_all(tiles, GRID_SIZE)
+	_update_parcel_boundaries()
 
 	var num_plots: int = rect.size.x * rect.size.y
 	LogManager.log_event("buildings", "🗺️ Territory Expanded: Acquired %s (%d×%d - %d new plots)!" % [p.get("name"), rect.size.x, rect.size.y, num_plots], "🗺️", Color(0.35, 0.95, 0.45))
@@ -639,6 +778,166 @@ func _create_selection_indicator() -> void:
 	border.add_point(Vector2(-64, 0))
 	selection_indicator.add_child(border)
 
+func _create_hover_indicator() -> void:
+	hover_indicator          = Node2D.new()
+	hover_indicator.name     = "HoverIndicator"
+	hover_indicator.z_index  = 2  # Above ground fill (Z=0), below crops & buildings (Z=10)
+	hover_indicator.visible  = false
+	add_child(hover_indicator)
+
+	var fill := Polygon2D.new()
+	fill.name = "Fill"
+	fill.polygon = PackedVector2Array([
+		Vector2(0, -30), Vector2(60, 0), Vector2(0, 30), Vector2(-60, 0)
+	])
+	fill.color = Color(1.0, 0.95, 0.65, 0.12)
+	hover_indicator.add_child(fill)
+
+	var border := Line2D.new()
+	border.name = "Border"
+	border.width = 2.0
+	border.default_color = Color(1.0, 0.95, 0.65, 0.70)
+	border.closed = true
+	border.add_point(Vector2(0, -32))
+	border.add_point(Vector2(64, 0))
+	border.add_point(Vector2(0, 32))
+	border.add_point(Vector2(-64, 0))
+	hover_indicator.add_child(border)
+
+func _update_hover_cursor() -> void:
+	if hover_indicator == null:
+		return
+	if _is_any_menu_open() or is_box_dragging or is_placing_building:
+		hover_indicator.visible = false
+		return
+
+	var gpos: Vector2i = hovered_grid_pos
+	if not _is_valid(gpos):
+		hover_indicator.visible = false
+		return
+
+	var tile: FarmTile = tiles[gpos.x][gpos.y]
+	var is_multi: bool = (tile.is_multi_tile_root or tile.multi_tile_root_pos != Vector2i(-1, -1))
+	var root_pos: Vector2i = gpos if not is_multi else (gpos if tile.is_multi_tile_root else tile.multi_tile_root_pos)
+	var root_tile: FarmTile = tiles[root_pos.x][root_pos.y]
+
+	# Hide hover cursor if the tile is already selected by selection indicator
+	if selection_indicator and selection_indicator.visible and selected_tile_pos == root_pos:
+		hover_indicator.visible = false
+		return
+
+	# Hide ground hover cursor if the tile has a standing crop, so the crop sprite itself is highlighted!
+	if not root_tile.crop_type.is_empty():
+		hover_indicator.visible = false
+		return
+
+	var fill_node: Polygon2D = hover_indicator.get_node_or_null("Fill") as Polygon2D
+	var border_node: Line2D = hover_indicator.get_node_or_null("Border") as Line2D
+
+	var poly: PackedVector2Array
+	if is_multi:
+		poly = FarmerMovement.get_footprint_polygon_local(root_pos, Vector2i(2, 2))
+	else:
+		poly = FarmerMovement.get_tile_diamond_local(gpos)
+
+	if fill_node:
+		fill_node.polygon = poly
+	if border_node:
+		var pts := PackedVector2Array(poly)
+		pts.append(poly[0])
+		border_node.points = pts
+
+	var border_col: Color
+	var fill_col: Color
+
+	if not is_tile_unlocked(gpos):
+		border_col = Color(0.85, 0.35, 0.35, 0.65) # Soft Crimson for Locked land
+		fill_col   = Color(0.85, 0.35, 0.35, 0.12)
+	elif root_tile.state == FarmTile.TileState.HARVESTABLE or (root_tile.crop_type != "" and root_tile.growth_progress >= 1.0):
+		border_col = Color(0.40, 0.95, 0.40, 0.85) # Vibrant Emerald for Harvest ready
+		fill_col   = Color(0.40, 0.95, 0.40, 0.18)
+	elif root_tile.state == FarmTile.TileState.OBSTACLE:
+		border_col = Color(0.95, 0.65, 0.25, 0.75) # Warm Amber for Obstacles
+		fill_col   = Color(0.95, 0.65, 0.25, 0.14)
+	elif root_tile.state == FarmTile.TileState.INFECTED:
+		border_col = Color(0.85, 0.40, 0.90, 0.80) # Purple for Pest Infected
+		fill_col   = Color(0.85, 0.40, 0.90, 0.15)
+	else:
+		border_col = Color(1.0, 0.92, 0.55, 0.70) # Soft Warm Gold for Plowable/Plantable/Growing
+		fill_col   = Color(1.0, 0.92, 0.55, 0.10)
+
+	if fill_node:
+		fill_node.color = fill_col
+	if border_node:
+		border_node.default_color = border_col
+
+	hover_indicator.position = Vector2.ZERO
+	hover_indicator.visible = true
+
+## Rebuilds the visual boundaries demarcating unlocked homestead from locked parcels
+func _update_parcel_boundaries() -> void:
+	if parcel_boundaries_node == null:
+		parcel_boundaries_node = Node2D.new()
+		parcel_boundaries_node.name = "ParcelBoundaries"
+		parcel_boundaries_node.z_index = 1 # Above terrain at Z=0, below crops and workers
+		add_child(parcel_boundaries_node)
+
+	for child in parcel_boundaries_node.get_children():
+		child.queue_free()
+
+	for p in Data.LAND_PARCELS:
+		var pid: String = p.get("id", "")
+		var rect: Rect2i = p.get("rect", Rect2i())
+		var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(rect.position, rect.size)
+		var is_unlocked: bool = unlocked_parcels.has(pid)
+
+		if is_unlocked:
+			# Deep boundary shadow
+			var shadow := Line2D.new()
+			shadow.width = 4.0
+			shadow.default_color = Color(0.10, 0.08, 0.05, 0.45)
+			shadow.closed = true
+			var pts_s := PackedVector2Array(poly)
+			pts_s.append(poly[0])
+			shadow.points = pts_s
+			parcel_boundaries_node.add_child(shadow)
+
+			# Warm golden boundary line
+			var border := Line2D.new()
+			border.width = 2.5
+			border.default_color = Color(1.0, 0.88, 0.45, 0.85)
+			border.closed = true
+			var pts_b := PackedVector2Array(poly)
+			pts_b.append(poly[0])
+			border.points = pts_b
+			parcel_boundaries_node.add_child(border)
+
+			# Corner boundary survey pegs with red ribbons
+			for corner_pt in poly:
+				var peg := Line2D.new()
+				peg.width = 3.5
+				peg.default_color = Color(0.40, 0.25, 0.14, 1.0)
+				peg.add_point(corner_pt + Vector2(0, 2))
+				peg.add_point(corner_pt + Vector2(0, -12))
+				parcel_boundaries_node.add_child(peg)
+
+				var ribbon := Line2D.new()
+				ribbon.width = 2.0
+				ribbon.default_color = Color(0.95, 0.30, 0.22, 1.0)
+				ribbon.add_point(corner_pt + Vector2(-3, -10))
+				ribbon.add_point(corner_pt + Vector2(3, -10))
+				parcel_boundaries_node.add_child(ribbon)
+		else:
+			# Locked parcel subtle dashed boundary line
+			var locked_border := Line2D.new()
+			locked_border.width = 1.5
+			locked_border.default_color = Color(0.55, 0.42, 0.30, 0.35)
+			locked_border.closed = true
+			var pts_l := PackedVector2Array(poly)
+			pts_l.append(poly[0])
+			locked_border.points = pts_l
+			parcel_boundaries_node.add_child(locked_border)
+
 # ---------------------------------------------------------------------------
 # Selection
 # ---------------------------------------------------------------------------
@@ -651,27 +950,34 @@ func select_tile(pos: Vector2i) -> void:
 
 	selected_tile_pos = root_pos
 	if selection_indicator:
-		var fill_node: Polygon2D = selection_indicator.get_node_or_null("Fill") as Polygon2D
-		var border_node: Line2D = selection_indicator.get_node_or_null("Border") as Line2D
-		if is_multi:
-			var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(root_pos, Vector2i(2, 2))
-			if fill_node:
-				fill_node.polygon = poly
-			if border_node:
-				var pts := PackedVector2Array(poly)
-				pts.append(poly[0])
-				border_node.points = pts
-			selection_indicator.position = Vector2.ZERO
+		# If the tile has a standing crop, suppress ground selection indicator so crop sprite itself is highlighted
+		if not tiles[root_pos.x][root_pos.y].crop_type.is_empty():
+			selection_indicator.visible = false
 		else:
-			var diamond: PackedVector2Array = FarmerMovement.get_tile_diamond_local(pos)
-			if fill_node:
-				fill_node.polygon = diamond
-			if border_node:
-				var pts := PackedVector2Array(diamond)
-				pts.append(diamond[0])
-				border_node.points = pts
-			selection_indicator.position = Vector2.ZERO
-		selection_indicator.visible = true
+			var fill_node: Polygon2D = selection_indicator.get_node_or_null("Fill") as Polygon2D
+			var border_node: Line2D = selection_indicator.get_node_or_null("Border") as Line2D
+			if is_multi:
+				var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(root_pos, Vector2i(2, 2))
+				if fill_node:
+					fill_node.polygon = poly
+				if border_node:
+					var pts := PackedVector2Array(poly)
+					pts.append(poly[0])
+					border_node.points = pts
+				selection_indicator.position = Vector2.ZERO
+			else:
+				var diamond: PackedVector2Array = FarmerMovement.get_tile_diamond_local(pos)
+				if fill_node:
+					fill_node.polygon = diamond
+				if border_node:
+					var pts := PackedVector2Array(diamond)
+					pts.append(diamond[0])
+					border_node.points = pts
+				selection_indicator.position = Vector2.ZERO
+			selection_indicator.visible = true
+
+	if drag_overlay:
+		drag_overlay.queue_redraw()
 
 	tile_inspected.emit(root_pos, tiles[root_pos.x][root_pos.y])
 	AudioManager.play_ui("tile_select")
@@ -737,7 +1043,8 @@ func _input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 				return
 	elif not is_placing_building and event is InputEventMouseMotion:
-		var mouse_world := get_global_mouse_position()
+		var mm := event as InputEventMouseMotion
+		var mouse_world: Vector2 = get_canvas_transform().affine_inverse() * mm.position if mm.position != Vector2.ZERO else get_global_mouse_position()
 		var gpos: Vector2i = Vector2i(-1, -1)
 		var over_ui: bool = false
 		var vp := get_viewport()
@@ -796,13 +1103,39 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Press — begin drag tracking or single click
 	if event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
-		if mb.button_index != MOUSE_BUTTON_LEFT and mb.button_index != MOUSE_BUTTON_RIGHT:
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			if is_drone_targeting:
+				cancel_drone_zone_designation()
+				get_viewport().set_input_as_handled()
+				return
+			# Right-click cancels selections, clears active highlights, and deselects workers (right click menu removed)
+			if action_popup and action_popup.visible:
+				action_popup.hide()
+			selected_tiles.clear()
+			selected_tile_pos = Vector2i(-1, -1)
+			if drag_overlay:
+				drag_overlay.queue_redraw()
+			if selection_indicator:
+				selection_indicator.visible = false
+			TaskManager.deselect_all_farmers()
+			get_viewport().set_input_as_handled()
+			return
+
+		if mb.button_index != MOUSE_BUTTON_LEFT:
 			return
 
 		var world_mouse: Vector2 = get_canvas_transform().affine_inverse() * mb.position if mb.position != Vector2.ZERO else get_global_mouse_position()
 
 		# Left-click on worker: select/toggle worker (supports Ctrl+click for multi-selection)
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			# Left-click on active drone in world: open Drone Command Deck directly
+			for d in drones:
+				if is_instance_valid(d) and d.visible:
+					if d.global_position.distance_to(world_mouse) < 32.0:
+						_open_drone_command_deck()
+						get_viewport().set_input_as_handled()
+						return
+
 			var clicked_worker = _find_farmer_at(world_mouse)
 			if clicked_worker != null:
 				var is_multi: bool = mb.is_command_or_control_pressed() or mb.shift_pressed
@@ -843,14 +1176,15 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 		active_tool = plant_hotbar.get_selected_tool()
 
 	var has_selected_farmers: bool = (TaskManager.get_selected_farmers().size() > 0)
-	if not has_selected_farmers and not active_tool.is_empty():
+	if not is_drone_targeting and active_tool != "drone_zone" and not has_selected_farmers and not active_tool.is_empty():
 		var workers := get_tree().get_nodes_in_group("farmers")
 		if not workers.is_empty() and is_instance_valid(workers[0]):
 			TaskManager.select_farmer(workers[0])
 			has_selected_farmers = true
 
-	# ── Drone Remote Control ──────────────────────────────────────────
-	if active_tool == "drone_zone" and mb.button_index == MOUSE_BUTTON_LEFT:
+	# ── Drone Remote Control (Independent from Farmer) ────────────────
+	if (is_drone_targeting or active_tool == "drone_zone") and mb.button_index == MOUSE_BUTTON_LEFT:
+		is_drone_targeting = false
 		if not BuildingManager.has_drone_station():
 			LogManager.log_event("general", "⚠️ Build a Drone Command Hangar in the Shop (Machinery & Drones tab) first!", "🛸", Color(1.0, 0.4, 0.4))
 			AudioManager.play_ui("error")
@@ -871,10 +1205,6 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			if _is_valid(tpos) and is_tile_unlocked(tpos):
 				zone_tiles = [tpos]
 		if not zone_tiles.is_empty() and not drones.is_empty():
-			var chosen_crop := "palay"
-			if plant_hotbar and plant_hotbar.has_method("get_drone_crop"):
-				chosen_crop = plant_hotbar.get_drone_crop()
-			# Deploy to an idle drone without an active zone, or fallback to drone #0
 			var target_drone: FarmDrone = null
 			for d in drones:
 				if is_instance_valid(d) and not d.has_zone():
@@ -883,7 +1213,10 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			if target_drone == null:
 				target_drone = drone
 			if target_drone:
-				target_drone.deploy(zone_tiles, chosen_crop)
+				target_drone.deploy(zone_tiles, target_drone.crop_type)
+				var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
+				if deck and deck.has_method("refresh_all"):
+					deck.refresh_all()
 		selected_tiles.clear()
 		if drag_overlay:
 			drag_overlay.queue_redraw()
@@ -907,22 +1240,12 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			var is_multi_s: bool = (t_single.is_multi_tile_root or t_single.multi_tile_root_pos != Vector2i(-1, -1))
 			var root_s: Vector2i = single_pos if not is_multi_s else (single_pos if t_single.is_multi_tile_root else t_single.multi_tile_root_pos)
 			select_tile(root_s)
-			if mb.button_index == MOUSE_BUTTON_RIGHT and action_popup:
-				action_popup.open_for_tile(mb.global_position, root_s, tiles[root_s.x][root_s.y])
-			elif mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.button_index == MOUSE_BUTTON_LEFT:
 				selected_tiles.clear()
 				if has_selected_farmers:
 					_auto_apply_hotbar_action([root_s], active_tool)
 		elif new_tiles.size() > 1:
-			if mb.button_index == MOUSE_BUTTON_RIGHT and action_popup:
-				selected_tiles = new_tiles
-				if selection_indicator:
-					selection_indicator.visible = false
-				if drag_overlay:
-					drag_overlay.queue_redraw()
-				selection_inspected.emit(selected_tiles, tiles)
-				action_popup.open_for_batch(mb.global_position, selected_tiles, tiles)
-			elif mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.button_index == MOUSE_BUTTON_LEFT:
 				selected_tiles.clear()
 				if drag_overlay:
 					drag_overlay.queue_redraw()
@@ -948,17 +1271,6 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			if has_selected_farmers:
 				_auto_apply_hotbar_action([root_pos], active_tool)
 			selected_tiles.clear()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT:
-			if selected_tiles.size() > 1 and selected_tiles.has(tile_pos):
-				if action_popup:
-					action_popup.open_for_batch(mb.global_position, selected_tiles, tiles)
-			else:
-				selected_tiles.clear()
-				if drag_overlay:
-					drag_overlay.queue_redraw()
-				select_tile(root_pos)
-				if action_popup:
-					action_popup.open_for_tile(mb.global_position, root_pos, tiles[root_pos.x][root_pos.y])
 
 ## Automatically applies the active hotbar tool (Plow, Water, Harvest, Clear, Spray, or Seed) when left-clicking or drag-selecting
 func _auto_apply_hotbar_action(target_list: Array, tool_id: String) -> void:
@@ -1138,6 +1450,37 @@ func _execute_harvest_targets(targets: Array, is_early_confirmed: bool = false) 
 		_on_action_popup_selected("harvest", targets[0], {"early_confirmed": is_early_confirmed})
 	elif targets.size() > 1:
 		_on_batch_action_selected("harvest", targets, {"early_confirmed": is_early_confirmed})
+
+## Automatically identifies and queues harvest tasks for all mature harvestable crops across unlocked land
+func harvest_all_ready_crops() -> void:
+	var ready_targets: Array[Vector2i] = []
+	for x in range(GRID_SIZE.x):
+		for y in range(GRID_SIZE.y):
+			var pos := Vector2i(x, y)
+			if not is_tile_unlocked(pos):
+				continue
+			var t: FarmTile = tiles[x][y]
+			# Multi-tile crops: only add root plot
+			if t.multi_tile_root_pos != Vector2i(-1, -1) and not t.is_multi_tile_root:
+				continue
+			if t.state == FarmTile.TileState.HARVESTABLE or (t.crop_type != "" and t.growth_progress >= 1.0):
+				if not TaskManager.has_task_at(pos, "harvest"):
+					ready_targets.append(pos)
+	if ready_targets.is_empty():
+		LogManager.log_event("crops", "🌾 No mature crops ready for harvest yet!", "ℹ️", Color(0.8, 0.8, 0.8))
+		AudioManager.play_ui("click")
+		return
+
+	# Ensure workers are selected
+	if TaskManager.get_selected_farmers().is_empty():
+		var workers := get_tree().get_nodes_in_group("farmers")
+		for w in workers:
+			if is_instance_valid(w):
+				TaskManager.select_farmer(w, true)
+
+	_execute_harvest_targets(ready_targets, false)
+	LogManager.log_event("crops", "🌾 Quick Harvest: Dispatched workers to %d mature crop plots!" % ready_targets.size(), "🌾", Color(0.4, 0.9, 0.4))
+	AudioManager.play_farmer("harvest")
 
 func _get_drag_rect_tiles(a: Vector2, b: Vector2) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -1541,15 +1884,14 @@ func harvest_tile(pos: Vector2i) -> void:
 		or tile.state == FarmTile.TileState.LOCKED:
 		return
 
-	if BuildingManager.is_storage_full():
-		LogManager.log_event("crops", "Cannot harvest plot (%d, %d): Farm storage is FULL (%d/%d)! Sell crops via Bodega (Sell Harvest) or build Grain Silos in Agri-Shop." % [pos.x, pos.y, BuildingManager.used_storage, BuildingManager.total_storage_capacity], "⚠️", Color(1.0, 0.35, 0.35, 1.0))
-		return
-
 	# Handle 2x2 multi-tile root redirection
 	var root_pos: Vector2i = tile.multi_tile_root_pos if tile.multi_tile_root_pos != Vector2i(-1, -1) else pos
 	var root_tile: FarmTile = tiles[root_pos.x][root_pos.y]
 
 	var crop_name_harvested: String = root_tile.crop_type
+	if not BuildingManager.has_storage_for_crop(crop_name_harvested, 100):
+		LogManager.log_event("crops", "Cannot harvest plot (%d, %d): No storage facility accepting %s has space (%d/%d used)! Adjust crop routing on your storage buildings or sell crops." % [pos.x, pos.y, crop_name_harvested.capitalize(), BuildingManager.used_storage, BuildingManager.total_storage_capacity], "⚠️", Color(1.0, 0.35, 0.35, 1.0))
+		return
 	var crop_data: Dictionary = Data.get_crop(crop_name_harvested)
 	var is_2x2: bool = (crop_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2))
 	var is_perennial: bool = crop_data.get("is_perennial", false)
@@ -1670,6 +2012,8 @@ func _on_hour_changed(_hour: int) -> void:
 	for x in range(GRID_SIZE.x):
 		for y in range(GRID_SIZE.y):
 			var tile: FarmTile = tiles[x][y]
+			if tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null:
+				continue
 			if tile.multi_tile_root_pos != Vector2i(-1, -1) and not tile.is_multi_tile_root:
 				continue
 			TileAgronomySystem.process_hour(tile, has_drip, Vector2i(x, y))
@@ -1679,8 +2023,11 @@ func _on_hour_changed(_hour: int) -> void:
 
 func _on_pest_spawned(pest: String, pos: Vector2i) -> void:
 	if _is_valid(pos):
-		tiles[pos.x][pos.y].state    = FarmTile.TileState.INFECTED
-		tiles[pos.x][pos.y].pest_type = pest
+		var tile: FarmTile = tiles[pos.x][pos.y]
+		if tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null or tile.state == FarmTile.TileState.LOCKED:
+			return
+		tile.state    = FarmTile.TileState.INFECTED
+		tile.pest_type = pest
 		renderer.update_tile(pos, tiles)
 
 func _on_pest_cleared(_pest: String, pos: Vector2i) -> void:
@@ -1702,9 +2049,7 @@ func _on_weather_changed(_t: float, _h: float) -> void:
 	for x in range(GRID_SIZE.x):
 		for y in range(GRID_SIZE.y):
 			var tile: FarmTile = tiles[x][y]
-			if tile.state == FarmTile.TileState.LOCKED:
-				continue
-			if tile.state == FarmTile.TileState.OBSTACLE:
+			if tile.state == FarmTile.TileState.LOCKED or tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null:
 				continue
 			match wm.current_climate:
 				wm.Climate.LA_NINA:
@@ -1743,7 +2088,7 @@ func _process_flash_flood_impact() -> void:
 			var tile: FarmTile = tiles[x][y]
 			if tile.crop_type == "" and tile.state != FarmTile.TileState.PLOWED:
 				continue
-			if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.state == FarmTile.TileState.FLOODED:
+			if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null or tile.state == FarmTile.TileState.FLOODED:
 				continue
 
 			total_crops += 1
@@ -1805,7 +2150,7 @@ func _process_drought_impact() -> void:
 			var tile: FarmTile = tiles[x][y]
 			if tile.crop_type == "":
 				continue
-			if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.state == FarmTile.TileState.FLOODED:
+			if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null or tile.state == FarmTile.TileState.FLOODED:
 				continue
 
 			total_crops += 1
@@ -1846,7 +2191,7 @@ func _process_landslide_impact() -> void:
 		if not is_tile_unlocked(pos):
 			continue
 		var tile: FarmTile = tiles[rx][ry]
-		if tile.state != FarmTile.TileState.BUILDING and tile.state != FarmTile.TileState.OBSTACLE:
+		if tile.state != FarmTile.TileState.BUILDING and tile.building_ref == null and tile.state != FarmTile.TileState.OBSTACLE:
 			total_affected += 1
 			tile.reset()
 			tile.state = FarmTile.TileState.OBSTACLE
@@ -1882,6 +2227,8 @@ func start_building_placement(b_type: String) -> void:
 
 ## Cancel placement mode without building anything.
 func cancel_building_placement() -> void:
+	if is_placing_building:
+		AudioManager.play_building("cancel")
 	is_placing_building   = false
 	placing_building_type = ""
 	if placement_overlay:
@@ -1893,11 +2240,19 @@ func is_valid_building_placement(start_pos: Vector2i, fp: Vector2i) -> bool:
 	if placing_building_type == "sprinkler":
 		if not BuildingManager.has_irrigation() or not BuildingManager.can_place_sprinkler():
 			return false
+	elif Data.get_building(placing_building_type).get("requires_shore", false):
+		if (start_pos.x + fp.x) != GRID_SIZE.x:
+			return false
+	elif Data.get_building(placing_building_type).get("shop_category", "") == "processing":
+		if not BuildingManager.get_processing_prerequisites(placing_building_type).allowed:
+			return false
 
 	for dx in range(fp.x):
 		for dy in range(fp.y):
 			var check := Vector2i(start_pos.x + dx, start_pos.y + dy)
 			if not _is_valid(check):
+				return false
+			if check in [Vector2i(0, 4), Vector2i(12, 4), Vector2i(4, 12), Vector2i(12, 16)]:
 				return false
 			var tile: FarmTile = tiles[check.x][check.y]
 			if tile.state == FarmTile.TileState.OBSTACLE \
@@ -1917,19 +2272,35 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 		cancel_building_placement()
 		return false
 
+	var fp: Vector2i = b_data.get("grid_size", Vector2i(2, 2))
+	placing_building_type = b_type
+	placing_footprint     = fp
+
 	if b_type == "sprinkler":
 		if not BuildingManager.has_irrigation():
 			show_floating_text(start_pos, "Requires Irrigation Tower!", Color(1.0, 0.35, 0.35))
+			AudioManager.play_building("invalid")
 			cancel_building_placement()
 			return false
 		if not BuildingManager.can_place_sprinkler():
 			show_floating_text(start_pos, "Water pressure maxed!", Color(1.0, 0.35, 0.35))
+			AudioManager.play_building("invalid")
+			cancel_building_placement()
+			return false
+	elif b_data.get("requires_shore", false) and (start_pos.x + fp.x) != GRID_SIZE.x:
+		show_floating_text(start_pos, "Must be placed along eastern coastline!", Color(0.4, 0.8, 1.0))
+		AudioManager.play_building("invalid")
+		return false
+	elif b_data.get("shop_category", "") == "processing":
+		var prereqs: Dictionary = BuildingManager.get_processing_prerequisites(b_type)
+		if not prereqs.allowed:
+			show_floating_text(start_pos, prereqs.requirement_text, Color(1.0, 0.35, 0.35))
+			AudioManager.play_building("invalid")
 			cancel_building_placement()
 			return false
 
-	var fp: Vector2i = b_data.get("grid_size", Vector2i(2, 2))
-
 	if not is_valid_building_placement(start_pos, fp):
+		AudioManager.play_building("invalid")
 		if placement_overlay:
 			placement_overlay.queue_redraw()
 		return false
@@ -1939,12 +2310,21 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 	if not EconomyManager.deduct_cash(cost):
 		return false
 
-	# Mark tiles as BUILDING
+	# Mark tiles as BUILDING and reset crop / moisture data so tiles are stale/protected
 	for dx in range(fp.x):
 		for dy in range(fp.y):
 			var tp := Vector2i(start_pos.x + dx, start_pos.y + dy)
-			tiles[tp.x][tp.y].state        = FarmTile.TileState.BUILDING
-			tiles[tp.x][tp.y].building_ref = null
+			var t: FarmTile = tiles[tp.x][tp.y]
+			t.crop_type = ""
+			t.growth_progress = 0.0
+			t.health = 1.0
+			t.pest_type = ""
+			t.hours_waterlogged = 0
+			t.days_overwatered = 0
+			t.days_without_water = 0
+			t.soil_moisture = 55.0
+			t.state        = FarmTile.TileState.BUILDING
+			t.building_ref = null
 
 	# Instantiate Building node
 	var b_script: GDScript = load("res://src/buildings/Building.gd")
@@ -1984,6 +2364,10 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 
 ## Open the upgrade/inspect card for a placed building.
 func _on_building_clicked(building: Node) -> void:
+	if building.building_type == "weather_station":
+		if weather_app_modal and is_instance_valid(weather_app_modal):
+			weather_app_modal.open_for_station(building)
+			return
 	if building_card_popup and is_instance_valid(building_card_popup):
 		building_card_popup.open_for_building(building)
 
@@ -1999,8 +2383,14 @@ func _on_building_demolished(building: Node) -> void:
 		for dy in range(fp.y):
 			var tp := Vector2i(gp.x + dx, gp.y + dy)
 			if _is_valid(tp):
-				tiles[tp.x][tp.y].state        = FarmTile.TileState.EMPTY
-				tiles[tp.x][tp.y].building_ref  = null
+				var t: FarmTile = tiles[tp.x][tp.y]
+				t.state         = FarmTile.TileState.EMPTY
+				t.building_ref  = null
+				t.crop_type     = ""
+				t.pest_type     = ""
+				t.hours_waterlogged = 0
+				t.days_overwatered = 0
+				t.soil_moisture = 60.0
 				renderer.update_tile(tp, tiles)
 
 	BuildingManager.unregister_building(building)
@@ -2049,3 +2439,47 @@ func is_tile_targeted_by_other_drone(pos: Vector2i, asking_drone: FarmDrone) -> 
 		if not d.job.is_empty() and d.job.get("pos", Vector2i(-1, -1)) == pos:
 			return true
 	return false
+
+func start_drone_zone_designation(crop_name: String = "", _drone_idx: int = 0) -> void:
+	is_drone_targeting = true
+	TaskManager.deselect_all_farmers()
+	selected_tiles.clear()
+	if drag_overlay:
+		drag_overlay.queue_redraw()
+	LogManager.log_event("crops", "🎯 Drone Targeting Mode: Click & drag a rectangular box on your farm to set the automation zone. (Right-click to cancel)", "🛸", Color(0.40, 0.88, 1.0))
+	AudioManager.play_ui("click")
+
+func cancel_drone_zone_designation() -> void:
+	if is_drone_targeting:
+		is_drone_targeting = false
+		if drag_overlay:
+			drag_overlay.queue_redraw()
+		AudioManager.play_ui("click")
+
+func get_all_unlocked_tiles() -> Array[Vector2i]:
+	var res: Array[Vector2i] = []
+	for x in range(GRID_SIZE.x):
+		for y in range(GRID_SIZE.y):
+			var p := Vector2i(x, y)
+			if is_tile_unlocked(p):
+				res.append(p)
+	return res
+
+func deploy_drone_whole_farm(crop: String = "") -> void:
+	if drones.is_empty():
+		return
+	var target_drone: FarmDrone = drone
+	if target_drone:
+		target_drone.deploy_whole_farm(crop)
+
+func _open_drone_command_deck() -> void:
+	var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
+	if deck and deck.has_method("open"):
+		deck.open()
+
+func toggle_heatmap() -> void:
+	if heatmap_overlay:
+		heatmap_overlay.toggle()
+
+func get_heatmap_overlay() -> FarmHeatmapOverlay:
+	return heatmap_overlay

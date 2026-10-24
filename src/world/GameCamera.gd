@@ -54,6 +54,17 @@ func _ready() -> void:
 	target_position = position
 	target_zoom     = zoom
 
+func pan_to(world_pos: Vector2) -> void:
+	target_position.x = clampf(world_pos.x, limit_min.x, limit_max.x)
+	target_position.y = clampf(world_pos.y, limit_min.y, limit_max.y)
+
+func center_on_homestead() -> void:
+	var farm = get_parent().get_node_or_null("FarmGrid")
+	if farm:
+		pan_to(farm.position + Vector2(768.0, 480.0))
+	else:
+		pan_to(Vector2(768.0, 480.0))
+
 func _process(delta: float) -> void:
 	var move_dir := Vector2.ZERO
 

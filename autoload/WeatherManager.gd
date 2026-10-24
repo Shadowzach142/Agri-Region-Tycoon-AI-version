@@ -122,29 +122,42 @@ func _update_climate_for_day(_day: int) -> void:
 
 func _generate_forecast() -> void:
 	forecast.clear()
-	var days: int = BuildingManager.get_forecast_days()
-	if days <= 0:
-		days = 1 # Baseline almanac
-	var accuracy: float = BuildingManager.get_forecast_accuracy()
-	var error_factor: float = (1.0 - accuracy) * 8.0
+	var active_days: int = BuildingManager.get_forecast_days()
+	var station_acc: float = BuildingManager.get_forecast_accuracy()
 
-	for i in range(1, days + 1):
+	# Generate full 7-day outlook
+	for i in range(1, 8):
 		var f_temp: float = temperature
 		var f_hum: float = humidity
+		var f_rain: float = 0.0
 		var hazard: String = "clear"
+
 		match current_climate:
 			Climate.EL_NINO:
 				f_temp += randf_range(-0.5, 2.0)
 				f_hum = clampf(f_hum - 0.05, 0.10, 0.40)
+				f_rain = 0.0
 				hazard = "el_nino_drought"
 			Climate.LA_NINA:
 				f_temp += randf_range(-1.5, 1.0)
 				f_hum = clampf(f_hum + 0.08, 0.70, 1.0)
+				f_rain = randf_range(30.0, 95.0)
 				hazard = "flash_flood"
 			Climate.NORMAL:
 				f_temp += randf_range(-1.0, 1.0)
 				f_hum = clampf(f_hum + randf_range(-0.03, 0.03), 0.45, 0.75)
+				f_rain = randf_range(2.0, 15.0)
 				hazard = "clear"
+
+		var req_tier: int = 1
+		if i > 3:
+			req_tier = 3
+		elif i > 1:
+			req_tier = 2
+
+		var is_unlocked: bool = (i <= active_days)
+		var accuracy: float = station_acc if is_unlocked else 0.35
+		var error_factor: float = (1.0 - accuracy) * 8.0
 
 		if error_factor > 0.01:
 			f_temp += randf_range(-error_factor, error_factor)
@@ -152,12 +165,20 @@ func _generate_forecast() -> void:
 			if randf() > accuracy and hazard != "clear":
 				hazard = "clear"
 
+		var current_day_idx: int = 1
+		if Engine.has_singleton("TimeManager") or get_node_or_null("/root/TimeManager"):
+			current_day_idx = TimeManager.current_day
+
 		forecast.append({
 			"day": i,
+			"target_day": current_day_idx + i,
 			"temperature": f_temp,
 			"humidity": f_hum,
+			"rainfall": f_rain,
 			"hazard": hazard,
-			"accuracy": accuracy
+			"accuracy": accuracy,
+			"required_tier": req_tier,
+			"unlocked": is_unlocked
 		})
 
 func _check_for_disaster(_day: int) -> void:
@@ -179,3 +200,46 @@ func _check_for_disaster(_day: int) -> void:
 
 func get_forecast() -> Array:
 	return forecast.duplicate(true)
+
+func get_unlocked_forecast() -> Array:
+	var res: Array = []
+	for f in forecast:
+		if f.get("unlocked", false):
+			res.append(f)
+	return res
+
+func get_condition_title(climate: int, hazard: String) -> String:
+	if hazard == "flash_flood":
+		return "Flash Flood Torrent"
+	elif hazard == "el_nino_drought":
+		return "El Niño Severe Heatwave"
+	elif hazard == "landslide":
+		return "Heavy Rain & Landslide"
+	match climate:
+		Climate.LA_NINA: return "Monsoon Torrent"
+		Climate.EL_NINO: return "Hot & Arid Dry Spell"
+		_: return "Partly Cloudy & Fair"
+
+func get_hazard_display_name(hazard: String) -> String:
+	match hazard:
+		"flash_flood": return "Flash Flood"
+		"el_nino_drought": return "El Niño Drought"
+		"landslide": return "Landslide"
+		_: return "Clear"
+
+func get_hazard_advice(hazard: String, climate: int) -> String:
+	match hazard:
+		"flash_flood":
+			return "Harvest mature plots early & clear drainage canals!"
+		"el_nino_drought":
+			return "Engage sprinklers & water pumps to combat soil dryness."
+		"landslide":
+			return "Inspect sloped plots; avoid waterlogging boundary tiles."
+		_:
+			match climate:
+				Climate.LA_NINA:
+					return "High rainfall; optimal for Palay paddies."
+				Climate.EL_NINO:
+					return "Low rainfall; monitor moisture for corn & pineapple."
+				_:
+					return "Favorable conditions for planting and field work."

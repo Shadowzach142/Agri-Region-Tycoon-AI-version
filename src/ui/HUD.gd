@@ -8,11 +8,19 @@ const SeasonResultsModalScript = preload("res://src/ui/SeasonResultsModal.gd")
 const SUN_ICON = preload("res://assets/icons/Topleft/Sun.png")
 const MOON_ICON = preload("res://assets/icons/Topleft/Moon.png")
 
+const TEMP_FIRE_ICON: Texture2D       = preload("res://assets/icons/Tempreture/Fire.png")
+const TEMP_SUNNY_ICON: Texture2D      = preload("res://assets/icons/Tempreture/Sunny.png")
+const TEMP_JUST_RIGHT_ICON: Texture2D = preload("res://assets/icons/Tempreture/Just-Right.png")
+const TEMP_COLD_ICON: Texture2D       = preload("res://assets/icons/Tempreture/Cold .png")
+const WATER_DROP_ICON: Texture2D      = preload("res://assets/icons/Topleft/water-drop.png")
+
 var region_weather_box: Control = null
 var region_capsule: Node = null
 var region_label: Label = null
 var weather_label: Label = null
 var humidity_label: Label = null
+var weather_icon: TextureRect = null
+var humidity_icon: TextureRect = null
 
 var day_night_box: Control = null
 var day_label: Label = null
@@ -36,11 +44,15 @@ var speed1_btn: Button = null
 var speed2_btn: Button = null
 var speed3_btn: Button = null
 
+var worker_capsule: Control = null
 var worker_label: Label = null
 var storage_label: Label = null
 var storage_bar: ProgressBar = null
 var cash_label: Label = null
 var task_label: Label = null
+
+var _last_cycled_farmer_idx: int = -1
+var _last_speed_before_pause: float = 1.0
 
 var region_hover_card: Node = null
 var hover_title: Label = null
@@ -51,6 +63,9 @@ var hover_cons: Label = null
 var market_btn: Button = null
 var sell_btn: Button = null
 var shop_btn: Button = null
+var drone_btn: Button = null
+var heatmap_btn: Button = null
+var heatmap_bar: HeatmapLegendBar = null
 var settings_btn: Button = null
 var log_btn: Button = null
 var leaderboard_btn: Button = null
@@ -60,6 +75,7 @@ var points_label: Label = null
 var market_panel: Node = null
 var sell_panel: Node = null
 var shop_panel: Node = null
+var drone_deck: Node = null
 var tile_info_panel: Node = null
 var plant_hotbar: Control = null
 var _disaster_timer: float = 0.0
@@ -112,6 +128,12 @@ func _ready() -> void:
 		sell_btn.pressed.connect(_on_sell_toggle_pressed)
 	if shop_btn and not shop_btn.pressed.is_connected(_on_shop_toggle_pressed):
 		shop_btn.pressed.connect(_on_shop_toggle_pressed)
+	if drone_btn and not drone_btn.pressed.is_connected(_on_drone_toggle_pressed):
+		drone_btn.pressed.connect(_on_drone_toggle_pressed)
+	if heatmap_btn and not heatmap_btn.pressed.is_connected(_on_heatmap_toggle_pressed):
+		heatmap_btn.pressed.connect(_on_heatmap_toggle_pressed)
+	if heatmap_bar and not heatmap_bar.close_requested.is_connected(_on_heatmap_toggle_pressed):
+		heatmap_bar.close_requested.connect(_on_heatmap_toggle_pressed)
 
 	if shop_panel and shop_panel.has_signal("worker_spawn_requested"):
 		if not shop_panel.worker_spawn_requested.is_connected(_on_worker_spawn_requested):
@@ -187,18 +209,49 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_K:
 			_on_sell_toggle_pressed()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_U:
+			_on_drone_toggle_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_F:
+			_on_heatmap_toggle_pressed()
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_J or event.keycode == KEY_T:
 			_on_leaderboard_toggle_pressed()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_SPACE:
+			_toggle_pause_play()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_1:
+			_on_1x_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_2:
+			_on_2x_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_3:
+			_on_3x_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_TAB:
+			_cycle_idle_worker()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_H or event.keycode == KEY_HOME:
+			_center_camera_homestead()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_V:
+			_quick_harvest_all()
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
 			var handled_modal: bool = false
-			if (shop_panel and shop_panel.visible) or (market_panel and market_panel.visible) or (sell_panel and sell_panel.visible):
+			if (shop_panel and shop_panel.visible) or (market_panel and market_panel.visible) or (sell_panel and sell_panel.visible) or (drone_deck and drone_deck.visible) or (heatmap_bar and heatmap_bar.visible):
 				if shop_panel:
 					shop_panel.visible = false
 				if market_panel:
 					market_panel.visible = false
 				if sell_panel:
 					sell_panel.visible = false
+				if drone_deck:
+					drone_deck.visible = false
+				if heatmap_bar and heatmap_bar.visible:
+					_on_heatmap_toggle_pressed()
 				handled_modal = true
 			if handled_modal:
 				get_viewport().set_input_as_handled()
@@ -215,6 +268,9 @@ func _discover_nodes() -> void:
 	region_label      = find_child("RegionLabel", true, false) as Label
 	weather_label     = find_child("WeatherLabel", true, false) as Label
 	humidity_label    = find_child("HumidityLabel", true, false) as Label
+	weather_icon      = find_child("WeatherIcon", true, false) as TextureRect
+	humidity_icon     = find_child("HumidityIcon", true, false) as TextureRect
+	_setup_weather_box_icons()
 
 	day_night_box     = find_child("DayNightBox", true, false) as Control
 	day_label         = find_child("DayLabel", true, false) as Label
@@ -232,6 +288,20 @@ func _discover_nodes() -> void:
 	speed2_btn        = find_child("Speed2xButton", true, false) as Button
 	speed3_btn        = find_child("Speed3xButton", true, false) as Button
 
+	if pause_btn:
+		pause_btn.tooltip_text = "Pause Simulation [Space]"
+	if speed1_btn:
+		speed1_btn.tooltip_text = "Normal Speed (1x) [1]"
+	if speed2_btn:
+		speed2_btn.tooltip_text = "Fast Speed (2x) [2]"
+	if speed3_btn:
+		speed3_btn.tooltip_text = "Ultra Speed (3x) [3]"
+
+	worker_capsule    = find_child("WorkerCapsule", true, false) as Control
+	if worker_capsule and not worker_capsule.gui_input.is_connected(_on_worker_capsule_gui_input):
+		worker_capsule.gui_input.connect(_on_worker_capsule_gui_input)
+		worker_capsule.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
 	worker_label      = find_child("WorkerLabel", true, false) as Label
 	storage_label     = find_child("StorageLabel", true, false) as Label
 	storage_bar       = find_child("StorageBar", true, false) as ProgressBar
@@ -248,12 +318,27 @@ func _discover_nodes() -> void:
 	market_btn        = find_child("MarketButton", true, false) as Button
 	sell_btn          = find_child("SellButton", true, false) as Button
 	shop_btn          = find_child("ShopButton", true, false) as Button
+	drone_btn         = find_child("DroneButton", true, false) as Button
+	heatmap_btn       = find_child("HeatmapButton", true, false) as Button
 
 	market_panel      = find_child("MarketPanel", true, false)
 	sell_panel        = find_child("SellPanel", true, false)
 	shop_panel        = find_child("ShopPanel", true, false)
+	drone_deck        = find_child("DroneCommandDeck", true, false)
+	heatmap_bar       = find_child("HeatmapLegendBar", true, false) as HeatmapLegendBar
+	if drone_deck or heatmap_bar:
+		var fg = get_tree().root.find_child("FarmGrid", true, false)
+		if fg:
+			if drone_deck:
+				drone_deck.farm_grid = fg
+			if heatmap_bar and fg.has_method("get_heatmap_overlay"):
+				heatmap_bar.heatmap_overlay = fg.get_heatmap_overlay()
 	tile_info_panel   = find_child("TileInfoPanel", true, false)
 	plant_hotbar      = find_child("PlantHotbar", true, false) as Control
+
+	_update_heatmap_btn_state()
+	if BuildingManager.has_signal("tech_unlocked"):
+		BuildingManager.tech_unlocked.connect(func(_t): _update_heatmap_btn_state())
 
 	# Check if the user placed a settings or menu button in the scene
 	settings_btn      = find_child("SettingsButton", true, false) as Button
@@ -380,6 +465,104 @@ func _update_time_weather_display() -> void:
 	var eff_hum: float = WeatherManager.get_effective_humidity()
 	_on_weather_changed(eff_temp, eff_hum)
 
+func _setup_weather_box_icons() -> void:
+	if not region_weather_box:
+		return
+	if weather_icon == null:
+		weather_icon = region_weather_box.find_child("WeatherIcon", true, false) as TextureRect
+	if humidity_icon == null:
+		humidity_icon = region_weather_box.find_child("HumidityIcon", true, false) as TextureRect
+
+	if weather_icon == null and weather_label != null:
+		var parent_node = weather_label.get_parent()
+		if parent_node is HBoxContainer:
+			weather_icon = TextureRect.new()
+			weather_icon.name = "WeatherIcon"
+			weather_icon.custom_minimum_size = Vector2(22, 22)
+			weather_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			weather_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			weather_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			weather_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			weather_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			parent_node.add_child(weather_icon)
+			parent_node.move_child(weather_icon, 0)
+		else:
+			var orig_pos = weather_label.position
+			var orig_size = weather_label.size
+			var row = HBoxContainer.new()
+			row.name = "WeatherRow"
+			row.position = orig_pos
+			row.size = orig_size
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			row.add_theme_constant_override("separation", 4)
+			
+			weather_icon = TextureRect.new()
+			weather_icon.name = "WeatherIcon"
+			weather_icon.custom_minimum_size = Vector2(22, 22)
+			weather_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			weather_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			weather_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			weather_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			weather_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			
+			region_weather_box.add_child(row)
+			weather_label.reparent(row)
+			row.add_child(weather_icon)
+			row.move_child(weather_icon, 0)
+			weather_label.position = Vector2.ZERO
+			weather_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	if humidity_icon == null and humidity_label != null:
+		var parent_node = humidity_label.get_parent()
+		if parent_node is HBoxContainer:
+			humidity_icon = TextureRect.new()
+			humidity_icon.name = "HumidityIcon"
+			humidity_icon.custom_minimum_size = Vector2(18, 18)
+			humidity_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			humidity_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			humidity_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			humidity_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			humidity_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			humidity_icon.texture = WATER_DROP_ICON
+			parent_node.add_child(humidity_icon)
+			parent_node.move_child(humidity_icon, 0)
+		else:
+			var orig_pos = humidity_label.position
+			var orig_size = humidity_label.size
+			var row = HBoxContainer.new()
+			row.name = "HumidityRow"
+			row.position = orig_pos
+			row.size = orig_size
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			row.add_theme_constant_override("separation", 4)
+			
+			humidity_icon = TextureRect.new()
+			humidity_icon.name = "HumidityIcon"
+			humidity_icon.custom_minimum_size = Vector2(18, 18)
+			humidity_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			humidity_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			humidity_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			humidity_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			humidity_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			humidity_icon.texture = WATER_DROP_ICON
+			
+			region_weather_box.add_child(row)
+			humidity_label.reparent(row)
+			row.add_child(humidity_icon)
+			row.move_child(humidity_icon, 0)
+			humidity_label.position = Vector2.ZERO
+			humidity_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+func _get_temperature_texture(temp: float) -> Texture2D:
+	if WeatherManager.current_climate == WeatherManager.Climate.EL_NINO or temp >= 34.0:
+		return TEMP_FIRE_ICON
+	elif temp >= 29.0:
+		return TEMP_SUNNY_ICON
+	elif temp >= 23.0:
+		return TEMP_JUST_RIGHT_ICON
+	else:
+		return TEMP_COLD_ICON
+
 func _on_weather_changed(temp: float, hum: float) -> void:
 	var climate_str: String = ""
 	match WeatherManager.current_climate:
@@ -390,20 +573,35 @@ func _on_weather_changed(temp: float, hum: float) -> void:
 	var t_name: String = BuildingManager.get_weather_station_tier_name() if BuildingManager.has_method("get_weather_station_tier_name") else "Farmer Almanac"
 	var acc: int = int(round(BuildingManager.get_forecast_accuracy() * 100.0)) if BuildingManager.has_method("get_forecast_accuracy") else 35
 
+	var temp_tex: Texture2D = _get_temperature_texture(temp)
+	if weather_icon:
+		weather_icon.texture = temp_tex
+		weather_icon.tooltip_text = "Temperature: %.1f°C" % temp
+	if humidity_icon:
+		humidity_icon.texture = WATER_DROP_ICON
+		humidity_icon.tooltip_text = "Humidity: %.0f%%" % (hum * 100.0)
+
 	if weather_label and humidity_label:
+		# Clean numeric display next to crisp pixel-art icons
+		weather_label.text = "%.0f°C" % temp
 		if WeatherManager.current_climate == WeatherManager.Climate.LA_NINA:
-			weather_label.text = "🌧️ %.0f°C" % temp
 			weather_label.tooltip_text = "Climate: La Niña Monsoon • Ambient Temp: %.1f°C\nTelemetry: %s (%d%% Accuracy)" % [temp, t_name, acc]
 		elif WeatherManager.current_climate == WeatherManager.Climate.EL_NINO:
-			weather_label.text = "☀️ %.0f°C" % temp
 			weather_label.tooltip_text = "Climate: El Niño Drought • Ambient Temp: %.1f°C\nTelemetry: %s (%d%% Accuracy)" % [temp, t_name, acc]
+		else:
+			var temp_desc := "Pleasant / Just Right"
+			if temp >= 34.0: temp_desc = "Scorching Heat / Drought"
+			elif temp >= 29.0: temp_desc = "Warm Sunshine"
+			elif temp < 23.0: temp_desc = "Cool Highland Air"
+			weather_label.tooltip_text = "Weather: %s • Ambient Temp: %.1f°C\nTelemetry: %s (%d%% Accuracy)" % [temp_desc, temp, t_name, acc]
+
 		var irr_info: String = ""
 		if BuildingManager.has_method("has_irrigation") and BuildingManager.has_irrigation():
 			irr_info = "\nIrrigation System: %s (Evaporation Shield: -%d%%)" % [
 				BuildingManager.get_irrigation_tier_name(),
 				int(BuildingManager.get_irrigation_evap_reduction() * 100.0)
 			]
-		humidity_label.text = "💧 %.0f%%" % (hum * 100.0)
+		humidity_label.text = "%.0f%%" % (hum * 100.0)
 		humidity_label.tooltip_text = "Relative Humidity: %.0f%%%s%s" % [hum * 100.0, climate_str, irr_info]
 	elif weather_label:
 		weather_label.text = "%.0f°C  %.0f%%" % [temp, hum * 100.0]
@@ -426,8 +624,8 @@ func _update_climate_disaster_box() -> void:
 				disaster_box_title.text = "🌧️ LA NIÑA"
 				disaster_box_title.add_theme_color_override("font_color", Color(0.18, 0.42, 0.85, 1.0))
 			if disaster_box_sub:
-				disaster_box_sub.text = "Monsoon climate • Flooding & rot risk elevated"
-				disaster_box_sub.add_theme_color_override("font_color", Color(0.26, 0.16, 0.10, 1.0))
+				disaster_box_sub.text = "Heavy monsoons • Risk of crop rot"
+				disaster_box_sub.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
 
 			if _disaster_fade_tween and _disaster_fade_tween.is_valid():
 				_disaster_fade_tween.kill()
@@ -440,8 +638,8 @@ func _update_climate_disaster_box() -> void:
 				disaster_box_title.text = "☀️ EL NIÑO"
 				disaster_box_title.add_theme_color_override("font_color", Color(0.85, 0.40, 0.12, 1.0))
 			if disaster_box_sub:
-				disaster_box_sub.text = "Drought heatwave • Water thirsty crops regularly"
-				disaster_box_sub.add_theme_color_override("font_color", Color(0.26, 0.16, 0.10, 1.0))
+				disaster_box_sub.text = "Severe heatwave • Irrigate crops"
+				disaster_box_sub.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
 
 			if _disaster_fade_tween and _disaster_fade_tween.is_valid():
 				_disaster_fade_tween.kill()
@@ -465,18 +663,56 @@ func _update_climate_disaster_box() -> void:
 
 func _refresh_storage_display(_c: int = 0, _u: int = 0) -> void:
 	var status: Dictionary = BuildingManager.get_storage_status()
+	var cap: int = max(1, status.capacity)
+	var used: int = status.used
+	var ratio: float = clampf(float(used) / float(cap), 0.0, 1.0)
+	var pct: float = ratio * 100.0
+
+	var fill_color: Color = Color(0.35, 0.85, 0.35)
+	if ratio >= 0.90:
+		fill_color = Color(0.95, 0.30, 0.25)
+	elif ratio >= 0.70:
+		fill_color = Color(1.0, 0.75, 0.25)
+
 	if storage_label:
-		storage_label.text = "%d/%d" % [status.used, status.capacity]
-		storage_label.tooltip_text = "Farm Storage: %d / %d units stored" % [status.used, status.capacity]
-		if status.used >= status.capacity:
-			storage_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.35, 1.0))
-		elif float(status.used) / maxf(float(status.capacity), 1.0) >= 0.85:
+		if ratio >= 1.0:
+			storage_label.text = "⚠️ %d/%d" % [used, cap]
+			storage_label.tooltip_text = "Farm Storage: %d / %d units stored (%.0f%% full)\n⚠️ STORAGE FULL! Sell at Bodega [K] or build more Silos/Cold Storage." % [used, cap, pct]
+			storage_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.30, 1.0))
+		elif ratio >= 0.85:
+			storage_label.text = "%d/%d" % [used, cap]
+			storage_label.tooltip_text = "Farm Storage: %d / %d units stored (%.0f%% full)\n⚠️ Storage almost full. Consider selling crops soon." % [used, cap, pct]
 			storage_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.3, 1.0))
 		else:
+			storage_label.text = "%d/%d" % [used, cap]
+			storage_label.tooltip_text = "Farm Storage: %d / %d units stored (%.0f%% full)" % [used, cap, pct]
 			storage_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8, 1.0))
+
 	if storage_bar:
-		storage_bar.max_value = status.capacity
-		storage_bar.value     = status.used
+		storage_bar.max_value = cap
+		storage_bar.value     = used
+		storage_bar.tooltip_text = "Farm Storage Fill: %d / %d units (%.0f%% full)" % [used, cap, pct]
+
+		var sb_bg := StyleBoxFlat.new()
+		sb_bg.bg_color = Color(0.12, 0.08, 0.05, 0.9)
+		sb_bg.border_width_left = 1
+		sb_bg.border_width_right = 1
+		sb_bg.border_width_top = 1
+		sb_bg.border_width_bottom = 1
+		sb_bg.border_color = Color(0.35, 0.24, 0.15, 1.0)
+		sb_bg.corner_radius_top_left = 2
+		sb_bg.corner_radius_top_right = 2
+		sb_bg.corner_radius_bottom_left = 2
+		sb_bg.corner_radius_bottom_right = 2
+		storage_bar.add_theme_stylebox_override("background", sb_bg)
+
+		var sb_fill := StyleBoxFlat.new()
+		sb_fill.bg_color = fill_color
+		sb_fill.corner_radius_top_left = 2
+		sb_fill.corner_radius_top_right = 2
+		sb_fill.corner_radius_bottom_left = 2
+		sb_fill.corner_radius_bottom_right = 2
+		storage_bar.add_theme_stylebox_override("fill", sb_fill)
 
 func _on_worker_selection_changed(_selected_workers: Array) -> void:
 	_refresh_workers_display()
@@ -484,13 +720,23 @@ func _on_worker_selection_changed(_selected_workers: Array) -> void:
 func _refresh_workers_display() -> void:
 	if worker_label:
 		var sel_count: int = TaskManager.get_selected_farmers().size()
+		var idle_count: int = 0
+		var workers := get_tree().get_nodes_in_group("farmers")
+		for w in workers:
+			if is_instance_valid(w) and w.has_method("is_idle_worker") and w.is_idle_worker():
+				idle_count += 1
+
 		if sel_count > 0:
 			worker_label.text = "%d/%d (⭐%d)" % [BuildingManager.active_workers, BuildingManager.worker_capacity, sel_count]
+		elif idle_count > 0:
+			worker_label.text = "%d/%d (⚡%d)" % [BuildingManager.active_workers, BuildingManager.worker_capacity, idle_count]
 		else:
 			worker_label.text = "%d/%d" % [BuildingManager.active_workers, BuildingManager.worker_capacity]
-		worker_label.tooltip_text = "Active Labor: %d / %d workers\nMechanized Fleet: %s\nTravel & Work Speed: %.1fx" % [
+
+		worker_label.tooltip_text = "Active Labor: %d / %d workers\nIdle Workers: %d (Press [Tab] or click to cycle)\nMechanized Fleet: %s\nTravel & Work Speed: %.1fx" % [
 			BuildingManager.active_workers,
 			BuildingManager.worker_capacity,
+			idle_count,
 			BuildingManager.get_machinery_tier_name(),
 			BuildingManager.get_worker_speed_multiplier()
 		]
@@ -581,14 +827,21 @@ func _on_disaster_warning(hazard_type: String, countdown_seconds: float = 5.0) -
 		_disaster_banner_title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 		_disaster_banner_sub.text = sub_msg
 
-	# Smoothly fade in the parchment DisasterBox
+	# Smoothly fade in the parchment DisasterBox with concise, legible action text
 	if disaster_box:
 		disaster_box.visible = true
 		if disaster_box_title:
 			disaster_box_title.text = "⚠️ %s (%.1fs)" % [hazard_title, countdown_seconds]
 			disaster_box_title.add_theme_color_override("font_color", Color(0.85, 0.15, 0.15))
 		if disaster_box_sub:
-			disaster_box_sub.text = sub_msg
+			var box_sub := ""
+			match hazard_type:
+				"flash_flood": box_sub = "Flash flood • Harvest ripe crops!"
+				"el_nino_drought": box_sub = "Scorching heat • Water crops now!"
+				"landslide": box_sub = "Mudslide • Clear outer plots!"
+				_: box_sub = "Hazard incoming • Prepare farm!"
+			disaster_box_sub.text = box_sub
+			disaster_box_sub.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
 
 		if _disaster_fade_tween and _disaster_fade_tween.is_valid():
 			_disaster_fade_tween.kill()
@@ -619,7 +872,8 @@ func _on_disaster_struck(hazard_type: String) -> void:
 			disaster_box_title.text = "🌊 %s STRIKES!" % hazard_title
 			disaster_box_title.add_theme_color_override("font_color", Color(0.9, 0.2, 0.1))
 		if disaster_box_sub:
-			disaster_box_sub.text = "Disaster struck! Assessing farm impact..."
+			disaster_box_sub.text = "Hazard active • Assessing farm"
+			disaster_box_sub.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
 
 		if _disaster_fade_tween and _disaster_fade_tween.is_valid():
 			_disaster_fade_tween.kill()
@@ -646,6 +900,8 @@ func _on_market_toggle_pressed() -> void:
 				sell_panel.visible = false
 			if shop_panel:
 				shop_panel.visible = false
+			if drone_deck:
+				drone_deck.visible = false
 			if market_panel.has_method("refresh_all"):
 				market_panel.refresh_all()
 
@@ -657,6 +913,8 @@ func _on_sell_toggle_pressed() -> void:
 				market_panel.visible = false
 			if shop_panel:
 				shop_panel.visible = false
+			if drone_deck:
+				drone_deck.visible = false
 			if sell_panel.has_method("_refresh_view"):
 				sell_panel._refresh_view()
 
@@ -668,12 +926,55 @@ func _on_shop_toggle_pressed() -> void:
 				market_panel.visible = false
 			if sell_panel:
 				sell_panel.visible = false
+			if drone_deck:
+				drone_deck.visible = false
 			if shop_panel.has_method("refresh"):
 				shop_panel.refresh()
+
+func _on_drone_toggle_pressed() -> void:
+	if drone_deck:
+		if drone_deck.has_method("toggle"):
+			drone_deck.toggle()
+		else:
+			drone_deck.visible = not drone_deck.visible
+		if drone_deck.visible:
+			if market_panel:
+				market_panel.visible = false
+			if sell_panel:
+				sell_panel.visible = false
+			if shop_panel:
+				shop_panel.visible = false
+
+func _update_heatmap_btn_state() -> void:
+	if heatmap_btn and is_instance_valid(heatmap_btn):
+		if not BuildingManager.has_heatmap():
+			heatmap_btn.tooltip_text = "Diagnostic Heatmap (Locked 🔒 - Buy Field Survey Kit in Agri-Shop ₱400)"
+			heatmap_btn.modulate = Color(0.70, 0.70, 0.70, 0.75)
+		else:
+			heatmap_btn.tooltip_text = "Diagnostic Heatmap & Sprinkler Radar (Hotkey F)"
+			heatmap_btn.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+func _on_heatmap_toggle_pressed() -> void:
+	if not BuildingManager.has_heatmap():
+		AudioManager.play_ui("error")
+		LogManager.log_event("buildings", "Diagnostic Heatmap is locked! Purchase the Field Survey Kit in Agri-Shop (₱400).", "🔒", Color(1.0, 0.45, 0.35))
+		return
+
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	if fg and fg.has_method("toggle_heatmap"):
+		fg.toggle_heatmap()
+		var overlay = fg.get_heatmap_overlay()
+		if heatmap_bar:
+			if overlay:
+				heatmap_bar.heatmap_overlay = overlay
+				heatmap_bar.visible = overlay.is_active
+			else:
+				heatmap_bar.visible = not heatmap_bar.visible
 
 func _on_worker_spawn_requested() -> void:
 	var template: Node = get_tree().root.find_child("Farmer", true, false)
 	var farmer: CharacterBody2D = null
+	var new_variant: int = (BuildingManager.active_workers - 1) % 8
 
 	if template and is_instance_valid(template):
 		farmer = template.duplicate() as CharacterBody2D
@@ -684,36 +985,40 @@ func _on_worker_spawn_requested() -> void:
 		farmer.current_task = {}
 		farmer.is_selected = false
 		farmer.state = FarmerStateMachine.WorkerState.IDLE
+		farmer.z_index = 12
+		if "variant_id" in farmer:
+			farmer.variant_id = new_variant
 		get_parent().add_child(farmer)
 	else:
 		var farmer_script = load("res://src/farmer/Farmer.gd")
 		farmer = CharacterBody2D.new()
 		farmer.set_script(farmer_script)
 		farmer.name = "Farmer_%d" % BuildingManager.active_workers
+		farmer.z_index = 12
 		var depot_pos: Vector2 = FarmerMovement.grid_to_pixel_center(Vector2i(0, 0), null)
 		farmer.position = depot_pos + Vector2(randf_range(-30, 30), randf_range(-15, 15))
 
-		var sprite = ColorRect.new()
+		var sprite = Sprite2D.new()
 		sprite.name = "FarmerSprite"
-		sprite.offset_left = -16.0
-		sprite.offset_top = -16.0
-		sprite.offset_right = 16.0
-		sprite.offset_bottom = 16.0
-		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		sprite.color = Color(0.35, 0.70, 0.95, 1.0)
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var f_frames = farmer_script.get_frames_for_variant(new_variant)
+		sprite.texture = f_frames["idle"][0]
+		sprite.scale = Vector2(2.0, 2.0)
+		sprite.position = Vector2(0.0, -20.0)
 		farmer.add_child(sprite)
 
 		var label = Label.new()
 		label.name = "FarmerLabel"
-		label.offset_left = -60.0
-		label.offset_top = -36.0
-		label.offset_right = 60.0
-		label.offset_bottom = -13.0
+		label.offset_left = -50.0
+		label.offset_top = -64.0
+		label.offset_right = 50.0
+		label.offset_bottom = -46.0
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.text = "🧑‍🌾 Ready"
+		label.text = "Ready"
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		farmer.add_child(label)
 
+		farmer.variant_id = new_variant
 		get_parent().add_child(farmer)
 
 	_refresh_workers_display()
@@ -734,6 +1039,58 @@ func _on_2x_pressed() -> void:
 func _on_3x_pressed() -> void:
 	TimeManager.set_speed_mode(TimeManager.Speed.THREE_X)
 	_update_speed_buttons_visual()
+
+func _toggle_pause_play() -> void:
+	if TimeManager.get_speed_scale() <= 0.0:
+		if _last_speed_before_pause == 2.0:
+			_on_2x_pressed()
+		elif _last_speed_before_pause == 3.0:
+			_on_3x_pressed()
+		else:
+			_on_1x_pressed()
+	else:
+		_last_speed_before_pause = TimeManager.get_speed_scale()
+		_on_pause_pressed()
+
+func _cycle_idle_worker() -> void:
+	var workers := get_tree().get_nodes_in_group("farmers")
+	if workers.is_empty():
+		return
+
+	var idles: Array = []
+	for w in workers:
+		if is_instance_valid(w) and w.has_method("is_idle_worker") and w.is_idle_worker():
+			idles.append(w)
+
+	var target_worker = null
+	if not idles.is_empty():
+		_last_cycled_farmer_idx = (_last_cycled_farmer_idx + 1) % idles.size()
+		target_worker = idles[_last_cycled_farmer_idx]
+	else:
+		_last_cycled_farmer_idx = (_last_cycled_farmer_idx + 1) % workers.size()
+		target_worker = workers[_last_cycled_farmer_idx]
+
+	if is_instance_valid(target_worker):
+		TaskManager.select_farmer(target_worker)
+		var cam = get_tree().root.find_child("GameCamera", true, false)
+		if cam and cam.has_method("pan_to"):
+			cam.pan_to(target_worker.global_position)
+		AudioManager.play_farmer("select")
+
+func _center_camera_homestead() -> void:
+	var cam = get_tree().root.find_child("GameCamera", true, false)
+	if cam and cam.has_method("center_on_homestead"):
+		cam.center_on_homestead()
+		AudioManager.play_ui("click")
+
+func _quick_harvest_all() -> void:
+	var farm = get_tree().root.find_child("FarmGrid", true, false)
+	if farm and farm.has_method("harvest_all_ready_crops"):
+		farm.harvest_all_ready_crops()
+
+func _on_worker_capsule_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_cycle_idle_worker()
 
 func _update_speed_buttons_visual() -> void:
 	var scale: float = TimeManager.get_speed_scale()
@@ -829,9 +1186,9 @@ func _update_points_display() -> void:
 		var cur: int = LeaderboardManager.current_points
 		var best: int = LeaderboardManager.get_personal_best()
 		if best > 0:
-			points_label.text = "🏆 %s pts (Best: %s)" % [Utils.format_number(cur), Utils.format_number(best)]
+			points_label.text = "%s pts (Best: %s)" % [Utils.format_number(cur), Utils.format_number(best)]
 		else:
-			points_label.text = "🏆 %s pts" % Utils.format_number(cur)
+			points_label.text = "%s pts" % Utils.format_number(cur)
 
 ## Configures runtime dragging, double-click reset, and mouse wheel font sizing for HUD boxes
 func _setup_draggable_hud_box(box: Control, label_names: Array[String], default_pos: Vector2) -> void:
@@ -887,8 +1244,12 @@ func _handle_box_gui_input(box: Control, event: InputEvent) -> void:
 				box.accept_event()
 			else:
 				if state.dragging:
+					var moved_dist: float = (box.get_global_mouse_position() - state.drag_start_mouse).length()
 					state.dragging = false
-					print("[HUD] %s moved to: Vector2(%.0f, %.0f)" % [box.name, box.position.x, box.position.y])
+					if moved_dist < 5.0 and box == region_weather_box:
+						_open_weather_app_from_hud()
+					else:
+						print("[HUD] %s moved to: Vector2(%.0f, %.0f)" % [box.name, box.position.x, box.position.y])
 					box.accept_event()
 
 		elif mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
@@ -909,3 +1270,12 @@ func _handle_box_gui_input(box: Control, event: InputEvent) -> void:
 		new_pos.y = clampf(new_pos.y, 0.0, 720.0 - box.size.y)
 		box.position = new_pos
 		box.accept_event()
+
+func _open_weather_app_from_hud() -> void:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if farm_grid and "weather_app_modal" in farm_grid and is_instance_valid(farm_grid.weather_app_modal):
+		var ws = BuildingManager.get_weather_station()
+		if ws != null:
+			farm_grid.weather_app_modal.open_for_station(ws)
+		else:
+			farm_grid.weather_app_modal.open_almanac()

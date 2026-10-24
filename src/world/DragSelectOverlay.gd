@@ -1,16 +1,62 @@
 # DragSelectOverlay.gd
 # Transparent Node2D rendered on TOP of all farm tile children.
-# Draws the RTS-style marquee drag box and the golden multi-tile selection highlights.
+# Draws the RTS-style marquee drag box, golden multi-tile selection highlights,
+# and dynamically applies crisp glowing edge contour shaders to crop sprites when hovered, selected, or tasked.
 # Added as the last child of FarmGrid with z_index = 200.
 
 class_name DragSelectOverlay
 extends Node2D
 
+const CROP_OUTLINE_SHADER_CODE: String = """
+shader_type canvas_item;
+
+uniform vec4 outline_color : source_color = vec4(0.35, 1.0, 0.45, 1.0);
+uniform float outline_width : hint_range(0.0, 5.0) = 1.0;
+uniform bool is_highlighted = true;
+uniform bool filter_soil = false;
+
+void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
+	vec4 col = tex * COLOR;
+	if (!is_highlighted) {
+		COLOR = col;
+	} else {
+		if (col.a < 0.05) {
+			COLOR = vec4(0.0);
+		} else {
+			bool is_soil = filter_soil && (col.r > col.g * 1.15 && col.r > col.b * 1.2 && UV.y > 0.50);
+			if (is_soil) {
+				COLOR = col;
+			} else {
+				vec2 ps = TEXTURE_PIXEL_SIZE * outline_width;
+				float min_a = 1.0;
+				min_a = min(min_a, texture(TEXTURE, UV + vec2(ps.x, 0.0)).a);
+				min_a = min(min_a, texture(TEXTURE, UV - vec2(ps.x, 0.0)).a);
+				min_a = min(min_a, texture(TEXTURE, UV + vec2(0.0, ps.y)).a);
+				min_a = min(min_a, texture(TEXTURE, UV - vec2(0.0, ps.y)).a);
+
+				if (min_a < 0.2) {
+					COLOR = vec4(outline_color.rgb, col.a);
+				} else {
+					COLOR = vec4(mix(col.rgb, outline_color.rgb, 0.35) * 1.30, col.a);
+				}
+			}
+		}
+	}
+}
+"""
+
 # Set by FarmGrid._ready() immediately after add_child()
 var farm_grid: Node2D = null
- 
+
+var _materials: Dictionary = {}
+var _active_highlighted_sprites: Array[Sprite2D] = []
+
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+func _exit_tree() -> void:
+	_clear_crop_highlights()
 
 func _get_iso_pt(gx: float, gy: float) -> Vector2:
 	return Vector2(
@@ -18,9 +64,101 @@ func _get_iso_pt(gx: float, gy: float) -> Vector2:
 		FarmerMovement.ORIGIN_OFFSET.y + (gx + gy) * FarmerMovement.HALF_H
 	)
 
+func _get_shader_material(color_type: String, is_1x1: bool = true) -> ShaderMaterial:
+	var key: String = color_type + ("_1x1" if is_1x1 else "_2x2")
+	if _materials.has(key):
+		return _materials[key]
+
+	var col: Color = Color(0.35, 1.0, 0.45, 1.0)
+	match color_type:
+		"gold":
+			col = Color(1.0, 0.90, 0.20, 1.0)
+		"red":
+			col = Color(1.0, 0.28, 0.28, 1.0)
+		"cyan":
+			col = Color(0.40, 0.88, 1.0, 1.0)
+		"active_green":
+			col = Color(0.50, 1.0, 0.60, 1.0)
+		_:
+			col = Color(0.35, 1.0, 0.45, 1.0)
+
+	var shader := Shader.new()
+	shader.code = CROP_OUTLINE_SHADER_CODE
+
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("outline_color", col)
+	mat.set_shader_parameter("outline_width", 1.0)
+	mat.set_shader_parameter("is_highlighted", true)
+	mat.set_shader_parameter("filter_soil", is_1x1)
+
+	_materials[key] = mat
+	return mat
+
+func _clear_crop_highlights() -> void:
+	for spr in _active_highlighted_sprites:
+		if is_instance_valid(spr):
+			spr.material = null
+	_active_highlighted_sprites.clear()
+
+func _get_crop_sprite_at(pos: Vector2i) -> Sprite2D:
+	if farm_grid == null or not farm_grid._is_valid(pos):
+		return null
+	var tile: FarmTile = farm_grid.tiles[pos.x][pos.y]
+	if tile.crop_type.is_empty():
+		return null
+
+	var root_pos: Vector2i = pos
+	if tile.multi_tile_root_pos != Vector2i(-1, -1) and not tile.is_multi_tile_root:
+		root_pos = tile.multi_tile_root_pos
+
+	if farm_grid.tile_overlays.size() <= root_pos.x or farm_grid.tile_overlays[root_pos.x].size() <= root_pos.y:
+		return null
+
+	var overlay: Node2D = farm_grid.tile_overlays[root_pos.x][root_pos.y]
+	if overlay == null or not is_instance_valid(overlay):
+		return null
+
+	var spr: Sprite2D = overlay.get_node_or_null("CropSprite") as Sprite2D
+	if spr and is_instance_valid(spr):
+		return spr
+
+	spr = overlay.get_node_or_null("CropSprite2x2") as Sprite2D
+	if spr and is_instance_valid(spr):
+		return spr
+
+	for child in overlay.get_children():
+		if child is Sprite2D and ("Crop" in child.name or "crop" in child.name):
+			return child
+
+	return null
+
+func _highlight_crop_sprite(pos: Vector2i, color_type: String = "green") -> bool:
+	var spr := _get_crop_sprite_at(pos)
+	if spr == null or not is_instance_valid(spr):
+		return false
+
+	var is_1x1: bool = (spr.name == "CropSprite")
+	var mat := _get_shader_material(color_type, is_1x1)
+	if spr.material != mat:
+		spr.material = mat
+	if not _active_highlighted_sprites.has(spr):
+		_active_highlighted_sprites.append(spr)
+	return true
+
 func _draw() -> void:
 	if farm_grid == null:
 		return
+
+	_clear_crop_highlights()
+
+	var is_drone_mode: bool = false
+	if farm_grid and "is_drone_targeting" in farm_grid and farm_grid.is_drone_targeting:
+		is_drone_mode = true
+	else:
+		var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
+		if plant_hotbar and plant_hotbar.has_method("get_selected_tool"):
+			is_drone_mode = (plant_hotbar.get_selected_tool() == "drone_zone")
 
 	# 1) Active drag selection area in 2:1 isometric projection
 	if farm_grid.is_box_dragging:
@@ -36,11 +174,6 @@ func _draw() -> void:
 		var right_pt: Vector2  = _get_iso_pt(float(max_x + 1), float(min_y))
 		var bottom_pt: Vector2 = _get_iso_pt(float(max_x + 1), float(max_y + 1))
 		var left_pt: Vector2   = _get_iso_pt(float(min_x), float(max_y + 1))
-
-		var is_drone_mode: bool = false
-		var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
-		if plant_hotbar and plant_hotbar.has_method("get_selected_tool"):
-			is_drone_mode = (plant_hotbar.get_selected_tool() == "drone_zone")
 
 		var fill_col   := Color(0.20, 0.75, 1.0, 0.22) if is_drone_mode else Color(0.20, 0.85, 0.40, 0.22)
 		var border_col := Color(0.40, 0.88, 1.0, 0.95) if is_drone_mode else Color(0.35, 1.0, 0.50, 0.95)
@@ -63,6 +196,12 @@ func _draw() -> void:
 			var p2: Vector2 = _get_iso_pt(float(max_x + 1), float(y))
 			draw_line(p1, p2, grid_col, 1.5)
 
+		# Highlight all crop sprites inside the marquee drag box
+		var marquee_col := "cyan" if is_drone_mode else "green"
+		for x in range(min_x, max_x + 1):
+			for y in range(min_y, max_y + 1):
+				_highlight_crop_sprite(Vector2i(x, y), marquee_col)
+
 	# 2) Golden highlights over committed selected tiles in 2.5D isometric view
 	var drawn_selected: Dictionary = {}
 	for sel_pos in farm_grid.selected_tiles:
@@ -78,6 +217,8 @@ func _draw() -> void:
 			for dx in range(2):
 				for dy in range(2):
 					drawn_selected[root_pos + Vector2i(dx, dy)] = true
+			if _highlight_crop_sprite(root_pos, "gold"):
+				continue
 			var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(root_pos, Vector2i(2, 2))
 			var border_pts := PackedVector2Array(poly)
 			border_pts.append(poly[0])
@@ -86,16 +227,34 @@ func _draw() -> void:
 			if drawn_selected.has(sel_pos):
 				continue
 			drawn_selected[sel_pos] = true
+			if _highlight_crop_sprite(sel_pos, "gold"):
+				continue
 			var diamond: PackedVector2Array = FarmerMovement.get_tile_diamond_local(sel_pos)
 			var border_pts := PackedVector2Array(diamond)
 			border_pts.append(diamond[0])  # close loop
 			draw_polyline(border_pts, Color(1.0, 0.90, 0.20, 0.92), 2.5)
 
+	# Single selected tile check (from farm_grid.selected_tile_pos)
+	if farm_grid.selected_tile_pos != Vector2i(-1, -1) and farm_grid._is_valid(farm_grid.selected_tile_pos):
+		var sel_p: Vector2i = farm_grid.selected_tile_pos
+		var s_tile: FarmTile = farm_grid.tiles[sel_p.x][sel_p.y]
+		var s_root: Vector2i = sel_p if (not s_tile.is_multi_tile_root and s_tile.multi_tile_root_pos == Vector2i(-1, -1)) else (sel_p if s_tile.is_multi_tile_root else s_tile.multi_tile_root_pos)
+		_highlight_crop_sprite(s_root, "gold")
+
 	# 3) Persistent green highlights on tiles with active/pending tasks (plow, plant, water, harvest, spray)
 	_draw_task_highlights()
 
 	# 4) Active tool / plant hover cursor matching footprint and soil validity
-	_draw_tool_hover()
+	var is_tool_hover: bool = _draw_tool_hover()
+
+	# 5) Hover over crops when no tool is active (or inspecting)
+	if not is_tool_hover and not farm_grid.is_box_dragging and farm_grid.hovered_grid_pos != Vector2i(-1, -1):
+		var h_gp: Vector2i = farm_grid.hovered_grid_pos
+		if farm_grid._is_valid(h_gp):
+			var ht: FarmTile = farm_grid.tiles[h_gp.x][h_gp.y]
+			if not ht.crop_type.is_empty():
+				var hover_col := "green" if (ht.state == FarmTile.TileState.HARVESTABLE or ht.growth_progress >= 1.0) else "gold"
+				_highlight_crop_sprite(h_gp, hover_col)
 
 func _draw_task_highlights() -> void:
 	if farm_grid == null:
@@ -136,6 +295,19 @@ func _draw_task_highlights() -> void:
 		elif root_tile.is_multi_tile_root or root_tile.multi_tile_root_pos != Vector2i(-1, -1):
 			fp = Vector2i(2, 2)
 			root_pos = root_pos if root_tile.is_multi_tile_root else root_tile.multi_tile_root_pos
+
+		# For crop tasks (water, harvest, spray_pest), highlight the crop sprite itself and skip ground outline!
+		if task_type in ["water", "harvest", "spray_pest"]:
+			var col_name: String = "active_green" if is_active else "green"
+			if _highlight_crop_sprite(root_pos, col_name):
+				if fp == Vector2i(1, 1):
+					drawn_tiles[root_pos] = true
+				else:
+					for dx in range(fp.x):
+						for dy in range(fp.y):
+							var p := root_pos + Vector2i(dx, dy)
+							drawn_tiles[p] = true
+				continue
 
 		if fp == Vector2i(1, 1):
 			if drawn_tiles.has(root_pos):
@@ -186,38 +358,38 @@ func _draw_task_highlights() -> void:
 					var p2: Vector2 = _get_iso_pt(float(root_pos.x + fp.x), float(root_pos.y + y))
 					draw_line(p1, p2, div_line_color, 1.5)
 
-func _draw_tool_hover() -> void:
+func _draw_tool_hover() -> bool:
 	if farm_grid == null:
-		return
+		return false
 	if farm_grid.is_box_dragging or farm_grid.is_placing_building:
-		return
+		return false
 	if farm_grid.has_method("_is_any_menu_open") and farm_grid._is_any_menu_open():
-		return
+		return false
 
 	var gp: Vector2i = farm_grid.hovered_grid_pos
 	if gp == Vector2i(-1, -1) or not farm_grid._is_valid(gp):
-		return
+		return false
 
 	# If mouse is hovering over an interactive UI element, suppress the in-world hover
 	var vp := get_viewport()
 	if vp:
 		var hovered_ctrl := vp.gui_get_hovered_control()
 		if hovered_ctrl != null and hovered_ctrl.mouse_filter != Control.MOUSE_FILTER_IGNORE:
-			return
+			return false
 
 	# Only draw tool hover when a farmer is selected and plant hotbar is active
 	if TaskManager.get_selected_farmers().is_empty():
-		return
+		return false
 
 	var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
 	if plant_hotbar == null or not plant_hotbar.visible:
-		return
+		return false
 
 	var active_tool: String = ""
 	if plant_hotbar and plant_hotbar.has_method("get_selected_tool"):
 		active_tool = plant_hotbar.get_selected_tool()
 	if active_tool.is_empty():
-		return
+		return false
 
 	var h_tile: FarmTile = farm_grid.tiles[gp.x][gp.y]
 	var is_planted_multi: bool = (h_tile.is_multi_tile_root or h_tile.multi_tile_root_pos != Vector2i(-1, -1))
@@ -234,11 +406,23 @@ func _draw_tool_hover() -> void:
 
 	var is_overall_valid: bool = farm_grid.is_valid_tool_target(target_gp, active_tool)
 
-	var green_fill   := Color(0.20, 0.85, 0.35, 0.30)
+	# Check if the hovered footprint contains crop sprites
+	var has_crops: bool = false
+	var tool_col: String = "green" if is_overall_valid else "red"
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			var sub_pos := target_gp + Vector2i(dx, dy)
+			if _highlight_crop_sprite(sub_pos, tool_col):
+				has_crops = true
+
+	# If the tool target is crops, the sprites themselves are now highlighted!
+	# Suppress drawing the ground tile diamond outline and division lines!
+	if has_crops:
+		return true
+
 	var green_border := Color(0.35, 1.0, 0.45, 0.95)
 	var green_line   := Color(0.35, 1.0, 0.45, 0.50)
 
-	var red_fill     := Color(0.90, 0.20, 0.20, 0.30)
 	var red_border   := Color(1.0, 0.25, 0.25, 0.95)
 	var red_line     := Color(1.0, 0.25, 0.25, 0.50)
 
@@ -279,5 +463,8 @@ func _draw_tool_hover() -> void:
 			var p1: Vector2 = _get_iso_pt(float(target_gp.x), float(target_gp.y + y))
 			var p2: Vector2 = _get_iso_pt(float(target_gp.x + fp.x), float(target_gp.y + y))
 			draw_line(p1, p2, div_line_color, 1.5)
+
+	return true
+
 
 

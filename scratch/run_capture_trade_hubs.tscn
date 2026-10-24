@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://run_capture_trade_hubs"]
+
+[ext_resource type="Script" path="res://scratch/capture_trade_hubs.gd" id="1_test"]
+
+[node name="CaptureTradeHubs" type="Node2D"]
+script = ExtResource("1_test")

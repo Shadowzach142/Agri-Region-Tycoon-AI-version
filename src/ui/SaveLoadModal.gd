@@ -96,11 +96,11 @@ func _build_ui() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "✕"
-	close_btn.custom_minimum_size = Vector2(28, 26)
+	close_btn.custom_minimum_size = Vector2(28, 28)
 	close_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
-	close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-	close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
+	close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+	close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+	close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
 	close_btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.80))
 	close_btn.pressed.connect(_on_close_pressed)
 	header_hbox.add_child(close_btn)
@@ -276,11 +276,11 @@ func _create_slot_card(slot_idx: int) -> void:
 	if has_data and slot_idx != SaveManager.AUTOSAVE_SLOT:
 		var del_btn := Button.new()
 		del_btn.text = "🗑️"
-		del_btn.custom_minimum_size = Vector2(36, 30)
+		del_btn.custom_minimum_size = Vector2(32, 32)
 		del_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		del_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
-		del_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-		del_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
+		del_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+		del_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+		del_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
 		del_btn.pressed.connect(func(): _execute_delete(slot_idx))
 		action_vbox.add_child(del_btn)
 

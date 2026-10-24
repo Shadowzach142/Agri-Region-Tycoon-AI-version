@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://test_hover_render_01"]
+
+[ext_resource type="Script" path="res://scratch/test_hover_render.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://brtltnq7atq61"]
+
+[ext_resource type="Script" path="res://scratch/test_sprite_highlight_verification.gd" id="1_test"]
+
+[node name="TestRoot" type="Node2D"]
+script = ExtResource("1_test")

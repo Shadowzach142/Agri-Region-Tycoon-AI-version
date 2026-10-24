@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://capture_farmer_runner"]
+
+[ext_resource type="Script" path="res://scratch/capture_farmer_in_game.gd" id="1_cap"]
+
+[node name="CaptureRunner" type="Node"]
+script = ExtResource("1_cap")

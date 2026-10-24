@@ -325,20 +325,18 @@ func _apply_fill_color(pos: Vector2i, tile: FarmTile, fill: Polygon2D, lbl: Labe
 
 		FarmTile.TileState.PLANTED:
 			# Crop sprites are rendered by _draw_custom_crop_sprite in _render_texture_detail.
-			# Never put crop textures into the ground GroundSprite node (wrong anchor).
 			if tile.is_multi_tile_root or tile.multi_tile_root_pos != Vector2i(-1, -1):
 				_apply_sprite_or_color(fill, COLOR_PLOWED, tile, sprite, pos)
 				lbl.text = ""
 			else:
-				# 1x1: hide ground sprite; crop handled in overlay
-				if sprite:
-					sprite.texture = null
-					sprite.visible = false
 				var has_crop_tex: bool = get_crop_texture_for_tile(tile) != null
 				if not has_crop_tex:
-					_apply_sprite_or_color(fill, COLOR_PLANTED, tile, null, pos)
+					_apply_sprite_or_color(fill, COLOR_PLANTED, tile, sprite, pos)
 					lbl.text = "🌱"
 				else:
+					if sprite:
+						sprite.texture = null
+						sprite.visible = false
 					fill.visible = false
 					lbl.text = ""
 
@@ -347,15 +345,15 @@ func _apply_fill_color(pos: Vector2i, tile: FarmTile, fill: Polygon2D, lbl: Labe
 				_apply_sprite_or_color(fill, COLOR_PLOWED, tile, sprite, pos)
 				lbl.text = ""
 			else:
-				if sprite:
-					sprite.texture = null
-					sprite.visible = false
 				var has_crop_tex: bool = get_crop_texture_for_tile(tile) != null
 				if not has_crop_tex:
 					var col := COLOR_GROWING.lerp(COLOR_HARVESTABLE, tile.growth_progress * 0.7)
-					_apply_sprite_or_color(fill, col, tile, null, pos)
+					_apply_sprite_or_color(fill, col, tile, sprite, pos)
 					lbl.text = "🌿"
 				else:
+					if sprite:
+						sprite.texture = null
+						sprite.visible = false
 					fill.visible = false
 					lbl.text = ""
 
@@ -364,12 +362,9 @@ func _apply_fill_color(pos: Vector2i, tile: FarmTile, fill: Polygon2D, lbl: Labe
 				_apply_sprite_or_color(fill, COLOR_PLOWED, tile, sprite, pos)
 				lbl.text = ""
 			else:
-				if sprite:
-					sprite.texture = null
-					sprite.visible = false
 				var has_crop_tex: bool = get_crop_texture_for_tile(tile) != null
 				if not has_crop_tex:
-					_apply_sprite_or_color(fill, COLOR_HARVESTABLE, tile, null, pos)
+					_apply_sprite_or_color(fill, COLOR_HARVESTABLE, tile, sprite, pos)
 					var crop_icon := "🌾"
 					if Engine.has_singleton("Data"):
 						crop_icon = Engine.get_singleton("Data").get_crop(tile.crop_type).get("icon", "🌾")
@@ -379,6 +374,9 @@ func _apply_fill_color(pos: Vector2i, tile: FarmTile, fill: Polygon2D, lbl: Labe
 							crop_icon = d_script.CROPS[tile.crop_type].get("icon", "🌾")
 					lbl.text = crop_icon
 				else:
+					if sprite:
+						sprite.texture = null
+						sprite.visible = false
 					fill.visible = false
 					lbl.text = ""
 
@@ -448,6 +446,9 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 	for child in overlay.get_children():
 		overlay.remove_child(child)
 		child.queue_free()
+
+	if tile.state == FarmTile.TileState.EMPTY and tile.obstacle_type == "":
+		overlay.modulate.a = 1.0
 
 	# Child plots of a multi-tile crop (e.g. 2×2 Coconut Palm) skip individual plant rendering
 	# (The root plot renders the grand combined 2×2 tree spanning the grove)
@@ -699,14 +700,6 @@ func _draw_drip_irrigation_lines(overlay: Node2D, tile: FarmTile) -> void:
 func _draw_custom_crop_sprite(overlay: Node2D, crop_tex: Texture2D, tile: FarmTile) -> void:
 	if not crop_tex:
 		return
-
-	# Soft ground shadow under standing plant (centered on top diamond)
-	var shadow := Polygon2D.new()
-	shadow.polygon = PackedVector2Array([
-		Vector2(-16, 0), Vector2(0, -8), Vector2(16, 0), Vector2(0, 8)
-	])
-	shadow.color = Color(0.08, 0.12, 0.06, 0.35)
-	overlay.add_child(shadow)
 
 	var spr := Sprite2D.new()
 	spr.name = "CropSprite"

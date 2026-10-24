@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d3y4u5i6o7p8q"]
+
+[ext_resource type="Script" path="res://scratch/test_render_sell_panel.gd" id="1_test"]
+
+[node name="TestRenderSellPanel" type="Node2D"]
+script = ExtResource("1_test")

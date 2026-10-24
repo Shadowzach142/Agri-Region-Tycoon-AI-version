@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bjf0spceoadel"
+path="res://.godot/imported/landslide.wav-ebd045367ad08276350ff8ca37f7dad8.sample"
+
+[deps]
+
+source_file="res://sounds/pest and disasters/landslide.wav"
+dest_files=["res://.godot/imported/landslide.wav-ebd045367ad08276350ff8ca37f7dad8.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -39,12 +39,130 @@ var state:           int        = FarmerStateMachine.WorkerState.IDLE
 var current_task:    Dictionary = {}
 var target_grid_pos: Vector2i   = Vector2i(-1, -1)
 var work_timer:      float      = 0.0
-var active_vehicle:  String     = "" # "" | "kuliglig" | "combine_harvester"
+var carried_crop:    String     = "" # crop type currently being carried to storage depot
 
 # Wander sub-state
 var wander_target_pixel: Vector2 = Vector2.ZERO
 var wander_wait_timer:   float   = 0.0
 var is_wandering:        bool    = false
+
+# ---------------------------------------------------------------------------
+# Animation State & Textures (32x32 retro pixel farmer)
+# ---------------------------------------------------------------------------
+const ANIM_FRAME_DURATION: float = 0.16 # Base seconds per animation frame
+
+var _anim_timer:       float  = 0.0
+var _anim_frame_idx:   int    = 0
+var _current_anim:     String = "idle"
+var _is_facing_left:   bool   = false
+
+const ANIM_FRAMES: Dictionary = {
+	"idle": [
+		preload("res://assets/sprites/farmer/idle.png")
+	],
+	"walk": [
+		preload("res://assets/sprites/farmer/walk_0.png"),
+		preload("res://assets/sprites/farmer/walk_1.png"),
+		preload("res://assets/sprites/farmer/walk_2.png"),
+		preload("res://assets/sprites/farmer/walk_3.png")
+	],
+	"till": [
+		preload("res://assets/sprites/farmer/till_0.png"),
+		preload("res://assets/sprites/farmer/till_1.png"),
+		preload("res://assets/sprites/farmer/till_2.png"),
+		preload("res://assets/sprites/farmer/till_3.png")
+	],
+	"harvest": [
+		preload("res://assets/sprites/farmer/harvest_0.png"),
+		preload("res://assets/sprites/farmer/harvest_1.png"),
+		preload("res://assets/sprites/farmer/harvest_2.png"),
+		preload("res://assets/sprites/farmer/harvest_3.png")
+	]
+}
+
+# ---------------------------------------------------------------------------
+# Visual Variants (Clothes, Hat, Skin Tones)
+# ---------------------------------------------------------------------------
+const NUM_VARIANTS: int = 8
+
+const VARIANT_NAMES: Array[String] = [
+	"Denim Blue",    # Variant 0 (Classic Starter)
+	"Ruby Red",      # Variant 1
+	"Forest Green",  # Variant 2
+	"Indigo Violet", # Variant 3
+	"Harvest Amber", # Variant 4
+	"Tropical Teal", # Variant 5
+	"Coral Rose",    # Variant 6
+	"Khaki Earth"    # Variant 7
+]
+
+const VARIANT_DIRS: Array[String] = [
+	"variant_0",
+	"variant_1",
+	"variant_2",
+	"variant_3",
+	"variant_4",
+	"variant_5",
+	"variant_6",
+	"variant_7"
+]
+
+static var _variant_frames_cache: Dictionary = {}
+
+@export var variant_id: int = 0:
+	set(val):
+		variant_id = posmod(val, NUM_VARIANTS)
+		_current_frames = get_frames_for_variant(variant_id)
+		_update_sprite_texture()
+
+var _current_frames: Dictionary = {}
+
+static func get_frames_for_variant(v_id: int) -> Dictionary:
+	var v_idx: int = posmod(v_id, NUM_VARIANTS)
+	if _variant_frames_cache.has(v_idx):
+		return _variant_frames_cache[v_idx]
+
+	if v_idx == 0:
+		_variant_frames_cache[0] = ANIM_FRAMES
+		return ANIM_FRAMES
+
+	var dir_name: String = VARIANT_DIRS[v_idx]
+	var base_path: String = "res://assets/sprites/farmer/variants/%s/" % dir_name
+
+	var f_dict: Dictionary = {
+		"idle": [
+			load(base_path + "idle.png")
+		],
+		"walk": [
+			load(base_path + "walk_0.png"),
+			load(base_path + "walk_1.png"),
+			load(base_path + "walk_2.png"),
+			load(base_path + "walk_3.png")
+		],
+		"till": [
+			load(base_path + "till_0.png"),
+			load(base_path + "till_1.png"),
+			load(base_path + "till_2.png"),
+			load(base_path + "till_3.png")
+		],
+		"harvest": [
+			load(base_path + "harvest_0.png"),
+			load(base_path + "harvest_1.png"),
+			load(base_path + "harvest_2.png"),
+			load(base_path + "harvest_3.png")
+		]
+	}
+	_variant_frames_cache[v_idx] = f_dict
+	return f_dict
+
+func set_variant(new_variant: int) -> void:
+	variant_id = new_variant
+
+func cycle_variant() -> void:
+	variant_id = (variant_id + 1) % NUM_VARIANTS
+
+func get_variant_name() -> String:
+	return VARIANT_NAMES[variant_id]
 
 # ---------------------------------------------------------------------------
 # Node references
@@ -58,7 +176,7 @@ var is_wandering:        bool    = false
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	add_to_group("farmers")
-	z_index = 10  # Match standing object layer for natural Y-sorting behind/in front of buildings and trees
+	z_index = 12  # Render worker above field crop overlays (Z=10) and beneath buildings (Z=14)
 
 	# Initialize worker ID from node name
 	if name.begins_with("Farmer_"):
@@ -69,40 +187,65 @@ func _ready() -> void:
 		worker_id = 1
 	worker_name = "Worker %d" % worker_id
 
+	# Set default visual variant based on worker_id (Worker 1 = variant 0, Worker 2 = variant 1, etc.)
+	if variant_id == 0 and worker_id > 1:
+		variant_id = (worker_id - 1) % NUM_VARIANTS
+	else:
+		_current_frames = get_frames_for_variant(variant_id)
+
 	if sprite and sprite is Control:
 		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if sprite and sprite is Sprite2D:
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		sprite.scale = Vector2(2.0, 2.0)
+		sprite.position = Vector2(0.0, -20.0)
+		_update_sprite_texture()
 	if status_label:
 		status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		status_label.z_index = 15  # Keep worker status tag always visible and readable above crops
+		status_label.offset_left = -50.0
+		status_label.offset_right = 50.0
+		status_label.offset_top = -64.0
+		status_label.offset_bottom = -46.0
+		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		status_label.add_theme_constant_override("outline_size", 3)
+		status_label.add_theme_color_override("font_outline_color", Color(0.10, 0.08, 0.05, 0.95))
+		status_label.add_theme_font_size_override("font_size", 13)
 
 	TimeManager.period_changed.connect(func(_p, _n): queue_redraw())
 	TimeManager.hour_changed.connect(func(_h): queue_redraw())
-	if BuildingManager.has_signal("machinery_updated"):
-		BuildingManager.machinery_updated.connect(func(_lvl): _update_vehicle_state())
+	if BuildingManager.has_signal("bayanihan_updated"):
+		BuildingManager.bayanihan_updated.connect(func(_lvl): _update_status_label(); queue_redraw())
 
 	_update_status_label()
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_selected:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_C:
+			cycle_variant()
+			AudioManager.play_farmer("select")
+			if TaskManager.get_selected_farmers().size() <= 1:
+				get_viewport().set_input_as_handled()
+
 # ---------------------------------------------------------------------------
-# Visual Selection Ring & Mobile Machinery
+# Visual Selection Ring & Ground Rendering
 # ---------------------------------------------------------------------------
 func _draw() -> void:
-	if active_vehicle == "kuliglig":
-		_draw_kuliglig()
-	elif active_vehicle == "combine_harvester":
-		_draw_combine_harvester()
-	else:
-		# Ground shadow beneath worker feet in 2:1 isometric projection
-		draw_set_transform(Vector2(0, 8), 0.0, Vector2(1.0, 0.5))
-		draw_circle(Vector2.ZERO, 14.0, Color(0.0, 0.0, 0.0, 0.28))
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Ground shadow beneath worker feet in 2:1 isometric projection
+	draw_set_transform(Vector2(0, 8), 0.0, Vector2(1.0, 0.5))
+	draw_circle(Vector2.ZERO, 14.0, Color(0.0, 0.0, 0.0, 0.28))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-		# Handheld kerosene lantern at night (gasera)
-		if TimeManager.is_night():
-			var lantern_p := Vector2(11, 0)
-			draw_circle(lantern_p, 20.0, Color(1.0, 0.85, 0.35, 0.18))
-			draw_circle(lantern_p, 9.0, Color(1.0, 0.90, 0.45, 0.40))
-			draw_circle(lantern_p, 3.0, Color(1.0, 0.98, 0.75, 0.95))
-			draw_rect(Rect2(lantern_p.x - 2.5, lantern_p.y - 1.5, 5.0, 6.0), Color(0.24, 0.18, 0.12, 0.85))
-			draw_line(lantern_p + Vector2(0, -6), lantern_p + Vector2(0, -1.5), Color(0.38, 0.30, 0.20, 0.9), 1.2)
+	# Handheld kerosene lantern at night (gasera)
+	if TimeManager.is_night():
+		var lantern_p := Vector2(-11.0 if _is_facing_left else 11.0, 0.0)
+		draw_circle(lantern_p, 20.0, Color(1.0, 0.85, 0.35, 0.18))
+		draw_circle(lantern_p, 9.0, Color(1.0, 0.90, 0.45, 0.40))
+		draw_circle(lantern_p, 3.0, Color(1.0, 0.98, 0.75, 0.95))
+		draw_rect(Rect2(lantern_p.x - 2.5, lantern_p.y - 1.5, 5.0, 6.0), Color(0.24, 0.18, 0.12, 0.85))
+		draw_line(lantern_p + Vector2(0, -6), lantern_p + Vector2(0, -1.5), Color(0.38, 0.30, 0.20, 0.9), 1.2)
 
 	if not is_selected:
 		return
@@ -146,6 +289,7 @@ func clear_assigned_tasks() -> void:
 	target_grid_pos = Vector2i(-1, -1)
 	if state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
 		state = FarmerStateMachine.WorkerState.IDLE
+		_play_anim("idle", 0.0)
 	if farm_grid and farm_grid.drag_overlay:
 		farm_grid.drag_overlay.queue_redraw()
 	TaskManager.tasks_changed.emit()
@@ -179,7 +323,7 @@ func _task_covers_tile(task: Dictionary, pos: Vector2i) -> bool:
 # Process — main state dispatch
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
-	if active_vehicle != "" or is_wandering or state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
+	if is_wandering or state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
 		queue_redraw()
 
 	var speed_scale: float = TimeManager.get_speed_scale()
@@ -213,6 +357,7 @@ func _tick_idle(dt: float) -> void:
 	# 3. No task — wander slowly
 	if wander_wait_timer > 0.0:
 		wander_wait_timer -= dt
+		_play_anim("idle", dt)
 		_update_status_label()
 		return
 
@@ -231,9 +376,17 @@ func _tick_idle(dt: float) -> void:
 	_update_status_label()
 	var wander_speed: float = (BASE_MOVE_SPEED * 0.5) * BuildingManager.get_worker_speed_multiplier()
 	var arrived: bool = FarmerMovement.step_toward(self, wander_target_pixel, wander_speed, dt)
+	if is_wandering:
+		_play_anim("walk", dt)
+		if velocity.x < -1.0:
+			_set_facing(true)
+		elif velocity.x > 1.0:
+			_set_facing(false)
+
 	if arrived:
 		is_wandering      = false
 		wander_wait_timer = randf_range(1.5, 4.0)
+		_play_anim("idle", dt)
 
 # ---------------------------------------------------------------------------
 # Task Execution Transitions
@@ -249,7 +402,6 @@ func _execute_task(task: Dictionary) -> void:
 	current_task    = task
 	target_grid_pos = task.get("position", Vector2i.ZERO)
 	state           = FarmerStateMachine.WorkerState.MOVING
-	_update_vehicle_state()
 	_update_status_label()
 	if farm_grid and farm_grid.drag_overlay:
 		farm_grid.drag_overlay.queue_redraw()
@@ -265,6 +417,12 @@ func _tick_moving(dt: float) -> void:
 	var move_speed: float     = BASE_MOVE_SPEED * speed_mult
 
 	var arrived: bool = FarmerMovement.step_toward(self, target_pixel, move_speed, dt)
+	_play_anim("walk", dt)
+	if velocity.x < -1.0:
+		_set_facing(true)
+	elif velocity.x > 1.0:
+		_set_facing(false)
+
 	if arrived:
 		state = FarmerStateMachine.WorkerState.WORKING
 		var dur: float = WORK_DURATION
@@ -288,6 +446,25 @@ func _tick_moving(dt: float) -> void:
 # ---------------------------------------------------------------------------
 func _tick_working(dt: float) -> void:
 	work_timer -= dt
+
+	# Face the task tile
+	var target_pixel: Vector2 = FarmerMovement.grid_to_pixel_center(target_grid_pos, farm_grid)
+	if target_pixel.x < global_position.x - 2.0:
+		_set_facing(true)
+	elif target_pixel.x > global_position.x + 2.0:
+		_set_facing(false)
+
+	var task_type: String = current_task.get("type", "")
+	match task_type:
+		"harvest":
+			_play_anim("harvest", dt)
+		"plow", "clear_obstacle":
+			_play_anim("till", dt)
+		"plant", "water", "spray_pest":
+			_play_anim("harvest", dt)
+		_:
+			_play_anim("till", dt)
+
 	if work_timer <= 0.0:
 		_complete_task()
 
@@ -320,12 +497,20 @@ func _complete_task() -> void:
 			_finish_cycle()
 
 		"harvest":
+			var harvested_crop: String = ""
+			if farm_grid != null:
+				var t: FarmTile = farm_grid.get_tile(target_grid_pos)
+				if t != null:
+					harvested_crop = t.crop_type
+					if t.multi_tile_root_pos != Vector2i(-1, -1):
+						var rt: FarmTile = farm_grid.get_tile(t.multi_tile_root_pos)
+						if rt != null:
+							harvested_crop = rt.crop_type
+			carried_crop = harvested_crop
 			farm_grid.harvest_tile(target_grid_pos)
 			AudioManager.play_farmer("harvest")
-			# Walk produce to the depot before returning to next task
+			# Walk produce to the assigned storage depot before returning to next task
 			state = FarmerStateMachine.WorkerState.DEPOSITING
-			if BuildingManager.has_combine_harvester():
-				active_vehicle = "combine_harvester"
 			_update_status_label()
 
 		"clear_obstacle":
@@ -337,44 +522,37 @@ func _complete_task() -> void:
 			_finish_cycle()
 
 # ---------------------------------------------------------------------------
-# DEPOSITING — walk to the storage depot (Bodega / Silo)
+# DEPOSITING — walk to the assigned storage depot (Bodega / Cold Storage / Silo)
 # ---------------------------------------------------------------------------
 func _tick_depositing(dt: float) -> void:
 	var depot_gpos := Vector2i(0, 0)
-	var storage_b = BuildingManager.get_first_storage_building()
-	if storage_b:
-		# Entrance is right at the front-center of the storage building
+	var storage_b: Node = null
+	if not carried_crop.is_empty():
+		storage_b = BuildingManager.get_best_storage_for_crop(carried_crop, 100)
+	if storage_b == null:
+		storage_b = BuildingManager.get_first_storage_building()
+
+	if storage_b and is_instance_valid(storage_b):
+		# Entrance is right at the front-center of the assigned storage building
 		depot_gpos = storage_b.grid_pos + Vector2i(1, storage_b.footprint.y)
 	var depot_pixel: Vector2  = FarmerMovement.grid_to_pixel_center(depot_gpos, farm_grid)
 	var speed_mult: float     = BuildingManager.get_worker_speed_multiplier()
 	var move_speed: float     = BASE_MOVE_SPEED * speed_mult
 
-	if FarmerMovement.step_toward(self, depot_pixel, move_speed, dt):
+	var arrived: bool = FarmerMovement.step_toward(self, depot_pixel, move_speed, dt)
+	_play_anim("walk", dt)
+	if velocity.x < -1.0:
+		_set_facing(true)
+	elif velocity.x > 1.0:
+		_set_facing(false)
+
+	if arrived:
+		carried_crop = ""
 		_finish_cycle()
 
 # ---------------------------------------------------------------------------
-# Shared helpers, Machinery & Status label
+# Shared helpers & Status label
 # ---------------------------------------------------------------------------
-func _update_vehicle_state() -> void:
-	var task_type: String = current_task.get("type", "")
-	if task_type == "plow" and BuildingManager.has_kuliglig():
-		active_vehicle = "kuliglig"
-	elif (task_type == "harvest" or (state == FarmerStateMachine.WorkerState.DEPOSITING and active_vehicle == "combine_harvester")) and BuildingManager.has_combine_harvester():
-		active_vehicle = "combine_harvester"
-	elif state == FarmerStateMachine.WorkerState.IDLE or is_wandering:
-		active_vehicle = ""
-	elif task_type != "plow" and task_type != "harvest" and state != FarmerStateMachine.WorkerState.DEPOSITING:
-		active_vehicle = ""
-
-	if sprite:
-		if active_vehicle == "kuliglig":
-			sprite.position = Vector2(6, -10)
-		elif active_vehicle == "combine_harvester":
-			sprite.position = Vector2(2, -16)
-		else:
-			sprite.position = Vector2.ZERO
-	queue_redraw()
-
 func _finish_cycle() -> void:
 	current_task    = {}
 	target_grid_pos = Vector2i(-1, -1)
@@ -386,7 +564,7 @@ func _finish_cycle() -> void:
 		_start_next_task()
 	else:
 		state = FarmerStateMachine.WorkerState.IDLE
-		_update_vehicle_state()
+		_play_anim("idle", 0.0)
 		_update_status_label()
 
 func _update_status_label() -> void:
@@ -404,196 +582,60 @@ func _update_status_label() -> void:
 		FarmerStateMachine.WorkerState.DEPOSITING:
 			base_txt = FarmerStateMachine.depositing_label()
 
-	var v_prefix: String = ""
-	if active_vehicle == "kuliglig":
-		v_prefix = "🚜 [Kuliglig] "
-	elif active_vehicle == "combine_harvester":
-		v_prefix = "🚜 [Harvester] "
-
-	var prefix: String = "⭐ " if is_selected else ""
 	var queue_txt: String = " (+%d)" % assigned_tasks.size() if assigned_tasks.size() > 0 else ""
 
-	status_label.text = "%s%s: %s%s%s" % [prefix, worker_name, v_prefix, base_txt, queue_txt]
+	status_label.text = "%s%s" % [base_txt, queue_txt]
 
 	if is_selected:
 		status_label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.35, 1.0))
 	else:
 		status_label.remove_theme_color_override("font_color")
 
-func _draw_kuliglig() -> void:
-	var t: float = float(Time.get_ticks_msec()) * 0.001
-	var is_moving: bool = (state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING or state == FarmerStateMachine.WorkerState.DEPOSITING)
+## Returns true if the farmer has completed all tasks and is idle
+func is_idle_worker() -> bool:
+	return state == FarmerStateMachine.WorkerState.IDLE and assigned_tasks.is_empty() and current_task.is_empty()
 
-	# 1. Broad ground shadow in 2:1 isometric projection
-	draw_set_transform(Vector2(-4, 10), 0.0, Vector2(1.0, 0.5))
-	draw_circle(Vector2.ZERO, 22.0, Color(0.0, 0.0, 0.0, 0.35))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+# ---------------------------------------------------------------------------
+# Animation Helpers
+# ---------------------------------------------------------------------------
+func _play_anim(anim_name: String, dt: float) -> void:
+	if _current_frames.is_empty():
+		_current_frames = get_frames_for_variant(variant_id)
 
-	var wheel_spin: float = (global_position.x + global_position.y) * 0.12 if is_moving else 0.0
-	if state == FarmerStateMachine.WorkerState.WORKING:
-		wheel_spin = t * 14.0
+	if not _current_frames.has(anim_name):
+		anim_name = "idle"
 
-	# 2. Sulky cart / footboard where farmer stands
-	var sulky_poly := PackedVector2Array([
-		Vector2(2, 6), Vector2(18, 14), Vector2(16, 20), Vector2(0, 12)
-	])
-	draw_colored_polygon(sulky_poly, Color(0.32, 0.35, 0.38))
-	draw_polyline(sulky_poly, Color(0.18, 0.20, 0.22), 1.5)
+	if _current_anim != anim_name:
+		_current_anim = anim_name
+		_anim_frame_idx = 0
+		_anim_timer = 0.0
+		_update_sprite_texture()
 
-	# Hitch connecting tongue
-	draw_line(Vector2(-6, 2), Vector2(8, 10), Color(0.25, 0.28, 0.30), 3.0)
+	var frames: Array = _current_frames[_current_anim]
+	if frames.size() <= 1:
+		return
 
-	# 3. Two Large Cleated Iron Cage Wheels (Philippine Rice-Paddy Style)
-	var left_wheel_p := Vector2(-16, 6)
-	var right_wheel_p := Vector2(4, 16)
+	var speed_mult: float = BuildingManager.get_worker_speed_multiplier()
+	var frame_dur: float = max(0.06, ANIM_FRAME_DURATION / speed_mult)
+	_anim_timer += dt
+	if _anim_timer >= frame_dur:
+		_anim_timer -= frame_dur
+		_anim_frame_idx = (_anim_frame_idx + 1) % frames.size()
+		_update_sprite_texture()
 
-	for wp: Vector2 in [left_wheel_p, right_wheel_p]:
-		draw_circle(wp, 8.0, Color(0.18, 0.20, 0.22))
-		draw_circle(wp, 6.0, Color(0.38, 0.42, 0.46))
-		draw_circle(wp, 2.5, Color(0.12, 0.14, 0.16))
-		for i in range(6):
-			var a: float = wheel_spin + float(i) * TAU / 6.0
-			var c_p1: Vector2 = wp + Vector2(cos(a) * 5.0, sin(a) * 5.0)
-			var c_p2: Vector2 = wp + Vector2(cos(a) * 9.5, sin(a) * 9.5)
-			draw_line(c_p1, c_p2, Color(0.65, 0.70, 0.76), 1.5)
+func _update_sprite_texture() -> void:
+	if sprite is Sprite2D:
+		if _current_frames.is_empty():
+			_current_frames = get_frames_for_variant(variant_id)
+		var frames: Array = _current_frames.get(_current_anim, _current_frames.get("idle", ANIM_FRAMES["idle"]))
+		var idx: int = clamp(_anim_frame_idx, 0, frames.size() - 1)
+		sprite.texture = frames[idx]
 
-	# 4. Red Diesel Engine Block (Kubota single cylinder)
-	var eng_p := Vector2(-10, -2)
-	var eng_poly := PackedVector2Array([
-		eng_p + Vector2(-9, 4), eng_p + Vector2(9, 4),
-		eng_p + Vector2(9, -8), eng_p + Vector2(-9, -8)
-	])
-	draw_colored_polygon(eng_poly, Color(0.85, 0.20, 0.16))
-	draw_polyline(eng_poly, Color(0.45, 0.10, 0.08), 1.5)
+func _set_facing(facing_left: bool) -> void:
+	if _is_facing_left == facing_left:
+		return
+	_is_facing_left = facing_left
+	if sprite is Sprite2D:
+		sprite.flip_h = _is_facing_left
+	queue_redraw()
 
-	# Spinning belt flywheel
-	var fly_p := eng_p + Vector2(7, -2)
-	draw_circle(fly_p, 4.0, Color(0.30, 0.34, 0.38))
-	draw_line(fly_p, fly_p + Vector2(cos(t * 18.0) * 3.5, sin(t * 18.0) * 3.5), Color(0.80, 0.85, 0.90), 1.2)
-
-	# Front rotary plow blades (churning soil when working)
-	var plow_p := Vector2(-22, 10)
-	draw_line(eng_p + Vector2(-6, 2), plow_p, Color(0.28, 0.30, 0.32), 2.5)
-	draw_circle(plow_p, 3.5, Color(0.45, 0.48, 0.52))
-	if state == FarmerStateMachine.WorkerState.WORKING:
-		for s in range(3):
-			var dust_p := plow_p + Vector2(-randf_range(2, 10), -randf_range(1, 6))
-			draw_circle(dust_p, 1.5, Color(0.36, 0.24, 0.14, 0.85))
-
-	# Chrome vertical exhaust pipe & diesel smoke
-	var exh_p := eng_p + Vector2(-5, -8)
-	draw_line(exh_p, exh_p + Vector2(0, -10), Color(0.75, 0.80, 0.86), 2.0)
-	draw_circle(exh_p + Vector2(0, -10), 1.5, Color(0.40, 0.45, 0.50))
-	if is_moving:
-		var st: float = fmod(t * 3.5, 1.0)
-		var sp := exh_p + Vector2(-1.0 - st * 8.0, -11.0 - st * 12.0)
-		draw_circle(sp, 2.0 + st * 3.5, Color(0.55, 0.58, 0.62, 0.45 * (1.0 - st)))
-
-	# Handlebars extending to the farmer's hands
-	draw_line(eng_p + Vector2(4, -4), Vector2(6, -2), Color(0.20, 0.22, 0.25), 2.0)
-	draw_line(eng_p + Vector2(-2, -6), Vector2(2, -6), Color(0.20, 0.22, 0.25), 2.0)
-
-	# Headlight (at night)
-	if TimeManager.is_night():
-		var hl_p := eng_p + Vector2(-9, 0)
-		draw_circle(hl_p, 2.5, Color(1.0, 0.95, 0.60))
-		var beam := PackedVector2Array([
-			hl_p, hl_p + Vector2(-28, 4), hl_p + Vector2(-24, 18)
-		])
-		draw_colored_polygon(beam, Color(1.0, 0.95, 0.60, 0.18))
-
-func _draw_combine_harvester() -> void:
-	var t: float = float(Time.get_ticks_msec()) * 0.001
-	var is_moving: bool = (state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING or state == FarmerStateMachine.WorkerState.DEPOSITING)
-
-	# 1. Heavy isometric ground shadow
-	draw_set_transform(Vector2(0, 10), 0.0, Vector2(1.0, 0.5))
-	draw_circle(Vector2.ZERO, 32.0, Color(0.0, 0.0, 0.0, 0.40))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-	# 2. Caterpillar Tracks (Twin Rubber Cleated Treads)
-	var left_track := PackedVector2Array([
-		Vector2(-24, 2), Vector2(0, 14), Vector2(-4, 22), Vector2(-28, 10)
-	])
-	draw_colored_polygon(left_track, Color(0.12, 0.14, 0.16))
-	draw_polyline(left_track, Color(0.06, 0.08, 0.10), 1.5)
-
-	var right_track := PackedVector2Array([
-		Vector2(2, -4), Vector2(26, 8), Vector2(22, 16), Vector2(-2, 4)
-	])
-	draw_colored_polygon(right_track, Color(0.16, 0.18, 0.20))
-	draw_polyline(right_track, Color(0.08, 0.10, 0.12), 1.5)
-
-	# Road wheels inside tracks
-	for i in range(3):
-		var pA := Vector2(-24, 6).lerp(Vector2(-2, 17), float(i) / 2.0)
-		draw_circle(pA, 3.5, Color(0.85, 0.72, 0.18))
-		draw_circle(pA, 1.5, Color(0.12, 0.14, 0.16))
-
-	# 3. Main Industrial Harvester Chassis Body (Green & Yellow)
-	var body_poly := PackedVector2Array([
-		Vector2(-18, 2), Vector2(16, -6), Vector2(16, -22), Vector2(-18, -14)
-	])
-	draw_colored_polygon(body_poly, Color(0.20, 0.52, 0.25))
-	draw_polyline(body_poly, Color(0.10, 0.28, 0.12), 1.5)
-
-	# Side yellow branding stripe
-	draw_line(Vector2(-16, -6), Vector2(14, -12), Color(0.95, 0.82, 0.18), 2.5)
-
-	# 4. Front Crop Header & Rotating Reel
-	var header_p := Vector2(-28, 8)
-	draw_line(Vector2(-14, 4), header_p, Color(0.18, 0.40, 0.22), 4.0)
-
-	# Rotating yellow tine reel bar
-	var reel_rot: float = t * 10.0 if state == FarmerStateMachine.WorkerState.WORKING else 0.0
-	var reel_center := header_p + Vector2(-6, -2)
-	draw_circle(reel_center, 6.0, Color(0.92, 0.78, 0.15))
-	draw_circle(reel_center, 4.0, Color(0.20, 0.22, 0.25))
-	for a in range(4):
-		var ang: float = reel_rot + float(a) * PI / 2.0
-		var r_end := reel_center + Vector2(cos(ang) * 9.0, sin(ang) * 9.0)
-		draw_line(reel_center, r_end, Color(0.95, 0.85, 0.20), 1.5)
-		draw_line(r_end, r_end + Vector2(-2, 4), Color(0.60, 0.50, 0.10), 1.2)
-
-	if state == FarmerStateMachine.WorkerState.WORKING:
-		for s in range(3):
-			var sp := reel_center + Vector2(randf_range(-4, 4), -randf_range(2, 8))
-			draw_circle(sp, 1.2, Color(1.0, 0.88, 0.25, 0.85))
-
-	# 5. Elevated Grain Hopper & Unloading Auger Pipe
-	var hopper_p := Vector2(8, -18)
-	draw_rect(Rect2(hopper_p.x - 6, hopper_p.y - 6, 12, 10), Color(0.85, 0.70, 0.15))
-	draw_rect(Rect2(hopper_p.x - 6, hopper_p.y - 6, 12, 10), Color(0.40, 0.30, 0.08), false, 1.2)
-
-	var auger_start := hopper_p + Vector2(2, -4)
-	var auger_end := auger_start + Vector2(16, -14)
-	draw_line(auger_start, auger_end, Color(0.85, 0.70, 0.15), 3.5)
-	draw_circle(auger_end, 2.5, Color(0.25, 0.28, 0.32))
-
-	# 6. Overhead Driver Roll-Bar Canopy Frame
-	var roll_bar := PackedVector2Array([
-		Vector2(-6, -10), Vector2(-6, -26), Vector2(8, -30), Vector2(8, -14)
-	])
-	draw_polyline(roll_bar, Color(0.85, 0.75, 0.18), 2.0)
-	var sunshade := PackedVector2Array([
-		Vector2(-8, -26), Vector2(10, -31), Vector2(14, -28), Vector2(-4, -23)
-	])
-	draw_colored_polygon(sunshade, Color(0.92, 0.94, 0.96))
-	draw_polyline(sunshade, Color(0.45, 0.48, 0.52), 1.2)
-
-	# Vertical exhaust pipe & diesel smoke
-	var exh_p := Vector2(12, -22)
-	draw_line(exh_p, exh_p + Vector2(0, -12), Color(0.70, 0.75, 0.80), 2.5)
-	if is_moving:
-		var st: float = fmod(t * 3.0, 1.0)
-		var sp := exh_p + Vector2(-1.0 - st * 6.0, -14.0 - st * 16.0)
-		draw_circle(sp, 2.5 + st * 4.5, Color(0.50, 0.52, 0.55, 0.40 * (1.0 - st)))
-
-	# Night Work Floodlights
-	if TimeManager.is_night():
-		var hl1 := Vector2(-22, 2)
-		draw_circle(hl1, 3.0, Color(1.0, 0.95, 0.65))
-		var beam := PackedVector2Array([
-			hl1, hl1 + Vector2(-36, 6), hl1 + Vector2(-28, 26)
-		])
-		draw_colored_polygon(beam, Color(1.0, 0.95, 0.65, 0.22))

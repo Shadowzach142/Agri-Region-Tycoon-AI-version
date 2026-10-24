@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://bjqqcvs0e3k1f"
+path="res://.godot/imported/spawn.wav-5fde87e831e65f92af56e18120162210.sample"
+
+[deps]
+
+source_file="res://sounds/pest and disasters/spawn.wav"
+dest_files=["res://.godot/imported/spawn.wav-5fde87e831e65f92af56e18120162210.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

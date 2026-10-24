@@ -143,11 +143,11 @@ func _build_ui() -> void:
 
 	_close_btn = Button.new()
 	_close_btn.text = " ✕ "
-	_close_btn.custom_minimum_size = Vector2(32, 28)
+	_close_btn.custom_minimum_size = Vector2(30, 30)
 	_close_btn.add_theme_font_size_override("font_size", 14)
-	_close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
-	_close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-	_close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
+	_close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+	_close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+	_close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
 	_close_btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.80))
 	_close_btn.pressed.connect(close)
 	header.add_child(_close_btn)
@@ -205,94 +205,131 @@ func _build_ui() -> void:
 	eb_sub.add_theme_color_override("font_color", Color(0.38, 0.28, 0.18, 1.0))
 	eb_inner.add_child(eb_sub)
 
-	# --- 2. Main Trading Container ---
+	# --- 2. Main Trading Area (Split 2-Column Trade Desk) ---
 	_trade_content_vbox = VBoxContainer.new()
 	_trade_content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_trade_content_vbox.size_flags_vertical   = Control.SIZE_EXPAND_FILL
-	_trade_content_vbox.add_theme_constant_override("separation", 8)
+	_trade_content_vbox.add_theme_constant_override("separation", 6)
 	root.add_child(_trade_content_vbox)
 
-	var dest_hdr := Label.new()
-	dest_hdr.text = "CHOOSE SHIPPING DESTINATION:"
-	dest_hdr.add_theme_font_size_override("font_size", 12)
-	dest_hdr.add_theme_color_override("font_color", Color(0.35, 0.22, 0.12, 1.0))
-	_trade_content_vbox.add_child(dest_hdr)
+	var split_hbox := HBoxContainer.new()
+	split_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split_hbox.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+	split_hbox.add_theme_constant_override("separation", 14)
+	_trade_content_vbox.add_child(split_hbox)
 
-	# 2x2 Clean Destination Grid (Only Name, Distance & Gas Price)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 8)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_trade_content_vbox.add_child(grid)
+	# --- Left Column: Choose Shipping Buyer (4 Cards) ---
+	var left_col := VBoxContainer.new()
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_col.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+	left_col.add_theme_constant_override("separation", 6)
+	split_hbox.add_child(left_col)
+
+	var dest_hdr := Label.new()
+	dest_hdr.text = "📍 1. CHOOSE SHIPPING BUYER:"
+	dest_hdr.add_theme_font_size_override("font_size", 13)
+	dest_hdr.add_theme_color_override("font_color", Color(0.24, 0.16, 0.08, 1.0))
+	left_col.add_child(dest_hdr)
+
+	var buyers_vbox := VBoxContainer.new()
+	buyers_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buyers_vbox.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+	buyers_vbox.add_theme_constant_override("separation", 6)
+	left_col.add_child(buyers_vbox)
 
 	_hub_cards.clear()
 	for i in range(HUB_KEYS.size()):
-		var card_data := _build_hub_card(grid, HUB_KEYS[i], i)
+		var card_data := _build_hub_card(buyers_vbox, HUB_KEYS[i], i)
 		_hub_cards.append(card_data)
 
-	# --- 3. Selected Contract Details Box ---
+	# --- Right Column: Dispatch Invoice & Action ---
+	var right_col := VBoxContainer.new()
+	right_col.custom_minimum_size = Vector2(340, 0)
+	right_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_col.add_theme_constant_override("separation", 6)
+	split_hbox.add_child(right_col)
+
+	var invoice_hdr := Label.new()
+	invoice_hdr.text = "📋 2. DISPATCH INVOICE:"
+	invoice_hdr.add_theme_font_size_override("font_size", 13)
+	invoice_hdr.add_theme_color_override("font_color", Color(0.24, 0.16, 0.08, 1.0))
+	right_col.add_child(invoice_hdr)
+
 	_contract_box = PanelContainer.new()
 	_contract_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_contract_box.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
-	_trade_content_vbox.add_child(_contract_box)
+	_contract_box.size_flags_vertical   = Control.SIZE_EXPAND_FILL
+	if ResourceLoader.exists("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"):
+		_contract_box.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"))
+	else:
+		_contract_box.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
+	right_col.add_child(_contract_box)
 
 	var cb_margin := MarginContainer.new()
-	cb_margin.add_theme_constant_override("margin_left", 12)
-	cb_margin.add_theme_constant_override("margin_right", 12)
-	cb_margin.add_theme_constant_override("margin_top", 8)
-	cb_margin.add_theme_constant_override("margin_bottom", 8)
+	cb_margin.add_theme_constant_override("margin_left", 14)
+	cb_margin.add_theme_constant_override("margin_right", 14)
+	cb_margin.add_theme_constant_override("margin_top", 10)
+	cb_margin.add_theme_constant_override("margin_bottom", 10)
 	_contract_box.add_child(cb_margin)
 
 	var cb_inner := VBoxContainer.new()
-	cb_inner.add_theme_constant_override("separation", 5)
+	cb_inner.add_theme_constant_override("separation", 6)
+	cb_inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	cb_margin.add_child(cb_inner)
 
-	var cb_top := HBoxContainer.new()
-	cb_inner.add_child(cb_top)
-
 	_contract_title_lbl = Label.new()
-	_contract_title_lbl.text = "📋 Contract Details:"
-	_contract_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_contract_title_lbl.add_theme_font_size_override("font_size", 13)
+	_contract_title_lbl.text = "📋 Shipping Invoice"
+	_contract_title_lbl.add_theme_font_size_override("font_size", 14)
 	_contract_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.90, 0.55))
-	cb_top.add_child(_contract_title_lbl)
+	cb_inner.add_child(_contract_title_lbl)
 
-	_payout_lbl = Label.new()
-	_payout_lbl.text = ""
-	_payout_lbl.add_theme_font_size_override("font_size", 16)
-	_payout_lbl.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
-	cb_top.add_child(_payout_lbl)
+	var inv_sep := HSeparator.new()
+	inv_sep.add_theme_color_override("separator_color", Color(0.6, 0.5, 0.35, 0.5))
+	cb_inner.add_child(inv_sep)
 
 	_tradeoff_lbl = Label.new()
-	_tradeoff_lbl.text = "👉 Select a destination contract above to view rates, earnings, and transport logistics."
+	_tradeoff_lbl.text = "👉 Select a destination buyer on the left to review transit logistics and earnings."
+	_tradeoff_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tradeoff_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tradeoff_lbl.add_theme_font_size_override("font_size", 12)
 	_tradeoff_lbl.add_theme_color_override("font_color", Color(0.92, 0.95, 0.90))
 	cb_inner.add_child(_tradeoff_lbl)
 
-	# --- 4. Action Button & Feedback ---
+	var payout_sep := HSeparator.new()
+	payout_sep.add_theme_color_override("separator_color", Color(0.6, 0.5, 0.35, 0.5))
+	cb_inner.add_child(payout_sep)
+
+	_payout_lbl = Label.new()
+	_payout_lbl.text = ""
+	_payout_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_payout_lbl.add_theme_font_size_override("font_size", 16)
+	_payout_lbl.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
+	cb_inner.add_child(_payout_lbl)
+
+	# Action Button & Feedback
 	_sell_action_btn = Button.new()
-	_sell_action_btn.text = "🚚 SELECT A SHIPPING DESTINATION"
-	_sell_action_btn.custom_minimum_size = Vector2(0, 44)
-	_sell_action_btn.add_theme_font_size_override("font_size", 14)
+	_sell_action_btn.text = "👈 CHOOSE BUYER ON LEFT"
+	_sell_action_btn.custom_minimum_size = Vector2(0, 42)
+	_sell_action_btn.add_theme_font_size_override("font_size", 13)
 	_sell_action_btn.disabled = true
+	_sell_action_btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sell_action_btn.pressed.connect(_on_sell_action_pressed)
-	_trade_content_vbox.add_child(_sell_action_btn)
+	cb_inner.add_child(_sell_action_btn)
 
 	_status_msg_label = Label.new()
 	_status_msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status_msg_label.add_theme_font_size_override("font_size", 13)
+	_status_msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_msg_label.add_theme_font_size_override("font_size", 11)
 	_status_msg_label.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
-	_trade_content_vbox.add_child(_status_msg_label)
+	cb_inner.add_child(_status_msg_label)
 
-func _build_hub_card(parent: GridContainer, hub_key: String, hub_idx: int) -> Dictionary:
+func _build_hub_card(parent: Control, hub_key: String, hub_idx: int) -> Dictionary:
 	var hub_data: Dictionary = Data.get_market_hub(hub_key)
 	var h_name: String = hub_data.get("display_name", hub_key)
 	var short_name: String = h_name.split("(")[0].strip_edges()
 
 	var btn := Button.new()
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.custom_minimum_size = Vector2(0, 52)
+	btn.custom_minimum_size = Vector2(0, 58)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(func():
 		selected_hub_idx = hub_idx
@@ -305,10 +342,10 @@ func _build_hub_card(parent: GridContainer, hub_key: String, hub_idx: int) -> Di
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 4)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
 	btn.add_child(margin)
 
 	var vb := VBoxContainer.new()
@@ -335,7 +372,6 @@ func _build_hub_card(parent: GridContainer, hub_key: String, hub_idx: int) -> Di
 	sel_badge.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
 	top_row.add_child(sel_badge)
 
-	# Clean line: ONLY Distance and Gas Price!
 	var dist_fuel_lbl := Label.new()
 	dist_fuel_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dist_fuel_lbl.text = ""
@@ -452,45 +488,72 @@ func _refresh_view() -> void:
 		var dist_fuel_lbl: Label= card_d["dist_fuel_lbl"]
 		var name_lbl: Label    = card_d["name_lbl"]
 		var h_key: String      = card_d["hub_key"]
-		var h_dict: Dictionary = card_d["hub_data"]
+		var h_dict: Dictionary = Data.get_market_hub(h_key)
+		var is_available: bool = Data.is_hub_available(h_key)
 		var is_sel: bool       = (i == selected_hub_idx)
 
+		if not is_available:
+			btn.disabled = true
+			if is_sel:
+				selected_hub_idx = -1
+				is_sel = false
+			var req_b: String = str(Data.MARKET_HUBS.get(h_key, {}).get("requires_building", ""))
+			var req_name: String = str(Data.get_building(req_b).get("display_name", req_b.capitalize()))
+			dist_fuel_lbl.text = "🔒 Requires: %s (Agri-Shop → Trade)" % req_name
+			sel_badge.text = "🔒 Locked"
+			sel_badge.add_theme_color_override("font_color", Color(0.85, 0.35, 0.35))
+			btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
+			btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
+			name_lbl.add_theme_color_override("font_color", Color(0.50, 0.45, 0.40))
+			dist_fuel_lbl.add_theme_color_override("font_color", Color(0.60, 0.30, 0.25))
+			continue
+
+		btn.disabled = false
 		var km: int = int(h_dict.get("distance_km", 0))
 		var base_fuel: int = int(h_dict.get("fuel_cost", 0))
 		var actual_fuel: int = base_fuel + (25 if is_night and h_key != "local_biyahero" else 0)
 
-		# Only distance and gas price
-		var fuel_tag := "₱%d Fuel" % actual_fuel if actual_fuel > 0 else "₱0 Fuel (Free)"
+		# Distance, fuel, and rate perk tag
+		var fuel_tag := "₱%d Fuel" % actual_fuel if actual_fuel > 0 else "Free Fuel"
 		if is_night and h_key != "local_biyahero":
 			fuel_tag += " (+₱25 🌙)"
-		dist_fuel_lbl.text = "%d km  •  %s" % [km, fuel_tag]
+		
+		var rate_tag := ""
+		if h_key == "local_biyahero":
+			var rate_pct: int = int(round(float(h_dict.get("price_multiplier", 0.72)) * 100.0))
+			rate_tag = "%d%% Instant Rate" % rate_pct
+		else:
+			var mult: float = float(h_dict.get("price_multiplier", 1.0))
+			var boost_tag: String = " ⭐" if h_dict.get("boosted", false) else ""
+			rate_tag = "%.2fx Rate%s" % [mult, boost_tag]
 
+		dist_fuel_lbl.text = "%d km  •  %s  •  %s" % [km, fuel_tag, rate_tag]
 		sel_badge.text = "✔ Selected" if is_sel else ""
 
-		# Styling with authentic pixel art buttons
+		# Styling with authentic pixel art buttons & high-contrast deep text
 		if is_sel:
 			btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres"))
 			btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres"))
-			name_lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06))
-			dist_fuel_lbl.add_theme_color_override("font_color", Color(0.32, 0.22, 0.14))
-			sel_badge.add_theme_color_override("font_color", Color(0.08, 0.45, 0.12))
+			name_lbl.add_theme_color_override("font_color", Color(0.20, 0.10, 0.04))
+			dist_fuel_lbl.add_theme_color_override("font_color", Color(0.32, 0.18, 0.08))
+			sel_badge.add_theme_color_override("font_color", Color(0.06, 0.40, 0.10))
 		else:
 			btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
 			btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-			name_lbl.add_theme_color_override("font_color", Color(0.98, 0.95, 0.88))
-			dist_fuel_lbl.add_theme_color_override("font_color", Color(0.85, 0.82, 0.72))
-			sel_badge.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
+			name_lbl.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08))
+			dist_fuel_lbl.add_theme_color_override("font_color", Color(0.36, 0.24, 0.14))
+			sel_badge.add_theme_color_override("font_color", Color(0.25, 0.45, 0.20))
 
 	# 3. Contract Box & Action Button:
 	# If NO destination is selected yet (selected_hub_idx == -1), guide the player and disable button!
 	if selected_hub_idx < 0 or selected_hub_idx >= HUB_KEYS.size():
-		_contract_title_lbl.text = "📋 Contract Information:"
+		_contract_title_lbl.text = "📋 Shipping Invoice"
 		_payout_lbl.text = ""
-		_tradeoff_lbl.text = "👉 Select a destination above to see payout, transport logistics, and spoilage risk."
+		_tradeoff_lbl.text = "👉 Select a shipping buyer on the left to review transit logistics, transport fees, and net profits."
 		_tradeoff_lbl.add_theme_color_override("font_color", Color(0.92, 0.95, 0.90))
 
 		_sell_action_btn.disabled = true
-		_sell_action_btn.text = "🚚 SELECT A SHIPPING DESTINATION"
+		_sell_action_btn.text = "👈 CHOOSE BUYER ON LEFT"
 		_sell_action_btn.remove_theme_stylebox_override("normal")
 		_sell_action_btn.remove_theme_stylebox_override("hover")
 		_sell_action_btn.remove_theme_stylebox_override("pressed")
@@ -504,6 +567,7 @@ func _refresh_view() -> void:
 	var current_preview: Dictionary = MarketManager.preview_crop_sale(selected_crop, current_hub_key)
 	var h_data: Dictionary = Data.get_market_hub(current_hub_key)
 	var h_name: String = h_data.get("display_name", current_hub_key)
+	var short_name: String = h_name.split("(")[0].strip_edges()
 	var net_val: int = int(current_preview.get("net", 0))
 	var gross_val: int = int(current_preview.get("gross", 0))
 	var fuel_val: int = int(current_preview.get("fuel", 0))
@@ -513,8 +577,9 @@ func _refresh_view() -> void:
 	var per_unit: float = float(net_val) / maxf(float(total_stored_qty), 1.0)
 	var can_afford: bool = bool(current_preview.get("can_afford_fuel", true))
 	var is_loss_val: bool = bool(current_preview.get("is_loss", false))
+	var km_dest: int = int(h_data.get("distance_km", 0))
 
-	_contract_title_lbl.text = "📋 Contract: %d units %s ➔ %s" % [total_stored_qty, disp_name, h_name]
+	_contract_title_lbl.text = "🚚 %s (%d km)" % [short_name, km_dest]
 
 	if gross_val == 0:
 		_payout_lbl.text = "💀 Produce Ruined (₱0)"
@@ -523,7 +588,7 @@ func _refresh_view() -> void:
 		_payout_lbl.text = "-₱%s NET  (🏆 +%s Pts)" % [Utils.format_number(abs(net_val)), Utils.format_number(pts_val)]
 		_payout_lbl.add_theme_color_override("font_color", Color(1.0, 0.50, 0.40))
 	else:
-		_payout_lbl.text = "+₱%s NET  (₱%.1f/u)   •   🏆 +%s Pts" % [
+		_payout_lbl.text = "+₱%s NET  (₱%.1f/u)  •  🏆 +%s Pts" % [
 			Utils.format_number(net_val),
 			per_unit,
 			Utils.format_number(pts_val)
@@ -532,24 +597,30 @@ func _refresh_view() -> void:
 
 	var rot_info := ""
 	if has_cold:
-		rot_info = "❄️ 0% Spoilage (Cold Chain Active)"
+		rot_info = "❄️ 0% (Cold Chain)"
+	elif Data.is_processed_good(selected_crop):
+		rot_info = "✨ 0% (Shelf-Stable)"
 	elif current_hub_key == "local_biyahero":
-		rot_info = "⚡ Instant Pickup (72% rate, 0% rot)"
-		if is_night:
-			rot_info += " • 🌙 Off-hours Middleman (62%)"
+		rot_info = "⚡ 0% (Instant Pickup)"
 	else:
-		rot_info = "%.0f%% Spoilage Risk" % rot_val
+		rot_info = "%.0f%% Spoilage" % rot_val
 		if is_night:
-			rot_info += " (🌙 -40% Cool Air Transit)"
+			rot_info += " (🌙 -40% Cool)"
 
-	var km_dest: int = int(h_data.get("distance_km", 0))
 	var streak_tag := ("  •  🔥 %.1fx Streak" % LeaderboardManager.get_combo_multiplier()) if LeaderboardManager.current_combo > 0 else ""
-	_tradeoff_lbl.text = "Transit: %d km  |  Fuel: ₱%d  |  %s%s" % [km_dest, fuel_val, rot_info, streak_tag]
+	_tradeoff_lbl.text = "🌾 Produce: %d units %s\n💰 Gross Value: ₱%s\n⛽ Fuel Expense: -₱%s\n📦 Spoilage Risk: %s%s" % [
+		total_stored_qty, disp_name,
+		Utils.format_number(gross_val),
+		Utils.format_number(fuel_val),
+		rot_info,
+		streak_tag
+	]
 
 	# 4. Action Button Styling & State
 	if not can_afford:
 		_sell_action_btn.disabled = true
-		_sell_action_btn.text = "⚠️ NEED ₱%d CASH FOR FUEL (Treasury: ₱%d)" % [fuel_val, EconomyManager.cash]
+		_sell_action_btn.icon = null
+		_sell_action_btn.text = "⚠️ NEED ₱%d CASH FOR FUEL" % fuel_val
 		_sell_action_btn.remove_theme_stylebox_override("normal")
 		_sell_action_btn.remove_theme_stylebox_override("hover")
 		_sell_action_btn.remove_theme_stylebox_override("pressed")
@@ -558,6 +629,7 @@ func _refresh_view() -> void:
 		_sell_action_btn.remove_theme_color_override("font_color")
 	elif gross_val == 0:
 		_sell_action_btn.disabled = true
+		_sell_action_btn.icon = null
 		_sell_action_btn.text = "💀 PRODUCE IS 100% RUINED"
 		_sell_action_btn.remove_theme_stylebox_override("normal")
 		_sell_action_btn.remove_theme_stylebox_override("hover")
@@ -567,20 +639,16 @@ func _refresh_view() -> void:
 		_sell_action_btn.remove_theme_color_override("font_color")
 	elif is_loss_val:
 		_sell_action_btn.disabled = false
-		_sell_action_btn.text = "⚠️ CONFIRM SALE AT A LOSS (-₱%s NET • 🏆 +%s PTS)" % [
-			Utils.format_number(abs(net_val)),
-			Utils.format_number(pts_val)
-		]
+		_sell_action_btn.icon = preload("res://assets/icons/HUD/Truck.png")
+		_sell_action_btn.text = " ⚠️ CONFIRM SALE AT A LOSS (-₱%s)" % Utils.format_number(abs(net_val))
 		_sell_action_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres"))
 		_sell_action_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres"))
 		_sell_action_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres"))
 		_sell_action_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06))
 	else:
 		_sell_action_btn.disabled = false
-		_sell_action_btn.text = "💰 CONFIRM SALE  ➔  +₱%s NET  (🏆 +%s PTS)" % [
-			Utils.format_number(net_val),
-			Utils.format_number(pts_val)
-		]
+		_sell_action_btn.icon = preload("res://assets/icons/HUD/Truck.png")
+		_sell_action_btn.text = " CONFIRM & DISPATCH SHIPMENT"
 		_sell_action_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres"))
 		_sell_action_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres"))
 		_sell_action_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres"))

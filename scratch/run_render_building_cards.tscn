@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c5v8la2b6lq1w"]
+
+[ext_resource type="Script" path="res://scratch/test_render_building_cards.gd" id="1_test"]
+
+[node name="TestRenderBuildingCards" type="Node"]
+script = ExtResource("1_test")

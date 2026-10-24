@@ -1,0 +1,6 @@
+﻿[gd_scene format=3 uid="uid://d1x8y9z0a1b2c"]
+
+[ext_resource type="Script" path="res://scratch/verify_main_menu_mode_select.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

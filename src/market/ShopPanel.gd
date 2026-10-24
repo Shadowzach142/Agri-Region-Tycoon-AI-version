@@ -1,54 +1,148 @@
 # ShopPanel.gd
-# Agri-Shop: function-based tabs (Housing & Labor, Storage, Weather & Irrigation, Machinery & Drones, Land).
-# Includes prominent "!" info indicators with hover tooltips and interactive detail cards.
-# Fully reactive to building construction, capacity changes, and funds.
+# Clash of Clans-inspired visual card-grid Agri-Shop:
+# Showcases prominent building, worker, drone, and land sprites on clean pedestals.
+# Minimalistic, easy on the eyes, with intuitive card layouts:
+# [Header: Title + Info (i)] -> [Center: Prominent Sprite Preview] -> [Meta Strip: Time / Size + Perks] -> [Bottom: Cost / Action Button]
+# Fully reactive to funds, construction, capacity changes, and upgrades.
 
 extends PanelContainer
 
 signal item_purchased(item_name: String, cost: int)
 signal worker_spawn_requested()
 
+# Preloaded Textures for Visual Card Showcases
+const TEX_KUBO: Texture2D            = preload("res://assets/sprites/buildings/KUBO.png")
+const TEX_SILO: Texture2D            = preload("res://assets/sprites/buildings/Silo/SILO-100.PNG")
+const TEX_DRYER: Texture2D           = preload("res://assets/sprites/buildings/DRYER.PNG")
+const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/Cold Storage.png")
+const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone Station.png")
+const TEX_WEATHER_STATION: Texture2D = preload("res://assets/sprites/buildings/Weather Station.png")
+const TEX_WATER_STATION: Texture2D   = preload("res://assets/sprites/buildings/Water Station.png")
+const TEX_FARMER: Texture2D          = preload("res://assets/icons/Topright/Farmer icon.png")
+const TEX_GRASS: Texture2D           = preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
+const TEX_HEATMAP: Texture2D         = preload("res://assets/icons/HUD/Heatmap.png")
+const TEX_BYAHERO: Texture2D         = preload("res://assets/sprites/buildings/byahero.png")
+const TEX_TACURONG: Texture2D        = preload("res://assets/sprites/buildings/Tacurong-Grain-mill.png")
+const TEX_KORONADAL: Texture2D       = preload("res://assets/sprites/buildings/Koronadal-Wholesale.png")
+const TEX_GENSAN: Texture2D          = preload("res://assets/sprites/buildings/Gensan-seaport.png")
+
+# Preloaded Button Styles
+const STYLE_GOLD_NORMAL  = preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres")
+const STYLE_GOLD_HOVER   = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres")
+const STYLE_GOLD_PRESSED = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres")
+
+const STYLE_SQ_BROWN_NORMAL  = preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres")
+const STYLE_SQ_BROWN_HOVER   = preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres")
+const STYLE_SQ_BROWN_PRESSED = preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres")
+
 @onready var close_btn: Button = $VBox/Header/CloseBtn
 @onready var cash_label: Label = $VBox/Header/CashLabel
 @onready var status_label: Label = $VBox/StatusLabel
 
-# Containers for shop items (Labor tab comes from the scene; the rest are built in _ready)
-@onready var labor_container: VBoxContainer = $VBox/TabContainer/Labor/VBox
-var storage_container: VBoxContainer = null
-var weather_container: VBoxContainer = null
-var machinery_container: VBoxContainer = null
+# Containers for shop item grids across the 5 categories
+var labor_grid: GridContainer = null
+var storage_grid: GridContainer = null
+var weather_grid: GridContainer = null
+var machinery_grid: GridContainer = null
+var processing_grid: GridContainer = null
+var trade_grid: GridContainer = null
+var land_grid: GridContainer = null
+
 var _refresh_timer: float = 0.0
 
-# Interactive Info Card for "!" clicks
+# Interactive Info Card for "!" / "i" clicks
 @onready var item_info_card: PanelContainer = $VBox/ItemInfoCard
 @onready var info_title_lbl: Label = $VBox/ItemInfoCard/HBox/TextVBox/InfoTitle
 @onready var info_desc_lbl: Label = $VBox/ItemInfoCard/HBox/TextVBox/InfoDesc
 @onready var info_close_btn: Button = $VBox/ItemInfoCard/HBox/InfoCloseBtn
 
-var _labor_hire_btn: Button = null
-var _labor_tip_lbl: Label = null
-var _labor_info_lbl: Label = null
-var _drone_hire_btn: Button = null
-var _drone_tip_lbl: Label = null
-var _drone_info_lbl: Label = null
-var land_container: VBoxContainer = null
+# ---------------------------------------------------------------------------
+# Sprite Preview Control (Embedded inside each card)
+# ---------------------------------------------------------------------------
+class ShopSpritePreview extends Control:
+	var item_key: String = ""
+	var tex: Texture2D = null
+	var mod_color: Color = Color.WHITE
+	var custom_draw: Callable = Callable()
 
+	func _init(p_key: String, p_tex: Texture2D = null, p_mod: Color = Color.WHITE, p_draw: Callable = Callable()) -> void:
+		item_key = p_key
+		tex = p_tex
+		mod_color = p_mod
+		custom_draw = p_draw
+		custom_minimum_size = Vector2(0, 94)
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_PASS
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var center := Vector2(w * 0.5, h * 0.5 + 4.0)
+
+		# 1. Soft isometric pedestal / circular spotlight (inspired by Clash of Clans)
+		# Soft ground contact shadow
+		draw_set_transform(center + Vector2(0, 14.0), 0.0, Vector2(1.0, 0.44))
+		draw_circle(Vector2.ZERO, 40.0, Color(0.18, 0.12, 0.06, 0.15))
+		draw_circle(Vector2.ZERO, 28.0, Color(0.18, 0.12, 0.06, 0.22))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+		# Subtle warm radial pedestal glow
+		draw_circle(center + Vector2(0, -2.0), 36.0, Color(1.0, 0.95, 0.86, 0.38))
+		draw_circle(center + Vector2(0, -2.0), 24.0, Color(1.0, 0.97, 0.90, 0.55))
+
+		# 2. Draw Sprite / Artwork
+		if custom_draw.is_valid():
+			custom_draw.call(self, center)
+		elif tex != null:
+			var tsz: Vector2 = tex.get_size()
+			var max_w: float = 88.0
+			var max_h: float = 72.0
+			var sc: float = minf(max_w / tsz.x, max_h / tsz.y)
+			var dsz: Vector2 = (tsz * sc).floor()
+			var dpos := Vector2(center.x - dsz.x * 0.5, center.y - dsz.y * 0.5 - 2.0)
+			draw_texture_rect(tex, Rect2(dpos, dsz), false, mod_color)
+
+# ---------------------------------------------------------------------------
+# Lifecycle
+# ---------------------------------------------------------------------------
 func _ready() -> void:
 	close_btn.pressed.connect(_on_close_pressed)
 	if info_close_btn:
 		info_close_btn.pressed.connect(func(): item_info_card.visible = false)
+	if is_instance_valid(item_info_card) and ResourceLoader.exists("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"):
+		item_info_card.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"))
 
 	EconomyManager.cash_changed.connect(_on_cash_changed)
 	_on_cash_changed(EconomyManager.cash)
 
-	# Build the function-based tabs: Storage, Weather & Irrigation, Machinery & Drones, Land
+	# Setup Labor tab container
 	var tabs: TabContainer = find_child("TabContainer", true, false)
 	if tabs:
-		tabs.set_tab_title(tabs.get_tab_idx_from_control($VBox/TabContainer/Labor), "👷 Housing & Labor")
-	storage_container = _make_tab("Storage", "📦 Storage")
-	weather_container = _make_tab("Weather", "🌦️ Weather & Irrigation")
-	machinery_container = _make_tab("Machinery", "🚜 Machinery & Drones")
-	land_container = _make_tab("Land", "🗺️ Land (10×10)")
+		var labor_node: Control = tabs.get_node_or_null("Labor")
+		if labor_node:
+			tabs.set_tab_title(tabs.get_tab_idx_from_control(labor_node), "👷 Housing & Labor")
+			labor_grid = labor_node.find_child("Grid", true, false) as GridContainer
+			if labor_grid == null:
+				# Fallback if structure is still VBox
+				var vbox = labor_node.get_node_or_null("VBox")
+				if vbox:
+					labor_grid = GridContainer.new()
+					labor_grid.name = "Grid"
+					labor_grid.columns = 3
+					labor_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					labor_grid.add_theme_constant_override("h_separation", 14)
+					labor_grid.add_theme_constant_override("v_separation", 14)
+					vbox.get_parent().add_child(labor_grid)
+					vbox.queue_free()
+
+	# Build remaining function-based tabs with GridContainers
+	storage_grid = _make_tab("Storage", "📦 Storage & Bodega")
+	weather_grid = _make_tab("Weather", "🌦️ Weather & Irrigation")
+	machinery_grid = _make_tab("Machinery", "🚜 Machinery & Fleet")
+	processing_grid = _make_tab("Processing", "🏭 Milling & Refining")
+	trade_grid = _make_tab("Trade", "🚢 Trade Hubs & Ports")
+	land_grid = _make_tab("Land", "🗺️ Land (10×10 Parcels)")
 
 	# React immediately to construction completions, worker changes, and placements
 	BuildingManager.worker_capacity_changed.connect(func(_cap, _act): _populate_labor())
@@ -60,6 +154,8 @@ func _ready() -> void:
 	BuildingManager.irrigation_updated.connect(func(_l): _populate_buildings())
 	BuildingManager.sprinklers_updated.connect(func(_a, _c): _populate_buildings())
 	BuildingManager.machinery_updated.connect(func(_l): _populate_buildings())
+	if BuildingManager.has_signal("batch_processed"):
+		BuildingManager.batch_processed.connect(func(_f, _i, _iq, _o): _populate_buildings())
 
 	# Always refresh data when panel becomes visible
 	visibility_changed.connect(func():
@@ -73,71 +169,200 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 
-	# While a one-time building is constructing/upgrading, refresh its card so the countdown stays live
+	# While any building is constructing/upgrading, refresh cards periodically so countdowns stay fresh
 	_refresh_timer += delta
 	if _refresh_timer >= 1.0:
 		_refresh_timer = 0.0
+		var has_constructing: bool = false
 		for b in BuildingManager.placed_buildings:
 			if is_instance_valid(b) and (b.state == b.BuildingState.CONSTRUCTING or b.state == b.BuildingState.UPGRADING):
-				_populate_buildings()
+				has_constructing = true
 				break
-
-	# If a Bahay Kubo is currently constructing, keep the countdown label in the Labor tab fresh in real time
-	if BuildingManager.has_constructing_building("bahay_kubo") and is_instance_valid(_labor_tip_lbl) and is_instance_valid(_labor_hire_btn):
-		var rem_time: float = BuildingManager.get_building_construction_time_remaining("bahay_kubo")
-		_labor_tip_lbl.text = "🔨 Bahay Kubo is under construction! (%.1fs left) — Worker slot will unlock as soon as it completes." % rem_time
-		_labor_tip_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
-		_labor_hire_btn.text = "Building... (%.0fs)" % rem_time
-		_labor_hire_btn.disabled = true
-
-	# If a Drone Command Hangar is currently constructing, keep the countdown label fresh in real time
-	if BuildingManager.has_constructing_building("drone_station") and is_instance_valid(_drone_tip_lbl) and is_instance_valid(_drone_hire_btn):
-		var rem_d: float = BuildingManager.get_building_construction_time_remaining("drone_station")
-		_drone_tip_lbl.text = "🔨 Drone Command Hangar is under construction! (%.1fs left) — Drone labor will unlock as soon as it completes." % rem_d
-		_drone_tip_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
-		_drone_hire_btn.text = "Building... (%.0fs)" % rem_d
-		_drone_hire_btn.disabled = true
+		if has_constructing or BuildingManager.has_constructing_building("bahay_kubo") or BuildingManager.has_constructing_building("drone_station"):
+			_populate_shop()
 
 func refresh() -> void:
 	_on_cash_changed(EconomyManager.cash)
 	_populate_shop()
 
-func _create_shop_card(content: Control) -> PanelContainer:
+func _on_cash_changed(amount: int) -> void:
+	if cash_label:
+		cash_label.text = "Funds: ₱%s" % Utils.format_number(amount)
+
+# ---------------------------------------------------------------------------
+# Tab Creation
+# ---------------------------------------------------------------------------
+func _make_tab(tab_name: String, title: String) -> GridContainer:
+	var tab_container: TabContainer = find_child("TabContainer", true, false)
+	if tab_container == null:
+		return null
+
+	var scroll := ScrollContainer.new()
+	scroll.name = tab_name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", 8)
+	pad.add_theme_constant_override("margin_top", 10)
+	pad.add_theme_constant_override("margin_right", 8)
+	pad.add_theme_constant_override("margin_bottom", 10)
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(pad)
+
+	var grid := GridContainer.new()
+	grid.name = "Grid"
+	grid.columns = 3
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	pad.add_child(grid)
+
+	tab_container.add_child(scroll)
+	tab_container.set_tab_title(tab_container.get_tab_count() - 1, title)
+	return grid
+
+# ---------------------------------------------------------------------------
+# CoC-Style Card Factory
+# ---------------------------------------------------------------------------
+func _create_coc_card(
+	card_title: String,
+	preview_node: Control,
+	meta_left: String,
+	meta_right: String,
+	is_btn_disabled: bool,
+	btn_text: String,
+	info_title: String,
+	info_desc: String,
+	on_buy: Callable
+) -> PanelContainer:
 	var card := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.24, 0.16, 0.10, 0.08)
-	style.border_color = Color(0.48, 0.34, 0.22, 0.40)
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_right = 5
-	style.corner_radius_bottom_left = 5
-	style.content_margin_left = 16
-	style.content_margin_top = 10
-	style.content_margin_right = 16
-	style.content_margin_bottom = 10
-	card.add_theme_stylebox_override("panel", style)
-	card.add_child(content)
+	card.custom_minimum_size = Vector2(244, 218)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# Warm parchment panel with dark wood border
+	var normal_box := StyleBoxFlat.new()
+	normal_box.bg_color = Color(0.96, 0.93, 0.88, 0.96)
+	normal_box.border_color = Color(0.40, 0.28, 0.18, 0.85)
+	normal_box.border_width_left = 2
+	normal_box.border_width_top = 2
+	normal_box.border_width_right = 2
+	normal_box.border_width_bottom = 2
+	normal_box.corner_radius_top_left = 6
+	normal_box.corner_radius_top_right = 6
+	normal_box.corner_radius_bottom_right = 6
+	normal_box.corner_radius_bottom_left = 6
+	normal_box.content_margin_left = 8
+	normal_box.content_margin_top = 8
+	normal_box.content_margin_right = 8
+	normal_box.content_margin_bottom = 8
+	normal_box.shadow_color = Color(0.15, 0.10, 0.05, 0.14)
+	normal_box.shadow_size = 2
+	normal_box.shadow_offset = Vector2(0, 2)
+	card.add_theme_stylebox_override("panel", normal_box)
+
+	# Hover style with warm gold glow
+	var hover_box: StyleBoxFlat = normal_box.duplicate()
+	hover_box.border_color = Color(0.85, 0.65, 0.20, 1.0)
+	hover_box.bg_color = Color(0.98, 0.96, 0.91, 1.0)
+	hover_box.shadow_color = Color(0.85, 0.65, 0.20, 0.22)
+	hover_box.shadow_size = 3
+
+	card.mouse_entered.connect(func(): card.add_theme_stylebox_override("panel", hover_box))
+	card.mouse_exited.connect(func(): card.add_theme_stylebox_override("panel", normal_box))
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	# 1. Header (Title + Info Button)
+	var header := HBoxContainer.new()
+	header.custom_minimum_size = Vector2(0, 24)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var title_lbl := Label.new()
+	title_lbl.text = card_title.to_upper()
+	title_lbl.add_theme_font_size_override("font_size", 14)
+	title_lbl.add_theme_color_override("font_color", Color(0.24, 0.14, 0.08, 1.0))
+	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	header.add_child(title_lbl)
+
+	var info_btn := _create_info_btn(info_title, info_desc)
+	header.add_child(info_btn)
+	vbox.add_child(header)
+
+	# 2. Central Sprite Preview Showcase (94px)
+	if preview_node:
+		preview_node.custom_minimum_size = Vector2(0, 94)
+		preview_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.add_child(preview_node)
+
+	# 3. Meta / Status Row (20px)
+	var meta_row := HBoxContainer.new()
+	meta_row.custom_minimum_size = Vector2(0, 20)
+	meta_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var meta_l := Label.new()
+	meta_l.text = meta_left
+	meta_l.add_theme_font_size_override("font_size", 12)
+	meta_l.add_theme_color_override("font_color", Color(0.45, 0.35, 0.25, 1.0))
+	meta_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta_row.add_child(meta_l)
+
+	var meta_r := Label.new()
+	meta_r.text = meta_right
+	meta_r.add_theme_font_size_override("font_size", 12)
+	meta_r.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var is_green: bool = meta_right.begins_with("+") or meta_right.contains("Fresh") or meta_right.contains("Rot")
+	meta_r.add_theme_color_override("font_color", Color(0.15, 0.45, 0.18, 1.0) if is_green else Color(0.55, 0.38, 0.15, 1.0))
+	meta_row.add_child(meta_r)
+	vbox.add_child(meta_row)
+
+	# 4. Action / Cost Button (36px)
+	var buy_btn := Button.new()
+	buy_btn.custom_minimum_size = Vector2(0, 36)
+	buy_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buy_btn.text = btn_text
+	buy_btn.disabled = is_btn_disabled
+
+	if not is_btn_disabled:
+		_style_buy_btn(buy_btn)
+		buy_btn.pressed.connect(on_buy)
+	else:
+		buy_btn.add_theme_font_size_override("font_size", 13)
+
+	vbox.add_child(buy_btn)
+	card.add_child(vbox)
 	return card
 
 func _style_buy_btn(btn: Button) -> void:
-	var normal = preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres")
-	var hover = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres")
-	var pressed = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres")
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("normal", STYLE_GOLD_NORMAL)
+	btn.add_theme_stylebox_override("hover", STYLE_GOLD_HOVER)
+	btn.add_theme_stylebox_override("pressed", STYLE_GOLD_PRESSED)
 	btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
 	btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
 	btn.add_theme_font_size_override("font_size", 14)
 
-func _on_cash_changed(amount: int) -> void:
-	if cash_label:
-		cash_label.text = "Funds: ₱%s" % Utils.format_number(amount)
-	_update_labor_ui()
+func _create_info_btn(title: String, desc: String) -> Button:
+	var btn: Button = Button.new()
+	btn.text = "i"
+	btn.custom_minimum_size = Vector2(22, 22)
+	btn.tooltip_text = "%s\n%s" % [title, desc]
+
+	btn.add_theme_stylebox_override("normal", STYLE_SQ_BROWN_NORMAL)
+	btn.add_theme_stylebox_override("hover", STYLE_SQ_BROWN_HOVER)
+	btn.add_theme_stylebox_override("pressed", STYLE_SQ_BROWN_PRESSED)
+	btn.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.60))
+	btn.add_theme_font_size_override("font_size", 12)
+	btn.pressed.connect(func(): show_info(title, desc))
+	return btn
 
 func show_info(title: String, desc: String) -> void:
 	if item_info_card and info_title_lbl and info_desc_lbl:
@@ -145,428 +370,474 @@ func show_info(title: String, desc: String) -> void:
 		info_desc_lbl.text = desc
 		item_info_card.visible = true
 
-func _create_info_btn(title: String, desc: String) -> Button:
-	var btn: Button = Button.new()
-	btn.text = "!"
-	btn.custom_minimum_size = Vector2(32, 32)
-	btn.tooltip_text = "%s\n%s" % [title, desc]
+# ---------------------------------------------------------------------------
+# Procedural Art Callbacks (for items without dedicated static PNG files)
+# ---------------------------------------------------------------------------
+func _draw_bayanihan_preview(ci: CanvasItem, c: Vector2) -> void:
+	# 1. Raised bamboo platform
+	var deck := PackedVector2Array([c + Vector2(-28, 12), c + Vector2(28, 12), c + Vector2(22, 22), c + Vector2(-22, 22)])
+	ci.draw_colored_polygon(deck, Color(0.72, 0.58, 0.34))
+	ci.draw_polyline(deck, Color(0.42, 0.30, 0.16), 1.2)
 
-	btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
-	btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-	btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
-	btn.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.96, 0.60))
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.pressed.connect(func(): show_info(title, desc))
-	return btn
+	# 2. Bamboo timber posts
+	for px in [-24, -8, 8, 24]:
+		ci.draw_line(c + Vector2(px, 14), c + Vector2(px, -12), Color(0.48, 0.36, 0.22), 3.0)
+		ci.draw_line(c + Vector2(px, 14), c + Vector2(px, -12), Color(0.68, 0.52, 0.30), 1.5)
 
-func _make_tab(tab_name: String, title: String) -> VBoxContainer:
-	var tab_container: TabContainer = find_child("TabContainer", true, false)
-	if tab_container == null:
-		return null
-	var scroll := ScrollContainer.new()
-	scroll.name = tab_name
-	scroll.set_meta("_tab_title", title)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# 3. Communal chalkboard bulletin
+	ci.draw_rect(Rect2(c.x - 12, c.y - 8, 24, 14), Color(0.38, 0.26, 0.14)) # Frame
+	ci.draw_rect(Rect2(c.x - 10, c.y - 6, 20, 10), Color(0.18, 0.26, 0.20)) # Green slate
+	ci.draw_line(c + Vector2(-7, -3), c + Vector2(7, -3), Color(1.0, 1.0, 1.0, 0.8), 1.0)
+	ci.draw_line(c + Vector2(-6, 0), c + Vector2(4, 0), Color(0.95, 0.85, 0.40, 0.7), 1.0)
 
-	var pad := MarginContainer.new()
-	pad.add_theme_constant_override("margin_left", 2)
-	pad.add_theme_constant_override("margin_top", 2)
-	pad.add_theme_constant_override("margin_right", 2)
-	pad.add_theme_constant_override("margin_bottom", 2)
-	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(pad)
+	# 4. Clay water jar on left
+	ci.draw_circle(c + Vector2(-16, 14), 4.5, Color(0.68, 0.36, 0.18))
+	ci.draw_circle(c + Vector2(-16, 11), 2.5, Color(0.45, 0.20, 0.10))
 
-	var box := VBoxContainer.new()
-	box.name = "VBox"
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 10)
-	pad.add_child(box)
-	tab_container.add_child(scroll)
-	tab_container.set_tab_title(tab_container.get_tab_count() - 1, title)
-	return box
+	# 5. Thatched nipa roof
+	var roof := PackedVector2Array([
+		c + Vector2(0, -26),
+		c + Vector2(32, -10),
+		c + Vector2(-32, -10)
+	])
+	ci.draw_colored_polygon(roof, Color(0.76, 0.62, 0.34))
+	ci.draw_polyline(roof, Color(0.42, 0.30, 0.14), 1.5)
 
+	# 6. Festive Banderitas (Fiesta Bunting)
+	var flag_cols: Array[Color] = [
+		Color(0.92, 0.22, 0.18),
+		Color(0.96, 0.82, 0.18),
+		Color(0.20, 0.65, 0.30),
+		Color(0.18, 0.50, 0.90)
+	]
+	ci.draw_line(c + Vector2(-30, -9), c + Vector2(30, -9), Color(0.85, 0.80, 0.70, 0.8), 1.0)
+	for i in range(5):
+		var fx: float = -20.0 + float(i) * 10.0
+		var tri := PackedVector2Array([
+			c + Vector2(fx - 2, -9), c + Vector2(fx + 2, -9),
+			c + Vector2(fx, -5)
+		])
+		ci.draw_colored_polygon(tri, flag_cols[i % flag_cols.size()])
+
+func _draw_sprinkler_preview(ci: CanvasItem, c: Vector2) -> void:
+	# Concrete anchor pad
+	var pad := PackedVector2Array([c + Vector2(-18, 14), c + Vector2(0, 22), c + Vector2(18, 14), c + Vector2(0, 6)])
+	ci.draw_colored_polygon(pad, Color(0.65, 0.62, 0.58))
+	ci.draw_polyline(pad, Color(0.38, 0.35, 0.30), 1.2)
+	# Galvanized steel riser pipe
+	ci.draw_line(c + Vector2(0, 12), c + Vector2(0, -12), Color(0.42, 0.46, 0.50), 4.5)
+	ci.draw_line(c + Vector2(-1, 12), c + Vector2(-1, -12), Color(0.68, 0.72, 0.76), 1.5)
+	# Rotating brass impact head & hammer arm
+	ci.draw_circle(c + Vector2(0, -12), 5.0, Color(0.85, 0.68, 0.25))
+	ci.draw_line(c + Vector2(0, -12), c + Vector2(12, -18), Color(0.92, 0.75, 0.30), 2.5)
+	# Dynamic water spray stream
+	var stream := PackedVector2Array([
+		c + Vector2(12, -18), c + Vector2(22, -22), c + Vector2(32, -20), c + Vector2(38, -14)
+	])
+	ci.draw_polyline(stream, Color(0.45, 0.85, 1.0, 0.85), 2.0)
+	ci.draw_circle(c + Vector2(26, -22), 2.0, Color(0.85, 0.96, 1.0, 0.95))
+	ci.draw_circle(c + Vector2(38, -14), 2.2, Color(0.75, 0.95, 1.0, 0.90))
+	ci.draw_circle(c + Vector2(34, -26), 1.5, Color(0.75, 0.95, 1.0, 0.80))
+
+func _draw_drone_preview(ci: CanvasItem, c: Vector2) -> void:
+	FarmDrone.draw_drone_art(ci, c + Vector2(0, -2), 2.6, 2, 0.0, 0.0)
+
+func _draw_rice_mill_preview(ci: CanvasItem, c: Vector2) -> void:
+	# Concrete base pad
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-30, 16), c + Vector2(30, 16), c + Vector2(24, 26), c + Vector2(-24, 26)]), Color(0.35, 0.32, 0.28))
+	# Mill shed body
+	var body := PackedVector2Array([c + Vector2(-24, 16), c + Vector2(24, 16), c + Vector2(24, -14), c + Vector2(-24, -14)])
+	ci.draw_colored_polygon(body, Color(0.52, 0.46, 0.38))
+	ci.draw_polyline(body, Color(0.25, 0.20, 0.16), 1.5)
+	# Corrugated gable roof
+	var roof := PackedVector2Array([c + Vector2(-28, -12), c + Vector2(28, -12), c + Vector2(0, -32)])
+	ci.draw_colored_polygon(roof, Color(0.65, 0.70, 0.75))
+	ci.draw_polyline(roof, Color(0.35, 0.40, 0.45), 1.8)
+	# Intake hopper with golden paddy
+	var hop := PackedVector2Array([c + Vector2(-22, -10), c + Vector2(-8, -10), c + Vector2(-12, 4), c + Vector2(-18, 4)])
+	ci.draw_colored_polygon(hop, Color(0.32, 0.36, 0.40))
+	ci.draw_circle(c + Vector2(-15, -8), 4.5, Color(0.92, 0.78, 0.25))
+	# White rice sack & bin
+	ci.draw_rect(Rect2(c + Vector2(8, 2), Vector2(14, 12)), Color(0.40, 0.28, 0.16))
+	ci.draw_circle(c + Vector2(15, 6), 5.0, Color(0.95, 0.98, 0.98))
+
+func _draw_sugar_mill_preview(ci: CanvasItem, c: Vector2) -> void:
+	# Brick foundation
+	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-32, 16), c + Vector2(32, 16), c + Vector2(26, 26), c + Vector2(-26, 26)]), Color(0.48, 0.22, 0.16))
+	# Boiler chimney
+	var chim := PackedVector2Array([c + Vector2(-22, 14), c + Vector2(-10, 14), c + Vector2(-12, -30), c + Vector2(-20, -30)])
+	ci.draw_colored_polygon(chim, Color(0.56, 0.24, 0.18))
+	ci.draw_polyline(chim, Color(0.30, 0.12, 0.08), 1.5)
+	# Soft smoke puffs
+	ci.draw_circle(c + Vector2(-16, -34), 4.0, Color(0.90, 0.92, 0.95, 0.7))
+	ci.draw_circle(c + Vector2(-14, -40), 5.5, Color(0.90, 0.92, 0.95, 0.4))
+	# Crushing shed & terracotta roof
+	var shed := PackedVector2Array([c + Vector2(-8, 14), c + Vector2(28, 14), c + Vector2(28, -6), c + Vector2(-8, -6)])
+	ci.draw_colored_polygon(shed, Color(0.42, 0.35, 0.28))
+	var s_roof := PackedVector2Array([c + Vector2(-12, -4), c + Vector2(32, -4), c + Vector2(10, -22)])
+	ci.draw_colored_polygon(s_roof, Color(0.75, 0.38, 0.20))
+	# Cane stalks & dark muscovado blocks
+	ci.draw_line(c + Vector2(-4, 4), c + Vector2(8, 12), Color(0.45, 0.72, 0.25), 3.0)
+	ci.draw_rect(Rect2(c + Vector2(14, 6), Vector2(10, 8)), Color(0.28, 0.14, 0.06))
+
+func _draw_copra_dryer_preview(ci: CanvasItem, c: Vector2) -> void:
+	# Stone hearth structure
+	var hearth := PackedVector2Array([c + Vector2(-26, 16), c + Vector2(26, 16), c + Vector2(26, -10), c + Vector2(-26, -10)])
+	ci.draw_colored_polygon(hearth, Color(0.45, 0.40, 0.35))
+	ci.draw_polyline(hearth, Color(0.24, 0.20, 0.16), 1.5)
+	# Glowing fire pit
+	ci.draw_circle(c + Vector2(-6, 6), 7.0, Color(0.12, 0.08, 0.05))
+	ci.draw_circle(c + Vector2(-6, 7), 5.0, Color(1.0, 0.45, 0.10))
+	ci.draw_circle(c + Vector2(-6, 6), 2.5, Color(1.0, 0.90, 0.25))
+	# Drying bamboo grate & coconuts
+	ci.draw_line(c + Vector2(-24, -10), c + Vector2(14, -10), Color(0.68, 0.58, 0.42), 3.0)
+	ci.draw_circle(c + Vector2(-16, -12), 3.5, Color(0.38, 0.22, 0.12))
+	ci.draw_circle(c + Vector2(-16, -12), 2.0, Color(0.95, 0.95, 0.95))
+	ci.draw_circle(c + Vector2(-6, -12), 3.5, Color(0.38, 0.22, 0.12))
+	ci.draw_circle(c + Vector2(-6, -12), 2.0, Color(0.95, 0.95, 0.95))
+	ci.draw_circle(c + Vector2(4, -12), 3.5, Color(0.38, 0.22, 0.12))
+	ci.draw_circle(c + Vector2(4, -12), 2.0, Color(0.95, 0.95, 0.95))
+	# Oil screw press
+	ci.draw_line(c + Vector2(18, 14), c + Vector2(18, -20), Color(0.32, 0.24, 0.18), 4.5)
+	ci.draw_line(c + Vector2(12, -18), c + Vector2(24, -18), Color(0.65, 0.68, 0.72), 2.5)
+	ci.draw_circle(c + Vector2(18, 10), 3.5, Color(0.90, 0.98, 0.85))
+
+func _draw_coffee_roastery_preview(ci: CanvasItem, c: Vector2) -> void:
+	# Red brick oven base
+	var base := PackedVector2Array([c + Vector2(-26, 16), c + Vector2(26, 16), c + Vector2(26, -12), c + Vector2(-26, -12)])
+	ci.draw_colored_polygon(base, Color(0.55, 0.24, 0.20))
+	ci.draw_polyline(base, Color(0.28, 0.10, 0.08), 1.5)
+	# Cast iron drum roaster cylinder
+	ci.draw_circle(c + Vector2(-6, -14), 11.0, Color(0.22, 0.24, 0.26))
+	ci.draw_circle(c + Vector2(-6, -14), 9.0, Color(0.30, 0.32, 0.36))
+	ci.draw_line(c + Vector2(-16, -14), c + Vector2(4, -14), Color(0.80, 0.50, 0.25), 2.0)
+	ci.draw_circle(c + Vector2(-6, -8), 2.5, Color(1.0, 0.50, 0.15))
+	# Stainless exhaust chimney with aromatic smoke
+	ci.draw_line(c + Vector2(-16, -22), c + Vector2(-16, -34), Color(0.68, 0.72, 0.76), 3.0)
+	ci.draw_circle(c + Vector2(-16, -38), 3.5, Color(0.88, 0.82, 0.75, 0.6))
+	# Circular cooling tray with roasted dark beans
+	ci.draw_circle(c + Vector2(14, 6), 9.0, Color(0.68, 0.72, 0.76))
+	ci.draw_circle(c + Vector2(14, 6), 7.5, Color(0.24, 0.14, 0.08))
+
+
+# ---------------------------------------------------------------------------
+# Populating Tabs
+# ---------------------------------------------------------------------------
 func _populate_shop() -> void:
-	_populate_buildings()
 	_populate_labor()
+	_populate_buildings()
 	_populate_land()
 
-func _populate_land() -> void:
-	if not land_container:
-		return
-	for child in land_container.get_children():
-		child.queue_free()
-
-	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
-	var unlocked_parcels: Array = farm_grid.unlocked_parcels if (farm_grid and "unlocked_parcels" in farm_grid) else ["homestead"]
-
-	for p in Data.LAND_PARCELS:
-		var pid: String = p.get("id", "")
-		var is_owned: bool = unlocked_parcels.has(pid)
-		var cost: int = p.get("cost", 0)
-
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-
-		var r_sz: Vector2i = p.get("rect", Rect2i()).size
-		var name_lbl := Label.new()
-		name_lbl.text = "%s (%d×%d)" % [p.get("name", "Territory"), r_sz.x, r_sz.y]
-		name_lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-		name_lbl.add_theme_font_size_override("font_size", 15)
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lbl)
-
-		var info_btn = _create_info_btn(p.get("name"), p.get("description", ""))
-		row.add_child(info_btn)
-
-		var cost_lbl := Label.new()
-		cost_lbl.text = "₱%s" % Utils.format_number(cost) if cost > 0 else "Owned"
-		cost_lbl.add_theme_color_override("font_color", Color(0.12, 0.48, 0.15, 1.0) if not is_owned else Color(0.35, 0.25, 0.15, 0.8))
-		cost_lbl.add_theme_font_size_override("font_size", 15)
-		cost_lbl.custom_minimum_size = Vector2(85, 0)
-		row.add_child(cost_lbl)
-
-		var buy_btn := Button.new()
-		buy_btn.custom_minimum_size = Vector2(120, 38)
-		_style_buy_btn(buy_btn)
-		if is_owned:
-			buy_btn.text = "Owned ✔"
-			buy_btn.disabled = true
-		else:
-			buy_btn.text = "Buy Deed"
-			buy_btn.disabled = (EconomyManager.cash < cost)
-			buy_btn.pressed.connect(func():
-				if farm_grid and farm_grid.has_method("open_land_expansion_modal"):
-					farm_grid.open_land_expansion_modal(pid)
-			)
-		row.add_child(buy_btn)
-		land_container.add_child(_create_shop_card(row))
-
-func _make_tab_blurb(text: String) -> Label:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", 14)
-	lbl.add_theme_color_override("font_color", Color(0.35, 0.24, 0.14, 0.95))
-	return lbl
-
-## Rebuilds every building-based tab (Storage, Weather & Irrigation, Machinery & Drones).
-func _populate_buildings() -> void:
-	_fill_building_tab(storage_container, "storage",
-		"Warehouses and processing. Build as many as you need — capacity stacks. Click a placed building on your farm to upgrade it.")
-	_fill_building_tab(weather_container, "weather",
-		"Weather forecast stations, central irrigation towers, and deployable rotary field sprinklers.")
-	_fill_building_tab(machinery_container, "machinery",
-		"One-time purchases. Buy each once, then click the building on your farm to upgrade it. Drones are commissioned in Housing & Labor.")
-
-func _fill_building_tab(container: VBoxContainer, category: String, blurb: String) -> void:
-	if container == null:
-		return
-	for child in container.get_children():
-		child.queue_free()
-	container.add_child(_make_tab_blurb(blurb))
-	for b_key in Data.BUILDINGS.keys():
-		if str(Data.get_building(b_key).get("shop_category", "")) == category:
-			container.add_child(_create_building_card(b_key))
-
-## Short status line for a one-time building that already exists on the farm.
-func _get_owned_status(b_key: String, b: Node) -> String:
-	var b_data: Dictionary = Data.get_building(b_key)
-	var max_lvl: int = int(b_data.get("max_level", 3))
-	if b.state == b.BuildingState.CONSTRUCTING:
-		return "🔨 Under construction (%.0fs left)" % BuildingManager.get_building_construction_time_remaining(b_key)
-	if b.state == b.BuildingState.UPGRADING:
-		return "⬆️ Upgrading to Lv.%d..." % (b.level + 1)
-	var tier: String = ""
-	match b_key:
-		"weather_station":
-			tier = BuildingManager.get_weather_station_tier_name()
-		"water_tower":
-			tier = BuildingManager.get_irrigation_tier_name()
-		"machine_garage":
-			tier = BuildingManager.get_machinery_tier_name()
-		"drone_station":
-			tier = ["Plow Drones", "Seeder Drones", "Harvester Drones"][clampi(b.level - 1, 0, 2)]
-	var tail: String = "Max level reached." if b.level >= max_lvl else "Click it on your farm to upgrade."
-	return "✔ Built — Lv.%d/%d%s • %s" % [b.level, max_lvl, (" • " + tier) if tier != "" else "", tail]
-
-func _create_building_card(b_key: String) -> PanelContainer:
-	var b_data: Dictionary = Data.get_building(b_key)
-	var is_unique: bool = BuildingManager.is_unique_building(b_key)
-	var existing: Node = BuildingManager.get_building_of_type(b_key) if is_unique else null
-
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-
-	var perk: String = ""
-	if b_data.get("halts_spoilage", false):
-		perk = " [Halts ROT]"
-	elif b_data.get("storage_limit", 0) > 0:
-		perk = " [+%d Cap]" % b_data.get("storage_limit", 0)
-	elif b_data.get("worker_capacity", 0) > 0:
-		perk = " [+%d Worker]" % b_data.get("worker_capacity", 0)
-	elif b_data.get("unlocks_drones", false):
-		perk = " [Drone Hangar]"
-	elif b_data.get("forecast_equipment", false):
-		perk = " [Forecast]"
-	elif b_data.get("irrigation_equipment", false):
-		perk = " [Water Tower]"
-	elif b_data.get("is_sprinkler", false):
-		perk = " [Auto-Spray Diamond]"
-	elif b_data.get("unlocks_machines", false):
-		perk = " [Tractor & Combine]"
-	elif b_data.get("drying_bonus", 0.0) > 0.0:
-		perk = " [+Quality]"
-	if is_unique:
-		perk += " ★ One-time"
-
-	var name_lbl: Label = Label.new()
-	name_lbl.text = "%s %s%s" % [b_data.get("icon", ""), b_data.get("display_name", b_key), perk]
-	name_lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-	name_lbl.add_theme_font_size_override("font_size", 15)
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_lbl)
-
-	var desc: String = b_data.get("description", "Farm infrastructure facility.")
-	row.add_child(_create_info_btn(b_data.get("display_name", b_key), desc))
-
-	var cost: int = int(b_data.get("cost", 400))
-	var cost_lbl: Label = Label.new()
-	cost_lbl.add_theme_font_size_override("font_size", 15)
-	cost_lbl.custom_minimum_size = Vector2(85, 0)
-	if existing != null:
-		cost_lbl.text = "Lv.%d" % existing.level
-		cost_lbl.add_theme_color_override("font_color", Color(0.35, 0.25, 0.15, 0.85))
-	else:
-		cost_lbl.text = "₱%s" % Utils.format_number(cost)
-		cost_lbl.add_theme_color_override("font_color", Color(0.12, 0.48, 0.15, 1.0))
-	row.add_child(cost_lbl)
-
-	var buy_btn: Button = Button.new()
-	buy_btn.custom_minimum_size = Vector2(120, 38)
-	_style_buy_btn(buy_btn)
-	if existing != null:
-		buy_btn.text = "Built ✔"
-		buy_btn.disabled = true
-	elif b_key == "sprinkler":
-		var has_pump: bool = BuildingManager.has_irrigation()
-		var active_spk: int = BuildingManager.get_active_sprinkler_count()
-		var cap_spk: int = BuildingManager.get_sprinkler_capacity()
-		var rad: int = BuildingManager.get_sprinkler_radius()
-		var cov_str: String = "3×3 Diamond (8 plots)" if rad == 1 else "5×5 Diamond (24 plots)"
-
-		if not has_pump:
-			buy_btn.text = "Locked 🔒"
-			buy_btn.disabled = true
-		elif not BuildingManager.can_place_sprinkler():
-			buy_btn.text = "Pressure Max"
-			buy_btn.disabled = true
-		else:
-			buy_btn.text = "Deploy"
-			buy_btn.disabled = (EconomyManager.cash < cost)
-			buy_btn.pressed.connect(func(): _buy_building(b_key, cost))
-	else:
-		buy_btn.text = "Construct"
-		buy_btn.disabled = (EconomyManager.cash < cost)
-		buy_btn.pressed.connect(func(): _buy_building(b_key, cost))
-	row.add_child(buy_btn)
-	col.add_child(row)
-
-	if existing != null:
-		var status := Label.new()
-		status.text = _get_owned_status(b_key, existing)
-		status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		status.add_theme_font_size_override("font_size", 13)
-		status.add_theme_color_override("font_color", Color(0.12, 0.45, 0.18, 1.0))
-		col.add_child(status)
-	elif b_key == "sprinkler":
-		var status := Label.new()
-		status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		status.add_theme_font_size_override("font_size", 13)
-		var has_pump: bool = BuildingManager.has_irrigation()
-		var active_spk: int = BuildingManager.get_active_sprinkler_count()
-		var cap_spk: int = BuildingManager.get_sprinkler_capacity()
-		var rad: int = BuildingManager.get_sprinkler_radius()
-		var cov_str: String = "3×3 Diamond" if rad == 1 else "5×5 Diamond"
-
-		if not has_pump:
-			status.text = "🔒 Requires Irrigation Pump & Tower! Construct a tower first to pressurize water lines."
-			status.add_theme_color_override("font_color", Color(0.78, 0.35, 0.15))
-		elif not BuildingManager.can_place_sprinkler():
-			status.text = "⚠️ Water pressure maxed (%d/%d Sprinklers)! Upgrade Irrigation Tower to Lv.%d to increase pressure capacity." % [
-				active_spk, cap_spk, BuildingManager.get_irrigation_level() + 1
-			]
-			status.add_theme_color_override("font_color", Color(0.85, 0.45, 0.15))
-		else:
-			var cap_str: String = str(cap_spk) if cap_spk < 999 else "Unlimited"
-			status.text = "💧 Pressure: %d/%s Sprinklers • Coverage: %s auto-spray" % [active_spk, cap_str, cov_str]
-			status.add_theme_color_override("font_color", Color(0.12, 0.48, 0.18))
-		col.add_child(status)
-
-	return _create_shop_card(col)
-
 func _populate_labor() -> void:
-	for child in labor_container.get_children():
-		child.queue_free()
-
-	# ── 0. Housing (Bahay Kubo) — repeatable, raises worker capacity ───
-	labor_container.add_child(_make_tab_blurb("Housing: each Bahay Kubo adds +1 worker slot. Hire workers below, then commission drones (each drone needs a farmer pilot)."))
-	labor_container.add_child(_create_building_card("bahay_kubo"))
-	var hsep := HSeparator.new()
-	hsep.modulate = Color(0.65, 0.55, 0.45, 0.35)
-	labor_container.add_child(hsep)
-
-	# ── 1. Autonomous Farm Worker (Human Laborer) ──────────────────────
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-
-	_labor_info_lbl = Label.new()
-	_labor_info_lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-	_labor_info_lbl.add_theme_font_size_override("font_size", 15)
-	_labor_info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_labor_info_lbl)
-
-	var labor_desc: String = "Hires an additional autonomous farm worker. Farmers automatically navigate to queued tasks (Plowing, Planting, Watering, Pest Spraying, and Harvesting) and deposit harvested produce into storage. Daily wage: ₱15."
-	var info_btn = _create_info_btn("Autonomous Farm Laborer", labor_desc)
-	row.add_child(info_btn)
-
-	var cost_lbl: Label = Label.new()
-	cost_lbl.text = "₱200"
-	cost_lbl.add_theme_color_override("font_color", Color(0.12, 0.48, 0.15, 1.0))
-	cost_lbl.add_theme_font_size_override("font_size", 15)
-	cost_lbl.custom_minimum_size = Vector2(85, 0)
-	row.add_child(cost_lbl)
-
-	_labor_hire_btn = Button.new()
-	_labor_hire_btn.custom_minimum_size = Vector2(128, 38)
-	_style_buy_btn(_labor_hire_btn)
-	_labor_hire_btn.pressed.connect(_hire_worker)
-	row.add_child(_labor_hire_btn)
-
-	labor_container.add_child(_create_shop_card(row))
-
-	_labor_tip_lbl = Label.new()
-	_labor_tip_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_labor_tip_lbl.add_theme_font_size_override("font_size", 13)
-	labor_container.add_child(_labor_tip_lbl)
-
-	# Spacer between Human Labor and Drone Labor
-	var sep := HSeparator.new()
-	sep.modulate = Color(0.65, 0.55, 0.45, 0.35)
-	labor_container.add_child(sep)
-
-	# ── 2. Precision Farm Drone (Mechanized Drone Labor) ───────────────
-	var drone_row: HBoxContainer = HBoxContainer.new()
-	drone_row.add_theme_constant_override("separation", 10)
-
-	_drone_info_lbl = Label.new()
-	_drone_info_lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-	_drone_info_lbl.add_theme_font_size_override("font_size", 15)
-	_drone_info_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	drone_row.add_child(_drone_info_lbl)
-
-	var drone_desc: String = "Commissions an autonomous precision farm drone. Drones fly directly to your designated hotbar zone to plow, plant, and harvest without fatigue. Requires an operational Drone Command Hangar (Shop > Machinery & Drones). The number of drones cannot exceed the number of farmers available to pilot them."
-	var d_info_btn := _create_info_btn("Precision Farm Drone", drone_desc)
-	drone_row.add_child(d_info_btn)
-
-	var d_cost_lbl := Label.new()
-	d_cost_lbl.text = "₱350"
-	d_cost_lbl.add_theme_color_override("font_color", Color(0.12, 0.48, 0.15, 1.0))
-	d_cost_lbl.add_theme_font_size_override("font_size", 15)
-	d_cost_lbl.custom_minimum_size = Vector2(85, 0)
-	drone_row.add_child(d_cost_lbl)
-
-	_drone_hire_btn = Button.new()
-	_drone_hire_btn.custom_minimum_size = Vector2(128, 38)
-	_style_buy_btn(_drone_hire_btn)
-	_drone_hire_btn.pressed.connect(_commission_drone)
-	drone_row.add_child(_drone_hire_btn)
-
-	labor_container.add_child(_create_shop_card(drone_row))
-
-	_drone_tip_lbl = Label.new()
-	_drone_tip_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_drone_tip_lbl.add_theme_font_size_override("font_size", 13)
-	labor_container.add_child(_drone_tip_lbl)
-
-	_update_labor_ui()
-
-func _update_labor_ui() -> void:
-	if not is_instance_valid(_labor_info_lbl) or not is_instance_valid(_labor_hire_btn) or not is_instance_valid(_labor_tip_lbl):
+	if labor_grid == null:
 		return
+	for child in labor_grid.get_children():
+		labor_grid.remove_child(child)
+		child.queue_free()
 
 	var act: int = BuildingManager.active_workers
 	var cap: int = BuildingManager.worker_capacity
 	var cash: int = EconomyManager.cash
 	var is_constructing_kubo: bool = BuildingManager.has_constructing_building("bahay_kubo")
 
-	_labor_info_lbl.text = "Hire Extra Farm Worker (Workers: %d / %d Cap)" % [act, cap]
+	# ── 1. Bahay Kubo Card ─────────────────────────────────────────────
+	var kubo_data: Dictionary = Data.get_building("bahay_kubo")
+	var kubo_cost: int = int(kubo_data.get("cost", 200))
+	var kubo_btn_text: String = "₱%s" % Utils.format_number(kubo_cost)
+	var kubo_disabled: bool = (cash < kubo_cost)
+
+	if is_constructing_kubo:
+		var rem_time: float = BuildingManager.get_building_construction_time_remaining("bahay_kubo")
+		kubo_btn_text = "Building (%.0fs)" % rem_time
+		kubo_disabled = true
+	elif cash < kubo_cost:
+		kubo_btn_text = "Need ₱%d" % kubo_cost
+
+	var kubo_card = _create_coc_card(
+		"Bahay Kubo",
+		ShopSpritePreview.new("bahay_kubo", TEX_KUBO),
+		"⏱ 8s Build",
+		"+1 Worker Slot",
+		kubo_disabled,
+		kubo_btn_text,
+		"Bahay Kubo (Farm Shack)",
+		kubo_data.get("description", "Expands worker housing."),
+		func(): _buy_building("bahay_kubo", kubo_cost)
+	)
+	labor_grid.add_child(kubo_card)
+
+	# ── 2. Farm Worker Card ────────────────────────────────────────────
+	var worker_cost: int = 200
+	var worker_btn_text: String = "₱200 Hire"
+	var worker_disabled: bool = false
 
 	if is_constructing_kubo and act >= cap:
-		var rem_time: float = BuildingManager.get_building_construction_time_remaining("bahay_kubo")
-		_labor_tip_lbl.text = "Bahay Kubo is under construction! (%.1fs left) — Worker slot will unlock as soon as it completes." % rem_time
-		_labor_tip_lbl.add_theme_color_override("font_color", Color(0.65, 0.40, 0.10))
-		_labor_hire_btn.text = "Building... (%.0fs)" % rem_time
-		_labor_hire_btn.disabled = true
+		var rem: float = BuildingManager.get_building_construction_time_remaining("bahay_kubo")
+		worker_btn_text = "Building (%.0fs)" % rem
+		worker_disabled = true
 	elif act >= cap:
-		_labor_tip_lbl.text = "Worker housing capacity full (%d/%d)! Construct a Bahay Kubo above for more slots." % [act, cap]
-		_labor_tip_lbl.add_theme_color_override("font_color", Color(0.70, 0.20, 0.15))
-		_labor_hire_btn.text = "Housing Full"
-		_labor_hire_btn.disabled = true
-	else:
-		# There is capacity!
-		if cash >= 200:
-			_labor_tip_lbl.text = "Housing slot available! Room for %d more autonomous farmer(s)." % (cap - act)
-			_labor_tip_lbl.add_theme_color_override("font_color", Color(0.12, 0.50, 0.15))
-			_labor_hire_btn.text = "Hire Worker"
-			_labor_hire_btn.disabled = false
+		worker_btn_text = "Housing Full"
+		worker_disabled = true
+	elif cash < worker_cost:
+		worker_btn_text = "Need ₱200"
+		worker_disabled = true
+
+	var worker_card = _create_coc_card(
+		"Farm Worker",
+		ShopSpritePreview.new("farmer", TEX_FARMER),
+		"⏱ Instant",
+		"Active: %d/%d" % [act, cap],
+		worker_disabled,
+		worker_btn_text,
+		"Autonomous Farm Laborer",
+		"Hires an autonomous worker to till, plant, water, spray, and harvest directly to storage. Daily wage: ₱15.",
+		_hire_worker
+	)
+	labor_grid.add_child(worker_card)
+
+	# ── 3. Farm Drone Card ─────────────────────────────────────────────
+	var d_act: int = BuildingManager.active_drones
+	var d_cap: int = BuildingManager.get_drone_capacity()
+	var has_hangar: bool = BuildingManager.has_drone_station()
+	var is_building_hangar: bool = BuildingManager.has_constructing_building("drone_station")
+	var drone_cost: int = 350
+	var drone_btn_text: String = "₱350 Commission"
+	var drone_disabled: bool = false
+
+	if not has_hangar and not is_building_hangar:
+		drone_btn_text = "No Hangar"
+		drone_disabled = true
+	elif is_building_hangar:
+		var rem_d: float = BuildingManager.get_building_construction_time_remaining("drone_station")
+		drone_btn_text = "Building (%.0fs)" % rem_d
+		drone_disabled = true
+	elif d_act >= d_cap:
+		drone_btn_text = "No Pilots (%d/%d)" % [d_act, d_cap]
+		drone_disabled = true
+	elif cash < drone_cost:
+		drone_btn_text = "Need ₱350"
+		drone_disabled = true
+
+	var drone_card = _create_coc_card(
+		"Precision Drone",
+		ShopSpritePreview.new("drone", null, Color.WHITE, _draw_drone_preview),
+		"⏱ Instant",
+		"Active: %d/%d Pilots" % [d_act, d_cap],
+		drone_disabled,
+		drone_btn_text,
+		"Autonomous Precision Drone",
+		"Automated farm drone. Automatically plows, plants, and harvests in assigned zones. Requires Drone Hangar & pilot capacity.",
+		_commission_drone
+	)
+	labor_grid.add_child(drone_card)
+
+func _populate_buildings() -> void:
+	_fill_category_grid(storage_grid, "storage")
+	_fill_category_grid(weather_grid, "weather")
+	if weather_grid:
+		weather_grid.add_child(_create_heatmap_tech_card())
+	_fill_category_grid(machinery_grid, "machinery")
+	_fill_category_grid(processing_grid, "processing")
+	_fill_category_grid(trade_grid, "trade")
+
+func _fill_category_grid(grid: GridContainer, category: String) -> void:
+	if grid == null:
+		return
+	for child in grid.get_children():
+		grid.remove_child(child)
+		child.queue_free()
+
+	for b_key in Data.BUILDINGS.keys():
+		var b_data: Dictionary = Data.get_building(b_key)
+		if str(b_data.get("shop_category", "")) == category:
+			grid.add_child(_create_building_coc_card(b_key))
+
+func _create_building_coc_card(b_key: String) -> PanelContainer:
+	var b_data: Dictionary = Data.get_building(b_key)
+	var is_unique: bool = BuildingManager.is_unique_building(b_key)
+	var existing: Node = BuildingManager.get_building_of_type(b_key) if is_unique else null
+	var cost: int = int(b_data.get("cost", 400))
+	var cash: int = EconomyManager.cash
+	var build_sec: float = float(b_data.get("build_time", 15.0))
+
+	# 1. Meta left & right
+	var fp: Vector2i = b_data.get("grid_size", Vector2i(2, 2))
+	var meta_left: String = "⏱ %.0fs • %d×%d" % [build_sec, fp.x, fp.y]
+	var meta_right: String = ""
+
+	if b_data.get("halts_spoilage", false):
+		meta_right = "Halts Rot • 100%"
+	elif b_data.get("storage_limit", 0) > 0:
+		meta_right = "+%d Cap" % b_data.get("storage_limit", 0)
+	elif b_data.get("worker_capacity", 0) > 0:
+		meta_right = "+%d Worker" % b_data.get("worker_capacity", 0)
+	elif b_data.get("unlocks_drones", false):
+		meta_right = "★ One-time • Drones"
+	elif b_data.get("forecast_equipment", false):
+		meta_right = "★ One-time • Radar"
+	elif b_data.get("irrigation_equipment", false):
+		meta_right = "★ One-time • Pump"
+	elif b_data.get("is_sprinkler", false):
+		var act_spk: int = BuildingManager.get_active_sprinkler_count()
+		var cap_spk: int = BuildingManager.get_sprinkler_capacity()
+		var cap_str: String = str(cap_spk) if cap_spk < 999 else "∞"
+		meta_right = "💧 %d/%s Active" % [act_spk, cap_str]
+	elif b_data.get("biyahero_price_bonus", 0.0) > 0.0:
+		meta_right = "+8% Biyahero"
+	elif b_data.has("hub_id"):
+		meta_right = "Unlocks Hub"
+	elif b_data.get("unlocks_bayanihan", false) or b_data.get("unlocks_machines", false):
+		meta_right = "🤝 Cooperative"
+	elif b_data.get("drying_bonus", 0.0) > 0.0:
+		meta_right = "+25% Quality"
+	elif b_data.get("shop_category", "") == "processing":
+		var prereqs: Dictionary = BuildingManager.get_processing_prerequisites(b_key)
+		if not prereqs.allowed:
+			meta_right = "Locked 🔒"
 		else:
-			_labor_tip_lbl.text = "Housing slot available, but you need ₱200 to hire (Current: ₱%s)." % Utils.format_number(cash)
-			_labor_tip_lbl.add_theme_color_override("font_color", Color(0.65, 0.38, 0.10))
-			_labor_hire_btn.text = "Need ₱200"
-			_labor_hire_btn.disabled = true
+			meta_right = "⚡ Auto 4h"
 
-	# ── Update Precision Drone Labor UI ────────────────────────────────
-	if is_instance_valid(_drone_info_lbl) and is_instance_valid(_drone_hire_btn) and is_instance_valid(_drone_tip_lbl):
-		var d_act: int = BuildingManager.active_drones
-		var d_cap: int = BuildingManager.get_drone_capacity()
-		var has_hangar: bool = BuildingManager.has_drone_station()
-		var is_building_hangar: bool = BuildingManager.has_constructing_building("drone_station")
+	# 2. Button state & text
+	var btn_text: String = "₱%s" % Utils.format_number(cost)
+	var is_disabled: bool = (cash < cost)
 
-		_drone_info_lbl.text = "Commission Farm Drone (Active Drones: %d / %d Pilots)" % [d_act, d_cap]
-
-		if not has_hangar and not is_building_hangar:
-			_drone_tip_lbl.text = "⚠️ Requires Drone Hangar! Construct a Drone Command Hangar in the Machinery & Drones tab to unlock drone labor."
-			_drone_tip_lbl.add_theme_color_override("font_color", Color(0.70, 0.20, 0.15))
-			_drone_hire_btn.text = "No Hangar"
-			_drone_hire_btn.disabled = true
-		elif is_building_hangar:
-			var rem_d: float = BuildingManager.get_building_construction_time_remaining("drone_station")
-			_drone_tip_lbl.text = "🔨 Drone Command Hangar is under construction! (%.1fs left) — Drone labor unlocks when it completes." % rem_d
-			_drone_tip_lbl.add_theme_color_override("font_color", Color(0.65, 0.40, 0.10))
-			_drone_hire_btn.text = "Building... (%.0fs)" % rem_d
-			_drone_hire_btn.disabled = true
-		elif d_act >= d_cap:
-			_drone_tip_lbl.text = "⚠️ Pilot Limit Reached (%d/%d)! Each drone requires 1 active farmer to pilot it via remote control. Hire more farm workers above to control more drones." % [d_act, d_cap]
-			_drone_tip_lbl.add_theme_color_override("font_color", Color(0.70, 0.20, 0.15))
-			_drone_hire_btn.text = "Pilot Limit Reached"
-			_drone_hire_btn.disabled = true
+	if existing != null:
+		var max_lvl: int = int(b_data.get("max_level", 3))
+		if existing.state == existing.BuildingState.CONSTRUCTING:
+			btn_text = "Building (%.0fs)" % BuildingManager.get_building_construction_time_remaining(b_key)
+		elif existing.state == existing.BuildingState.UPGRADING:
+			btn_text = "Upgrading Lv.%d" % (existing.level + 1)
 		else:
-			if cash >= 350:
-				var lvl: int = BuildingManager.get_drone_level()
-				var lvl_str: String = ["Plow", "Seeder", "Harvester"][clampi(lvl - 1, 0, 2)]
-				_drone_tip_lbl.text = "✅ Pilot available! Ready to deploy Lv.%d (%s) drone. Remote control opens on worker hotbar (hotkey 4)." % [lvl, lvl_str]
-				_drone_tip_lbl.add_theme_color_override("font_color", Color(0.12, 0.50, 0.15))
-				_drone_hire_btn.text = "Commission Drone"
-				_drone_hire_btn.disabled = false
-			else:
-				_drone_tip_lbl.text = "Pilot slot available, but you need ₱350 to commission a drone (Current: ₱%s)." % Utils.format_number(cash)
-				_drone_tip_lbl.add_theme_color_override("font_color", Color(0.65, 0.38, 0.10))
-				_drone_hire_btn.text = "Need ₱350"
-				_drone_hire_btn.disabled = true
+			btn_text = "Built ✔ (Lv.%d/%d)" % [existing.level, max_lvl]
+		is_disabled = true
+	elif b_key == "sprinkler":
+		meta_left = "⏱ 4s Deploy"
+		var has_pump: bool = BuildingManager.has_irrigation()
+		if not has_pump:
+			btn_text = "Locked 🔒"
+			is_disabled = true
+			meta_right = "Req. Water Tower"
+		elif not BuildingManager.can_place_sprinkler():
+			btn_text = "Pressure Max"
+			is_disabled = true
+		elif cash < cost:
+			btn_text = "Need ₱%d" % cost
+			is_disabled = true
+		else:
+			btn_text = "₱%d Deploy" % cost
+	elif b_data.get("shop_category", "") == "processing":
+		var prereqs: Dictionary = BuildingManager.get_processing_prerequisites(b_key)
+		if not prereqs.allowed:
+			btn_text = "Locked 🔒"
+			is_disabled = true
+			if not prereqs.has_land_deed:
+				meta_right = "Req. Land Deed"
+			elif not prereqs.has_storage_cap:
+				meta_right = "Req. Lv.2 Silo"
+		elif cash < cost:
+			btn_text = "Need ₱%d" % cost
+			is_disabled = true
+	elif cash < cost:
+		btn_text = "Need ₱%d" % cost
 
+	# 3. Sprite Preview
+	var preview_node: Control = null
+	match b_key:
+		"bodega":
+			preview_node = ShopSpritePreview.new(b_key, TEX_SILO)
+		"solar_dryer":
+			preview_node = ShopSpritePreview.new(b_key, TEX_DRYER)
+		"cold_storage":
+			preview_node = ShopSpritePreview.new(b_key, TEX_COLD_STORAGE)
+		"climate_silo":
+			preview_node = ShopSpritePreview.new(b_key, TEX_SILO, Color(0.85, 0.95, 1.15))
+		"weather_station":
+			preview_node = ShopSpritePreview.new(b_key, TEX_WEATHER_STATION)
+		"water_tower":
+			preview_node = ShopSpritePreview.new(b_key, TEX_WATER_STATION)
+		"drone_station":
+			preview_node = ShopSpritePreview.new(b_key, TEX_DRONE_STATION)
+		"bayanihan_center":
+			preview_node = ShopSpritePreview.new(b_key, TEX_BYAHERO)
+		"tacurong_mill":
+			preview_node = ShopSpritePreview.new(b_key, TEX_TACURONG)
+		"koronadal_wholesale":
+			preview_node = ShopSpritePreview.new(b_key, TEX_KORONADAL)
+		"gensan_seaport":
+			preview_node = ShopSpritePreview.new(b_key, TEX_GENSAN)
+		"machine_garage":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_bayanihan_preview)
+		"sprinkler":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_sprinkler_preview)
+		"rice_mill":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_rice_mill_preview)
+		"sugar_mill":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_sugar_mill_preview)
+		"copra_dryer":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_copra_dryer_preview)
+		"coffee_roastery":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_coffee_roastery_preview)
+		_:
+			preview_node = ShopSpritePreview.new(b_key, TEX_KUBO)
+
+	return _create_coc_card(
+		b_data.get("display_name", b_key),
+		preview_node,
+		meta_left,
+		meta_right,
+		is_disabled,
+		btn_text,
+		b_data.get("display_name", b_key),
+		b_data.get("description", "Agricultural facility."),
+		func(): _buy_building(b_key, cost)
+	)
+
+func _populate_land() -> void:
+	if land_grid == null:
+		return
+	for child in land_grid.get_children():
+		land_grid.remove_child(child)
+		child.queue_free()
+
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	var unlocked_parcels: Array = farm_grid.unlocked_parcels if (farm_grid and "unlocked_parcels" in farm_grid) else ["homestead"]
+	var cash: int = EconomyManager.cash
+
+	for p in Data.LAND_PARCELS:
+		var pid: String = p.get("id", "")
+		var is_owned: bool = unlocked_parcels.has(pid)
+		var cost: int = p.get("cost", 0)
+		var r_sz: Vector2i = p.get("rect", Rect2i()).size
+
+		var meta_left: String = "📐 %d×%d Plots" % [r_sz.x, r_sz.y]
+		var meta_right: String = pid.capitalize()
+		var btn_text: String = "₱%s Buy" % Utils.format_number(cost)
+		var is_disabled: bool = (cash < cost)
+
+		if is_owned:
+			btn_text = "Owned ✔"
+			is_disabled = true
+		elif cash < cost:
+			btn_text = "Need ₱%d" % cost
+
+		var card = _create_coc_card(
+			p.get("name", "Territory"),
+			ShopSpritePreview.new("land", TEX_GRASS),
+			meta_left,
+			meta_right,
+			is_disabled,
+			btn_text,
+			p.get("name", "Territory"),
+			p.get("description", "Expandable agricultural territory."),
+			func():
+				if farm_grid and farm_grid.has_method("open_land_expansion_modal"):
+					farm_grid.open_land_expansion_modal(pid)
+		)
+		land_grid.add_child(card)
+
+# ---------------------------------------------------------------------------
+# Purchasing Actions
+# ---------------------------------------------------------------------------
 func _buy_building(b_key: String, cost: int) -> void:
 	if BuildingManager.is_unique_building(b_key) and BuildingManager.owns_building(b_key):
 		status_label.text = "%s is already built — click it on your farm to upgrade it." % str(Data.get_building(b_key).get("display_name", b_key))
@@ -587,23 +858,19 @@ func _buy_building(b_key: String, cost: int) -> void:
 			status_label.modulate = Color(1.0, 0.3, 0.3)
 			return
 
-	# Verify funds before entering placement mode
 	if EconomyManager.cash < cost:
 		status_label.text = "Insufficient funds for %s! (₱%d required)" % [b_key.capitalize(), cost]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
-	# Find FarmGrid and enter placement mode
 	var farm_grid: Node = get_tree().root.find_child("FarmGrid", true, false)
 	if farm_grid == null:
 		status_label.text = "Cannot place building — FarmGrid not found!"
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
-	# Close shop so the player can see the grid
+	# Close shop so the player can see the grid for ghost placement
 	visible = false
-
-	# Start CoC-style ghost placement
 	farm_grid.start_building_placement(b_key)
 
 func _hire_worker() -> void:
@@ -641,7 +908,7 @@ func _commission_drone() -> void:
 			status_label.text = "Drone Command Hangar is under construction (%.0fs left)! Please wait for it to complete." % rem
 			status_label.modulate = Color(1.0, 0.75, 0.2)
 		else:
-			status_label.text = "Cannot commission drone! Construct a Drone Command Hangar (Machinery & Drones tab) first."
+			status_label.text = "Cannot commission drone! Construct a Drone Command Hangar in Machinery first."
 			status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
@@ -665,6 +932,48 @@ func _commission_drone() -> void:
 	else:
 		status_label.text = "Could not commission drone!"
 		status_label.modulate = Color(1.0, 0.3, 0.3)
+
+func _create_heatmap_tech_card() -> PanelContainer:
+	var tech_data: Dictionary = Data.get_tech("field_survey_kit")
+	var cost: int = int(tech_data.get("cost", 400))
+	var cash: int = EconomyManager.cash
+	var is_owned: bool = BuildingManager.has_heatmap()
+
+	var meta_left: String = "📡 Soil Scanner"
+	var meta_right: String = "Diagnostic F"
+
+	var btn_text: String = ""
+	var is_disabled: bool = false
+	if is_owned:
+		btn_text = "Owned ✔"
+		is_disabled = true
+	elif cash < cost:
+		btn_text = "Need ₱%d" % cost
+		is_disabled = true
+	else:
+		btn_text = "₱%d Buy" % cost
+
+	var preview_node = ShopSpritePreview.new("field_survey_kit", TEX_HEATMAP)
+
+	var on_buy = func():
+		if BuildingManager.buy_tech("field_survey_kit"):
+			AudioManager.play_ui("click")
+			status_label.text = "📡 Unlocked Field Survey Kit! Press F or click radar HUD button to open Soil & Diagnostic Heatmap."
+			status_label.modulate = Color(0.4, 1.0, 0.4)
+			_populate_buildings()
+			_on_cash_changed(EconomyManager.cash)
+
+	return _create_coc_card(
+		"Field Survey Kit",
+		preview_node,
+		meta_left,
+		meta_right,
+		is_disabled,
+		btn_text,
+		"Field Survey Kit (Diagnostic Heatmap)",
+		"Unlocks the live Soil & Farm Diagnostic Heatmap overlay (hotkey F). View live soil moisture gradients, plant health, ripe harvests, pest blights, and sprinkler coverage across your whole farm.",
+		on_buy
+	)
 
 func _on_close_pressed() -> void:
 	if item_info_card:

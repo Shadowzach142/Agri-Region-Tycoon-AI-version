@@ -31,6 +31,7 @@ var _save_btn: Button
 var _load_btn: Button
 var _records_btn: Button
 var _log_btn: Button
+var _debug_btn: Button
 var _menu_btn: Button
 var _quit_btn: Button
 
@@ -54,14 +55,14 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_panel.offset_left   = -215.0
-	_panel.offset_top    = -260.0
+	_panel.offset_top    = -275.0
 	_panel.offset_right  =  215.0
-	_panel.offset_bottom =  260.0
-	_panel.custom_minimum_size = Vector2(430, 520)
+	_panel.offset_bottom =  275.0
+	_panel.custom_minimum_size = Vector2(430, 550)
 
 	var ps = preload("res://assets/sprites/StartMenu/BigRectangleLogs.tres")
 	_panel.add_theme_stylebox_override("panel", ps)
-	_panel.pivot_offset = Vector2(215.0, 260.0)
+	_panel.pivot_offset = Vector2(215.0, 275.0)
 	add_child(_panel)
 
 	var margin := MarginContainer.new()
@@ -117,6 +118,10 @@ func _ready() -> void:
 	_log_btn.pressed.connect(_on_backlog)
 	vbox.add_child(_log_btn)
 
+	_debug_btn = _make_brown_button("🛠️ Debug Console (`)")
+	_debug_btn.pressed.connect(_on_debug_console)
+	vbox.add_child(_debug_btn)
+
 	_menu_btn = _make_brown_button("🏠 Main Menu")
 	_menu_btn.pressed.connect(_on_main_menu)
 	vbox.add_child(_menu_btn)
@@ -158,7 +163,7 @@ func _show_menu() -> void:
 	get_tree().paused = true
 	AudioManager.play_ui("pause")
 
-	_panel.pivot_offset = Vector2(215.0, 260.0)
+	_panel.pivot_offset = Vector2(215.0, 275.0)
 	_panel.scale    = Vector2(0.90, 0.90)
 	_panel.modulate = Color(1, 1, 1, 0)
 	_dim.color      = Color(0, 0, 0, 0)
@@ -197,6 +202,15 @@ func _on_backlog() -> void:
 			panel.open()
 		elif panel.has_method("toggle"):
 			panel.toggle()
+
+func _on_debug_console() -> void:
+	_hide_menu()
+	var admin = get_tree().root.find_child("AdminPanel", true, false)
+	if admin:
+		if admin.has_method("open"):
+			admin.open()
+		else:
+			admin.visible = true
 
 func _on_resume() -> void:
 	_hide_menu()

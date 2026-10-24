@@ -158,14 +158,24 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 				return bare_soil_variants[idx]
 			return null
 
-		# Building foundations: Compacted walk soil or bare foundation earth
+		# Building foundations: Compacted walk soil during construction, lush green grass once done
 		FarmTile.TileState.BUILDING:
-			if not walk_soil_variants.is_empty():
+			# If the building is actively under construction, show compacted construction earth
+			if tile.building_ref and "state" in tile.building_ref and tile.building_ref.state == 0:
+				if not walk_soil_variants.is_empty():
+					var idx := get_variant_index(pos, 150, walk_soil_variants.size())
+					return walk_soil_variants[idx]
+				elif not bare_soil_variants.is_empty():
+					var idx := get_variant_index(pos, 101, bare_soil_variants.size())
+					return bare_soil_variants[idx]
+
+			# When the building is done (ACTIVE), the ground regrows to lush green grass!
+			if not normal_grass_variants.is_empty():
+				var idx := get_variant_index(pos, 303, normal_grass_variants.size())
+				return normal_grass_variants[idx]
+			elif not walk_soil_variants.is_empty():
 				var idx := get_variant_index(pos, 150, walk_soil_variants.size())
 				return walk_soil_variants[idx]
-			elif not bare_soil_variants.is_empty():
-				var idx := get_variant_index(pos, 101, bare_soil_variants.size())
-				return bare_soil_variants[idx]
 			return null
 
 		# Multi-tile crop child tiles or procedural fallback ground

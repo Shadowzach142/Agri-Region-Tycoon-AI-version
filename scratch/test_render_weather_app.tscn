@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://6d6812vbxnfw"]
+
+[ext_resource type="Script" path="res://scratch/test_render_weather_app.gd" id="1_test"]
+
+[node name="TestRenderWeatherApp" type="Node2D"]
+script = ExtResource("1_test")

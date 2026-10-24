@@ -26,6 +26,10 @@ func _ready() -> void:
 		regional_supply[crop_name] = randf_range(400.0, 600.0)
 		regional_demand[crop_name] = randf_range(450.0, 550.0)
 		_init_crop_history(crop_name)
+	for item_name in Data.PROCESSED_GOODS.keys():
+		regional_supply[item_name] = randf_range(200.0, 350.0)
+		regional_demand[item_name] = randf_range(300.0, 500.0)
+		_init_crop_history(item_name)
 	call_deferred("_sync_storage_with_building_manager")
 
 ## Initialize 7 days of realistic price history ending at today's price
@@ -78,13 +82,16 @@ func get_stored_units_for_crop(crop_name: String) -> int:
 
 ## Refresh daily market conditions at midnight tick
 func refresh_daily_prices() -> void:
-	for crop_name in Data.CROPS.keys():
+	var all_commodities: Array = []
+	all_commodities.append_array(Data.CROPS.keys())
+	all_commodities.append_array(Data.PROCESSED_GOODS.keys())
+	for crop_name in all_commodities:
 		# Market consumption reduces supply
 		var current_s: float = regional_supply.get(crop_name, 500.0)
-		regional_supply[crop_name] = maxf(current_s * randf_range(0.85, 0.95), 200.0)
+		regional_supply[crop_name] = maxf(current_s * randf_range(0.85, 0.95), 150.0)
 		# Demand shifts slightly each day
 		var current_d: float = regional_demand.get(crop_name, 500.0)
-		regional_demand[crop_name] = clampf(current_d * randf_range(0.92, 1.08), 300.0, 800.0)
+		regional_demand[crop_name] = clampf(current_d * randf_range(0.92, 1.08), 250.0, 800.0)
 		
 		var p: float = get_benchmark_price(crop_name)
 		if not price_history.has(crop_name):
@@ -98,19 +105,87 @@ func refresh_daily_prices() -> void:
 
 ## Add harvested crop batch to farm storage
 func add_harvest_to_storage(crop: String, quantity: int, grade: String, freshness: float) -> void:
-	var has_cold: bool = BuildingManager.has_cold_storage()
+	var target_b: Node = BuildingManager.get_best_storage_for_crop(crop, quantity)
+	var is_cold: bool = false
+	var fac_id: int = 0
+	var fac_type: String = ""
+
+	if target_b and is_instance_valid(target_b):
+		fac_id = target_b.get_instance_id()
+		fac_type = target_b.building_type
+		is_cold = (target_b.building_type in ["cold_storage", "climate_silo"]) or bool(Data.get_building(target_b.building_type).get("halts_spoilage", false))
+		target_b.used_storage += quantity
+	else:
+		is_cold = BuildingManager.has_cold_storage()
+
 	var batch: Dictionary = {
 		"id": _next_batch_id,
 		"crop": crop,
 		"quantity": quantity,
 		"grade": grade,
 		"freshness": freshness,
-		"is_cold_storage": has_cold,
+		"is_cold_storage": is_cold,
+		"is_processed": false,
+		"facility_id": fac_id,
+		"facility_type": fac_type,
 	}
 	_next_batch_id += 1
 	stored_inventory.append(batch)
 	_sync_storage_with_building_manager()
 	inventory_changed.emit()
+
+## Add processed value-added goods to farm storage (shelf-stable, zero rot)
+func add_processed_to_storage(item: String, quantity: int, grade: String = "Grade A") -> void:
+	var batch: Dictionary = {
+		"id": _next_batch_id,
+		"crop": item,
+		"quantity": quantity,
+		"grade": grade,
+		"freshness": 100.0,
+		"is_cold_storage": true,
+		"is_processed": true,
+	}
+	_next_batch_id += 1
+	stored_inventory.append(batch)
+	_sync_storage_with_building_manager()
+	inventory_changed.emit()
+
+## Consume raw crop from storage for industrial milling (oldest/lowest freshness first)
+func consume_crop_quantity(crop_name: String, needed_qty: int) -> bool:
+	if get_stored_units_for_crop(crop_name) < needed_qty:
+		return false
+	
+	var matching_indices: Array[int] = []
+	for i in range(stored_inventory.size()):
+		if stored_inventory[i].get("crop", "") == crop_name:
+			matching_indices.append(i)
+	
+	matching_indices.sort_custom(func(a, b):
+		return float(stored_inventory[a].get("freshness", 100.0)) < float(stored_inventory[b].get("freshness", 100.0))
+	)
+
+	var remaining_needed: int = needed_qty
+	var indices_to_remove: Array[int] = []
+
+	for idx in matching_indices:
+		var b: Dictionary = stored_inventory[idx]
+		var qty: int = int(b.get("quantity", 0))
+		if qty <= remaining_needed:
+			remaining_needed -= qty
+			indices_to_remove.append(idx)
+		else:
+			b["quantity"] = qty - remaining_needed
+			remaining_needed = 0
+			break
+
+	indices_to_remove.sort()
+	indices_to_remove.reverse()
+	for idx in indices_to_remove:
+		stored_inventory.remove_at(idx)
+
+	_sync_storage_with_building_manager()
+	inventory_changed.emit()
+	return true
 
 ## Called hourly from TimeManager to process spoilage/rot in storage
 func process_hourly_spoilage() -> void:
@@ -118,6 +193,8 @@ func process_hourly_spoilage() -> void:
 	var has_cold: bool = BuildingManager.has_cold_storage()
 
 	for batch in stored_inventory:
+		if batch.get("is_processed", false) or Data.is_processed_good(batch.get("crop", "")):
+			continue
 		if not batch.get("is_cold_storage", false) and not has_cold:
 			batch["freshness"] = maxf(batch["freshness"] - SPOILAGE_RATE_PER_HOUR, 0.0)
 			updated = true
@@ -140,10 +217,11 @@ func calculate_unit_price(crop: String, grade: String, freshness: float, hub_id:
 	if BuildingManager.has_building("solar_dryer") and (crop == "palay" or crop == "yellow_corn"):
 		grade_mult = minf(grade_mult * 1.25, 1.25)
 
-	var freshness_factor: float = clampf(freshness / 100.0, 0.05, 1.0)
+	var is_proc: bool = Data.is_processed_good(crop)
+	var freshness_factor: float = 1.0 if is_proc else clampf(freshness / 100.0, 0.05, 1.0)
 	
 	# Severe ROT discount if produce rots below 25% freshness
-	if freshness < 25.0:
+	if not is_proc and freshness < 25.0:
 		freshness_factor *= 0.35 # 65% loss for rotting produce
 
 	var hub_data: Dictionary = Data.get_market_hub(hub_id)
@@ -152,7 +230,7 @@ func calculate_unit_price(crop: String, grade: String, freshness: float, hub_id:
 	# Night cycle market effect:
 	# Local middleman (biyahero) exploits late night off-hours visits with predatory pricing
 	if TimeManager.is_night() and hub_id == "local_biyahero":
-		hub_multiplier = 0.62 # Off-hours discount down from 0.72
+		hub_multiplier = 0.62 + BuildingManager.get_biyahero_price_bonus() # Off-hours discount down from 0.72
 	
 	# Demand / Supply ratio
 	var supply: float = float(regional_supply.get(crop, 500.0))
@@ -170,6 +248,8 @@ func calculate_unit_price(crop: String, grade: String, freshness: float, hub_id:
 func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
 	if batch_index < 0 or batch_index >= stored_inventory.size():
 		return false
+	if not Data.is_hub_available(hub_id):
+		return false
 	
 	var batch: Dictionary = stored_inventory[batch_index]
 	var hub_data: Dictionary = Data.get_market_hub(hub_id)
@@ -186,8 +266,8 @@ func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
 		return false
 
 	# Calculate Road ROT / Spoilage during transit
-	if BuildingManager.has_cold_storage() or batch.get("is_cold_storage", false):
-		road_rot_percent = 0.0 # Cold chain preserves 100% freshness
+	if BuildingManager.has_cold_storage() or batch.get("is_cold_storage", false) or batch.get("is_processed", false) or Data.is_processed_good(batch.crop):
+		road_rot_percent = 0.0 # Cold chain & processed goods preserve 100% freshness
 
 	var arrival_freshness: float = maxf(batch.freshness - road_rot_percent, 0.0)
 	
@@ -200,9 +280,9 @@ func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
 
 	var net_profit: int = gross_revenue - fuel_cost
 
-	EconomyManager.deduct_cash(fuel_cost)
+	EconomyManager.deduct_cash(fuel_cost, false)
 	if gross_revenue > 0:
-		EconomyManager.add_cash(gross_revenue)
+		EconomyManager.add_cash(gross_revenue, false)
 
 	# Update market supply: Dumping 50+ units (tons) floods local market, dropping prices up to 50%
 	var dump_multiplier: float = 2.5 if batch.quantity >= 50 else 1.0
@@ -234,6 +314,43 @@ func _sync_storage_with_building_manager() -> void:
 	var b_mgr = get_node_or_null("/root/BuildingManager")
 	if b_mgr:
 		b_mgr.used_storage = get_total_stored_units()
+
+		# Sync per-facility storage counts
+		var storage_buildings: Array = b_mgr.get_storage_buildings() if b_mgr.has_method("get_storage_buildings") else []
+		for b in storage_buildings:
+			if is_instance_valid(b) and "used_storage" in b:
+				b.used_storage = 0
+
+		# Map batches back to their facilities
+		var unassigned_batches: Array = []
+		for batch in stored_inventory:
+			var matched: bool = false
+			var fac_id: int = int(batch.get("facility_id", 0))
+			if fac_id != 0:
+				for b in storage_buildings:
+					if is_instance_valid(b) and b.get_instance_id() == fac_id:
+						b.used_storage += int(batch.get("quantity", 0))
+						matched = true
+						break
+			if not matched:
+				unassigned_batches.append(batch)
+
+		# Greedily distribute any unassigned or legacy batches to active storages
+		for batch in unassigned_batches:
+			var crop_name: String = str(batch.get("crop", ""))
+			var qty: int = int(batch.get("quantity", 0))
+			for b in storage_buildings:
+				if is_instance_valid(b) and b.accepts_crop(crop_name) and b.has_space(qty):
+					b.used_storage += qty
+					batch["facility_id"] = b.get_instance_id()
+					batch["facility_type"] = b.building_type
+					break
+
+		# Update visual display for each building
+		for b in storage_buildings:
+			if is_instance_valid(b) and b.has_method("update_storage_display"):
+				b.update_storage_display()
+
 		b_mgr.storage_updated.emit(b_mgr.total_storage_capacity, b_mgr.used_storage)
 
 ## Summary of all crops in storage grouped by crop
@@ -275,7 +392,7 @@ func preview_crop_sale(crop_name: String, hub_id: String) -> Dictionary:
 		night_fee = 25
 		fuel_cost += night_fee
 
-	if has_cold:
+	if has_cold or Data.is_processed_good(crop_name):
 		road_rot = 0.0
 
 	var total_qty: int = 0
@@ -310,6 +427,8 @@ func preview_crop_sale(crop_name: String, hub_id: String) -> Dictionary:
 
 ## Sells all stored batches of a specific crop in one clean action
 func sell_all_of_crop(crop_name: String, hub_id: String) -> Dictionary:
+	if not Data.is_hub_available(hub_id):
+		return {"success": false, "error": "hub_locked"}
 	var hub_data: Dictionary = Data.get_market_hub(hub_id)
 	var fuel_cost: int = int(hub_data.get("fuel_cost", 0))
 	var has_cold: bool = BuildingManager.has_cold_storage()
@@ -320,7 +439,7 @@ func sell_all_of_crop(crop_name: String, hub_id: String) -> Dictionary:
 		road_rot *= 0.60
 		fuel_cost += 25
 
-	if has_cold:
+	if has_cold or Data.is_processed_good(crop_name):
 		road_rot = 0.0
 
 	if EconomyManager.cash < fuel_cost:
@@ -353,9 +472,9 @@ func sell_all_of_crop(crop_name: String, hub_id: String) -> Dictionary:
 
 	var net_profit: int = total_gross - fuel_cost
 
-	EconomyManager.deduct_cash(fuel_cost)
+	EconomyManager.deduct_cash(fuel_cost, false)
 	if total_gross > 0:
-		EconomyManager.add_cash(total_gross)
+		EconomyManager.add_cash(total_gross, false)
 
 	var dump_multiplier: float = 2.5 if total_qty >= 50 else 1.0
 	regional_supply[crop_name] = float(regional_supply.get(crop_name, 500.0)) + float(total_qty) * dump_multiplier

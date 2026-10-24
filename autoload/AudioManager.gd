@@ -25,6 +25,29 @@ const SOUND_PATHS: Dictionary = {
 	"building_place": "res://sounds/buildings/place.wav",
 	"building_loop": "res://sounds/buildings/build-loop.wav",
 	"building_complete": "res://sounds/buildings/complete.wav",
+	"building_cancel": "res://sounds/buildings/cancel.wav",
+	"building_demolish": "res://sounds/buildings/demolish.wav",
+	"building_invalid": "res://sounds/buildings/invalid.wav",
+
+	# Economy
+	"earn": "res://sounds/economy/earn.wav",
+	"insufficient": "res://sounds/economy/insufficient.wav",
+	"market_sell": "res://sounds/economy/market_sell.wav",
+	"new_day": "res://sounds/economy/new_day.wav",
+	"spend": "res://sounds/economy/spend.wav",
+
+	# Pests & Disasters
+	"hazard_cleared": "res://sounds/pest and disasters/cleared.wav",
+	"disaster_drought": "res://sounds/pest and disasters/drought.wav",
+	"disaster_flood": "res://sounds/pest and disasters/flood.wav",
+	"disaster_landslide": "res://sounds/pest and disasters/landslide.wav",
+	"hazard_spawn": "res://sounds/pest and disasters/spawn.wav",
+	"pest_spread": "res://sounds/pest and disasters/spread.ogg",
+
+	# Time & Tech
+	"hire_worker": "res://sounds/time and tech/hire_worker.wav",
+	"tech_unlock": "res://sounds/time and tech/tech_unlock.wav",
+	"time_pause": "res://sounds/time and tech/time_pause.wav",
 
 	# UI / HUD
 	"ui_click": "res://sounds/UI-HUD/click.wav",
@@ -62,7 +85,13 @@ const MIN_INTERVAL: Dictionary = {
 	"harvest": 0.05,
 	"water": 0.05,
 	"spray": 0.05,
-	"chop": 0.08
+	"chop": 0.08,
+	"earn": 0.06,
+	"spend": 0.06,
+	"insufficient": 0.15,
+	"building_invalid": 0.15,
+	"hazard_spawn": 0.20,
+	"pest_spread": 0.20
 }
 
 func _ready() -> void:
@@ -167,7 +196,10 @@ func play_ui(sound_name: String) -> void:
 		"error", "ui_error":
 			play_sfx("ui_error", 0.02, 0.0)
 		"pause", "ui_pause":
-			play_sfx("ui_pause", 0.0, 0.0)
+			if _streams.has("time_pause"):
+				play_sfx("time_pause", 0.0, 0.0)
+			else:
+				play_sfx("ui_pause", 0.0, 0.0)
 		"tile_select":
 			play_sfx("tile_select", 0.05, -1.0)
 		_:
@@ -201,10 +233,63 @@ func play_building(event_name: String) -> void:
 			play_sfx("building_place", 0.03, 0.0)
 		"complete", "building_complete":
 			play_sfx("building_complete", 0.0, 2.0)
+		"cancel", "building_cancel":
+			play_sfx("building_cancel", 0.04, 0.0)
+		"demolish", "building_demolish":
+			play_sfx("building_demolish", 0.03, 1.0)
+		"invalid", "building_invalid":
+			play_sfx("building_invalid", 0.02, 0.0)
 		"loop", "building_loop":
 			start_build_loop()
 		_:
-			play_sfx(event_name, 0.03, 0.0)
+			if SOUND_PATHS.has(event_name):
+				play_sfx(event_name, 0.03, 0.0)
+
+func play_economy(event_name: String) -> void:
+	match event_name:
+		"earn", "cash_earned":
+			play_sfx("earn", 0.04, 0.0)
+		"spend", "cash_spent":
+			play_sfx("spend", 0.04, -1.0)
+		"insufficient", "insufficient_funds":
+			play_sfx("insufficient", 0.02, 0.0)
+		"market_sell", "sell":
+			play_sfx("market_sell", 0.03, 1.0)
+		"new_day", "day":
+			play_sfx("new_day", 0.0, 1.0)
+		_:
+			if SOUND_PATHS.has(event_name):
+				play_sfx(event_name, 0.04, 0.0)
+
+func play_disaster(hazard_or_event: String) -> void:
+	match hazard_or_event:
+		"flood", "flash_flood", "la_nina":
+			play_sfx("disaster_flood", 0.03, 2.0)
+		"drought", "heatwave", "el_nino":
+			play_sfx("disaster_drought", 0.03, 2.0)
+		"landslide":
+			play_sfx("disaster_landslide", 0.03, 2.0)
+		"warning", "hazard_warning", "spawn", "pest_spawn", "hazard_spawn":
+			play_sfx("hazard_spawn", 0.04, 1.0)
+		"cleared", "disaster_cleared", "pest_cleared", "hazard_cleared":
+			play_sfx("hazard_cleared", 0.03, 0.0)
+		"spread", "pest_spread":
+			play_sfx("pest_spread", 0.05, 0.0)
+		_:
+			if SOUND_PATHS.has(hazard_or_event):
+				play_sfx(hazard_or_event, 0.03, 0.0)
+
+func play_tech(event_name: String) -> void:
+	match event_name:
+		"unlock", "tech_unlock":
+			play_sfx("tech_unlock", 0.0, 2.0)
+		"hire", "hire_worker":
+			play_sfx("hire_worker", 0.04, 0.0)
+		"pause", "time_pause":
+			play_sfx("time_pause", 0.0, 0.0)
+		_:
+			if SOUND_PATHS.has(event_name):
+				play_sfx(event_name, 0.03, 0.0)
 
 # ---------------------------------------------------------------------------
 # Looping Construction Ambient
@@ -240,6 +325,10 @@ func _connect_game_signals() -> void:
 	if b_mgr:
 		if b_mgr.has_signal("building_placed"):
 			b_mgr.building_placed.connect(func(_b): play_building("place"))
+		if b_mgr.has_signal("worker_hired"):
+			b_mgr.worker_hired.connect(func(_w): play_tech("hire_worker"))
+		if b_mgr.has_signal("tech_unlocked"):
+			b_mgr.tech_unlocked.connect(func(_t): play_tech("tech_unlock"))
 
 	# 2. Task Manager (Farmer selection & assignments)
 	var t_mgr = get_node_or_null("/root/TaskManager")
@@ -250,11 +339,38 @@ func _connect_game_signals() -> void:
 					play_farmer("select")
 			)
 
-	# 3. Time Manager (Pause toggle)
+	# 3. Time Manager (Day changed -> new day chime)
 	var time_mgr = get_node_or_null("/root/TimeManager")
 	if time_mgr:
-		# Check speed changes for pause sound
-		pass
+		if time_mgr.has_signal("day_changed"):
+			time_mgr.day_changed.connect(func(_d): play_economy("new_day"))
+
+	# 4. Market Manager (Sale completed -> market sell cash register chime)
+	var m_mgr = get_node_or_null("/root/MarketManager")
+	if m_mgr:
+		if m_mgr.has_signal("sale_completed"):
+			m_mgr.sale_completed.connect(func(_c, _rev, _net, _hub, _rot): play_economy("market_sell"))
+
+	# 5. Weather Manager (Disaster warning, strike, cleared)
+	var w_mgr = get_node_or_null("/root/WeatherManager")
+	if w_mgr:
+		if w_mgr.has_signal("disaster_warning"):
+			w_mgr.disaster_warning.connect(func(_hz, _cd): play_disaster("warning"))
+		if w_mgr.has_signal("disaster_struck"):
+			w_mgr.disaster_struck.connect(func(hz): play_disaster(hz))
+		if w_mgr.has_signal("disaster_cleared"):
+			w_mgr.disaster_cleared.connect(func(_hz): play_disaster("cleared"))
+
+	# 6. Pest Manager (Pest spawned, cleared, spread)
+	var p_mgr = get_node_or_null("/root/PestManager")
+	if p_mgr:
+		if p_mgr.has_signal("pest_spawned"):
+			p_mgr.pest_spawned.connect(func(_p, _pos): play_disaster("spawn"))
+		if p_mgr.has_signal("pest_cleared"):
+			p_mgr.pest_cleared.connect(func(_p, _pos): play_disaster("cleared"))
+		if p_mgr.has_signal("pest_spread"):
+			p_mgr.pest_spread.connect(func(_cnt): play_disaster("spread"))
+
 
 # ---------------------------------------------------------------------------
 # Automatic Button Click & Hover Hooks

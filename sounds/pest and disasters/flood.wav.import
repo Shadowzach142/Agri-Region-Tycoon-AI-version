@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://cuk52wk6r3ww2"
+path="res://.godot/imported/flood.wav-b0ea87b9c35d228c42b0761b44559174.sample"
+
+[deps]
+
+source_file="res://sounds/pest and disasters/flood.wav"
+dest_files=["res://.godot/imported/flood.wav-b0ea87b9c35d228c42b0761b44559174.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

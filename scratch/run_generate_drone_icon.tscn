@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c6v3a10pxw02q"]
+
+[ext_resource type="Script" path="res://scratch/generate_drone_icon.gd" id="1_gen"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_gen")

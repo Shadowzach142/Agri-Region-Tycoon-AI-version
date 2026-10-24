@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8q4v2m1o3xpa"]
+
+[ext_resource type="Script" path="res://scratch/verify_weather_app.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

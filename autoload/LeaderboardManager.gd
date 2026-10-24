@@ -28,7 +28,14 @@ const BASE_CROP_POINTS = {
 	"pineapple": 25,
 	"banana": 30,
 	"arabica_coffee": 35,
-	"coconut": 60
+	"coconut": 60,
+	"milled_rice": 25,
+	"rice_bran": 10,
+	"muscovado_sugar": 35,
+	"molasses": 15,
+	"vco": 55,
+	"copra_meal": 15,
+	"roasted_coffee": 75,
 }
 
 # Quality grade multipliers

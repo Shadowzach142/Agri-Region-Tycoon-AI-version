@@ -5,6 +5,7 @@ extends Node
 
 signal pest_spawned(pest_type: String, position: Vector2i)
 signal pest_cleared(pest_type: String, position: Vector2i)
+signal pest_spread(count: int)
 
 ## key: "x_y" -> {"pest": String, "days": int}
 var infected_tiles: Dictionary = {}
@@ -91,6 +92,8 @@ func _advance_spread() -> void:
 		var nkey: String = "%d_%d" % [inf.pos.x, inf.pos.y]
 		infected_tiles[nkey] = {"pest": inf.pest, "days": 0}
 		pest_spawned.emit(inf.pest, inf.pos)
+	if new_infections.size() > 0:
+		pest_spread.emit(new_infections.size())
 
 ## Called by FarmGrid when a player/farmer applies treatment.
 func treat_tile(tile_pos: Vector2i, _method: String) -> void:

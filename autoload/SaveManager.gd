@@ -146,7 +146,9 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 				"level": b.level,
 				"state": b.state,
 				"progress_timer": b.progress_timer,
-				"duration": b.duration
+				"duration": b.duration,
+				"assigned_crops": b.assigned_crops.duplicate() if "assigned_crops" in b else [],
+				"used_storage": b.used_storage if "used_storage" in b else 0
 			})
 
 	var building_manager_data: Dictionary = {
@@ -409,6 +411,8 @@ func apply_pending_save(farm_grid: Node) -> void:
 		building.state = b_info.get("state", Building.BuildingState.ACTIVE)
 		building.progress_timer = b_info.get("progress_timer", 0.0)
 		building.duration = b_info.get("duration", 0.0)
+		building.assigned_crops = Array(b_info.get("assigned_crops", []), TYPE_STRING, &"", null)
+		building.used_storage = int(b_info.get("used_storage", 0))
 
 		farm_grid.add_child(building)
 

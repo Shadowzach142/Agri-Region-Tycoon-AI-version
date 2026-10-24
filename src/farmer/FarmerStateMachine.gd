@@ -26,13 +26,13 @@ static func idle_label() -> String:
 	return "Idle"
 
 static func moving_label() -> String:
-	return "🏃 Moving..."
+	return "Moving"
 
 static func depositing_label() -> String:
-	return "📦 Depositing..."
+	return "Storing"
 
 static func wandering_label() -> String:
-	return "Wandering..."
+	return "Ready"
 
 static func ready_label() -> String:
 	return "Ready"
@@ -40,10 +40,10 @@ static func ready_label() -> String:
 ## Returns the correct working status string for a given task type
 static func work_label(task_type: String) -> String:
 	match task_type:
-		"plow":       return "⛏️ Plowing..."
-		"plant":      return "🌱 Planting..."
-		"water":      return "💧 Watering..."
-		"spray_pest": return "🧪 Spraying..."
-		"harvest":        return "🧺 Harvesting..."
-		"clear_obstacle": return "🪓 Chopping Tree..."
-		_:            return "⚙️ Working..."
+		"plow":           return "Plowing"
+		"plant":          return "Planting"
+		"water":          return "Watering"
+		"spray_pest":     return "Spraying"
+		"harvest":        return "Harvesting"
+		"clear_obstacle": return "Chopping"
+		_:                return "Working"

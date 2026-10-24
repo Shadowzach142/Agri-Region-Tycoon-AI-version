@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c2teststoragerunner01"]
+
+[ext_resource type="Script" path="res://scratch/test_storage_routing_and_bars.gd" id="1_test"]
+
+[node name="TestStorageRunner" type="Node"]
+script = ExtResource("1_test")

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d1x8u54a01p2a"]
+
+[ext_resource type="Script" path="res://scratch/capture_icons_in_game.gd" id="1_cap"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_cap")

@@ -29,13 +29,20 @@ var state: int            = BuildingState.CONSTRUCTING
 var progress_timer: float = 0.0
 var duration: float       = 15.0
 
+# Per-facility storage routing & usage
+var assigned_crops: Array = []  # Empty array = accepts ALL crops
+var used_storage: int = 0       # Units currently held in this specific facility
+
 # UI nodes
 var progress_bar: ProgressBar = null
 var progress_label: Label     = null
 var level_label: Label        = null
+var storage_fill_box: VBoxContainer = null
+var storage_fill_label: Label       = null
+var storage_fill_bar: ProgressBar   = null
 
 const TEX_KUBO: Texture2D            = preload("res://assets/sprites/buildings/KUBO.png")
-const TEX_DRYER: Texture2D           = preload("res://assets/sprites/buildings/DRYER-BARE.PNG")
+const TEX_DRYER: Texture2D           = preload("res://assets/sprites/buildings/DRYER.PNG")
 const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/Cold Storage.png")
 const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone Station.png")
 const TEX_WATER_STATION: Texture2D   = preload("res://assets/sprites/buildings/Water Station.png")
@@ -47,9 +54,77 @@ const TEX_SILO_50: Texture2D         = preload("res://assets/sprites/buildings/S
 const TEX_SILO_75: Texture2D         = preload("res://assets/sprites/buildings/Silo/SILO-75.PNG")
 const TEX_SILO_100: Texture2D        = preload("res://assets/sprites/buildings/Silo/SILO-100.PNG")
 
+const TEX_BYAHERO: Texture2D         = preload("res://assets/sprites/buildings/byahero.png")
+const TEX_TACURONG: Texture2D        = preload("res://assets/sprites/buildings/Tacurong-Grain-mill.png")
+const TEX_KORONADAL: Texture2D       = preload("res://assets/sprites/buildings/Koronadal-Wholesale.png")
+const TEX_GENSAN: Texture2D          = preload("res://assets/sprites/buildings/Gensan-seaport.png")
+
+var art_sprite: Sprite2D = null
+
+static func get_art_fit(b_type: String) -> Dictionary:
+	match b_type:
+		"bayanihan_center":
+			return {
+				"texture": TEX_BYAHERO,
+				"scale": 2.8,
+				"center_offset": Vector2(47.0, 55.0),
+				"has_slab": false,
+				"roof_apex_y": -90.0,
+				"scaffold_h": 60.0
+			}
+		"tacurong_mill":
+			return {
+				"texture": TEX_TACURONG,
+				"scale": 384.0 / 224.0, # 1.7143 (exact 1:1 match to 3×3 tile diamond width of 384px)
+				"center_offset": Vector2(122.0, 84.0),
+				"has_slab": true,
+				"roof_apex_y": -130.0,
+				"scaffold_h": 85.0
+			}
+		"koronadal_wholesale":
+			return {
+				"texture": TEX_KORONADAL,
+				"scale": 512.0 / 295.0, # 1.7356 (exact 1:1 match to 4×4 tile diamond width of 512px)
+				"center_offset": Vector2(154.5, 87.0),
+				"has_slab": true,
+				"roof_apex_y": -140.0,
+				"scaffold_h": 95.0
+			}
+		"gensan_seaport":
+			return {
+				"texture": TEX_GENSAN,
+				"scale": 512.0 / 304.0, # 1.6842 (pier and container ship float out into eastern ocean channel)
+				"center_offset": Vector2(155.0, 79.0),
+				"has_slab": true,
+				"roof_apex_y": -135.0,
+				"scaffold_h": 90.0
+			}
+	return {}
+
+func is_storage_building() -> bool:
+	return int(Data.get_building(building_type).get("storage_limit", 0)) > 0
+
+func get_storage_capacity() -> int:
+	var base := int(Data.get_building(building_type).get("storage_limit", 0))
+	return int(base * (1.0 + (level - 1) * 1.0))
+
+func has_space(qty: int = 1) -> bool:
+	return (used_storage + qty) <= get_storage_capacity()
+
+func accepts_crop(crop_name: String) -> bool:
+	if assigned_crops.is_empty():
+		return true
+	return assigned_crops.has(crop_name)
+
+func can_store_crop(crop_name: String, qty: int = 1) -> bool:
+	return accepts_crop(crop_name) and has_space(qty)
+
 func _get_silo_texture() -> Texture2D:
 	var ratio: float = 0.0
-	if BuildingManager.total_storage_capacity > 0:
+	var cap: int = get_storage_capacity()
+	if cap > 0:
+		ratio = clampf(float(used_storage) / float(cap), 0.0, 1.0)
+	elif BuildingManager.total_storage_capacity > 0:
 		ratio = clampf(float(BuildingManager.used_storage) / float(BuildingManager.total_storage_capacity), 0.0, 1.0)
 	if ratio < 0.125:
 		return TEX_SILO_0
@@ -63,7 +138,7 @@ func _get_silo_texture() -> Texture2D:
 		return TEX_SILO_100
 
 func _ready() -> void:
-	z_index = 10  # Match standing object layer (trees, crops in tile_roots) for seamless 2.5D Y-sorting
+	z_index = 14  # Standing structure layer; renders above crops (Z=10) and workers (Z=12) when workers walk behind them
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 	var b_data: Dictionary = Data.get_building(building_type)
@@ -76,7 +151,23 @@ func _ready() -> void:
 	var center := (pts[0] + pts[2]) * 0.5
 	position = center
 
+	# Set up authentic high-resolution building art sprite if available
+	var fit: Dictionary = get_art_fit(building_type)
+	if not fit.is_empty():
+		art_sprite = Sprite2D.new()
+		art_sprite.name = "ArtSprite"
+		art_sprite.texture = fit["texture"]
+		art_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		var sc: float = float(fit.get("scale", 1.0))
+		art_sprite.scale = Vector2(sc, sc)
+		art_sprite.centered = false
+		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
+		art_sprite.position = -coff * sc
+		art_sprite.show_behind_parent = true
+		add_child(art_sprite)
+
 	_setup_ui()
+	_update_art_sprite_state()
 	TimeManager.period_changed.connect(func(_p, _n): queue_redraw())
 	TimeManager.hour_changed.connect(func(_h): queue_redraw())
 	if BuildingManager.has_signal("storage_updated"):
@@ -91,7 +182,10 @@ func _get_footprint_diamond_pts() -> Array[Vector2]:
 func _setup_ui() -> void:
 	var d_pts := _get_footprint_diamond_pts()
 	var roof_apex_y: float = -92.0
-	if building_type == "bodega":
+	var fit: Dictionary = get_art_fit(building_type)
+	if not fit.is_empty():
+		roof_apex_y = float(fit.get("roof_apex_y", -92.0))
+	elif building_type == "bodega":
 		roof_apex_y = -96.0
 	elif building_type == "drone_station":
 		roof_apex_y = -210.0
@@ -100,13 +194,21 @@ func _setup_ui() -> void:
 	elif building_type == "water_tower":
 		roof_apex_y = -240.0
 	elif building_type == "machine_garage":
-		roof_apex_y = -65.0
+		roof_apex_y = -72.0
 	elif building_type == "cold_storage":
 		roof_apex_y = -98.0
 	elif building_type == "climate_silo":
 		roof_apex_y = -120.0
 	elif building_type == "sprinkler":
 		roof_apex_y = -28.0
+	elif building_type == "rice_mill":
+		roof_apex_y = -115.0
+	elif building_type == "sugar_mill":
+		roof_apex_y = -125.0
+	elif building_type == "copra_dryer":
+		roof_apex_y = -105.0
+	elif building_type == "coffee_roastery":
+		roof_apex_y = -110.0
 
 	# Level indicator badge centered above building roof
 	level_label = Label.new()
@@ -137,10 +239,112 @@ func _setup_ui() -> void:
 	progress_bar.show_percentage = false
 	pbox.add_child(progress_bar)
 
+	# Overhead Storage Fill Bar
+	if is_storage_building():
+		storage_fill_box = VBoxContainer.new()
+		storage_fill_box.name = "StorageFillBox"
+		storage_fill_box.position = Vector2(-45, roof_apex_y - 44)
+		storage_fill_box.custom_minimum_size = Vector2(90, 20)
+		storage_fill_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		storage_fill_box.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(storage_fill_box)
+
+		storage_fill_label = Label.new()
+		storage_fill_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		storage_fill_label.add_theme_font_size_override("font_size", 9)
+		storage_fill_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.75))
+		storage_fill_label.text = "📦 0/200"
+		storage_fill_box.add_child(storage_fill_label)
+
+		storage_fill_bar = ProgressBar.new()
+		storage_fill_bar.custom_minimum_size = Vector2(80, 5)
+		storage_fill_bar.max_value = get_storage_capacity()
+		storage_fill_bar.value = 0.0
+		storage_fill_bar.show_percentage = false
+
+		var sb_bg := StyleBoxFlat.new()
+		sb_bg.bg_color = Color(0.10, 0.08, 0.06, 0.90)
+		sb_bg.border_width_left = 1
+		sb_bg.border_width_right = 1
+		sb_bg.border_width_top = 1
+		sb_bg.border_width_bottom = 1
+		sb_bg.border_color = Color(0.35, 0.24, 0.15, 1.0)
+		sb_bg.corner_radius_top_left = 2
+		sb_bg.corner_radius_top_right = 2
+		sb_bg.corner_radius_bottom_left = 2
+		sb_bg.corner_radius_bottom_right = 2
+		storage_fill_bar.add_theme_stylebox_override("background", sb_bg)
+
+		var sb_fill := StyleBoxFlat.new()
+		sb_fill.bg_color = Color(0.35, 0.85, 0.35)
+		sb_fill.corner_radius_top_left = 2
+		sb_fill.corner_radius_top_right = 2
+		sb_fill.corner_radius_bottom_left = 2
+		sb_fill.corner_radius_bottom_right = 2
+		storage_fill_bar.add_theme_stylebox_override("fill", sb_fill)
+
+		storage_fill_box.add_child(storage_fill_bar)
+
 	_update_ui_state()
 
+func update_storage_display() -> void:
+	if not is_storage_building():
+		if storage_fill_box:
+			storage_fill_box.visible = false
+		return
+
+	if storage_fill_box:
+		storage_fill_box.visible = (state == BuildingState.ACTIVE)
+
+	if storage_fill_bar and storage_fill_label and state == BuildingState.ACTIVE:
+		var cap: int = get_storage_capacity()
+		storage_fill_bar.max_value = max(1, cap)
+		storage_fill_bar.value = used_storage
+
+		var ratio: float = clampf(float(used_storage) / float(max(1, cap)), 0.0, 1.0)
+		var fill_color: Color = Color(0.35, 0.85, 0.35)
+		if ratio >= 0.90:
+			fill_color = Color(0.95, 0.30, 0.25)
+		elif ratio >= 0.70:
+			fill_color = Color(1.0, 0.75, 0.25)
+
+		var sb_fill := StyleBoxFlat.new()
+		sb_fill.bg_color = fill_color
+		sb_fill.corner_radius_top_left = 2
+		sb_fill.corner_radius_top_right = 2
+		sb_fill.corner_radius_bottom_left = 2
+		sb_fill.corner_radius_bottom_right = 2
+		storage_fill_bar.add_theme_stylebox_override("fill", sb_fill)
+
+		var icon: String = "📦"
+		if building_type == "cold_storage":
+			icon = "❄️"
+		elif building_type == "climate_silo":
+			icon = "🗼"
+		if used_storage >= cap and cap > 0:
+			storage_fill_label.text = "⚠️ FULL %s %d/%d" % [icon, used_storage, cap]
+			storage_fill_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.35))
+		else:
+			storage_fill_label.text = "%s %d/%d" % [icon, used_storage, cap]
+			storage_fill_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.82))
+		var filter_str: String = "All crops"
+		if assigned_crops.size() > 0:
+			var names: Array[String] = []
+			for c in assigned_crops:
+				names.append(Data.get_crop(c).get("display_name", c).split("(")[0].strip_edges())
+			filter_str = ", ".join(names)
+		storage_fill_box.tooltip_text = "%s Storage: %d / %d units (%.0f%% full)\nAccepted: %s" % [
+			Data.get_building(building_type).get("display_name", building_type.capitalize()),
+			used_storage,
+			cap,
+			ratio * 100.0,
+			filter_str
+		]
+
+	queue_redraw()
+
 func _process(delta: float) -> void:
-	if building_type in ["drone_station", "weather_station", "water_tower", "machine_garage", "sprinkler"] and state == BuildingState.ACTIVE:
+	if building_type in ["drone_station", "weather_station", "water_tower", "machine_garage", "sprinkler", "rice_mill", "sugar_mill", "copra_dryer", "coffee_roastery"] and state == BuildingState.ACTIVE:
 		queue_redraw()
 
 	var speed_scale: float = TimeManager.get_speed_scale()
@@ -180,7 +384,16 @@ func _update_ui_state() -> void:
 	if pbox:
 		pbox.visible = (state != BuildingState.ACTIVE)
 
+	update_storage_display()
+	_update_art_sprite_state()
 	queue_redraw()
+
+func _update_art_sprite_state() -> void:
+	if art_sprite and is_instance_valid(art_sprite):
+		if state == BuildingState.CONSTRUCTING or state == BuildingState.UPGRADING:
+			art_sprite.modulate = Color(1.0, 1.0, 1.0, 0.45)
+		else:
+			art_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 # ---------------------------------------------------------------------------
 # Lifecycle
@@ -190,6 +403,19 @@ func complete_construction() -> void:
 	progress_timer = 0.0
 	_update_ui_state()
 	BuildingManager.recalculate_bonuses()
+
+	# Regrow tiles under the building to lush green grass
+	var farm_grid = get_parent()
+	if farm_grid and "tiles" in farm_grid:
+		for dx in range(footprint.x):
+			for dy in range(footprint.y):
+				var tp := Vector2i(grid_pos.x + dx, grid_pos.y + dy)
+				if farm_grid.has_method("_is_valid") and farm_grid._is_valid(tp):
+					var t: FarmTile = farm_grid.tiles[tp.x][tp.y]
+					t.soil_moisture = 60.0
+					if farm_grid.renderer:
+						farm_grid.renderer.update_tile(tp, farm_grid.tiles)
+
 	var b_data := Data.get_building(building_type)
 	var b_name: String = str(b_data.get("name", building_type.capitalize()))
 	LogManager.log_event("buildings", "Construction finished: %s (Lv. 1) at (%d, %d)." % [b_name, grid_pos.x, grid_pos.y], "🏛️", Color(0.35, 0.8, 1.0, 1.0))
@@ -230,10 +456,11 @@ func complete_upgrade() -> void:
 func demolish() -> void:
 	if state == BuildingState.CONSTRUCTING or state == BuildingState.UPGRADING:
 		AudioManager.unregister_active_construction()
+	AudioManager.play_building("demolish")
 	var b_data := Data.get_building(building_type)
 	var base_cost: int = int(b_data.get("cost", 200))
 	var refund: int = int(base_cost * 0.5 * level)
-	EconomyManager.add_cash(refund)
+	EconomyManager.add_cash(refund, false)
 	var b_name: String = str(b_data.get("name", building_type.capitalize()))
 	LogManager.log_event("demolish", "Demolished %s (Lv. %d) for +₱%d refund." % [b_name, level, refund], "💥", Color(0.9, 0.4, 0.3, 1.0))
 	demolished.emit(self)
@@ -250,8 +477,9 @@ func _draw() -> void:
 	var left   := d_pts[3]
 
 	# 1. Foundation Platform (Isometric Base Slab)
-	# Only drawn for heavy industrial facilities without built-in pixel-art bases; Bahay Kubo, Silo, Bilaran dryer, Cold Storage, Drone Station, Water Tower, and Weather Station have authentic pixel-art terrain bases!
-	if building_type != "bodega" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
+	# Only drawn for heavy industrial facilities without built-in pixel-art bases; Bahay Kubo, Silo, Bilaran dryer, Cold Storage, Drone Station, Water Tower, Weather Station, and new trade hubs have authentic pixel-art terrain bases!
+	var fit: Dictionary = get_art_fit(building_type)
+	if fit.is_empty() and building_type != "bodega" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
 		draw_colored_polygon(PackedVector2Array(d_pts), Color(0.25, 0.21, 0.17, 0.95))
 		var slab_depth: float = 8.0
 		draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, slab_depth), left + Vector2(0, slab_depth)]), Color(0.18, 0.14, 0.10, 0.95))
@@ -269,7 +497,9 @@ func _draw() -> void:
 		"solar_dryer":
 			_draw_solar_dryer(top, right, bottom, left)
 		"machine_garage":
-			_draw_garage(top, right, bottom, left)
+			_draw_bayanihan_center(top, right, bottom, left)
+		"bayanihan_center", "tacurong_mill", "koronadal_wholesale", "gensan_seaport":
+			_draw_art_building(top, right, bottom, left)
 		"climate_silo":
 			_draw_silo(top, right, bottom, left)
 		"drone_station":
@@ -280,6 +510,14 @@ func _draw() -> void:
 			_draw_water_tower(top, right, bottom, left)
 		"sprinkler":
 			_draw_sprinkler(top, right, bottom, left)
+		"rice_mill":
+			_draw_rice_mill(top, right, bottom, left)
+		"sugar_mill":
+			_draw_sugar_mill(top, right, bottom, left)
+		"copra_dryer":
+			_draw_copra_dryer(top, right, bottom, left)
+		"coffee_roastery":
+			_draw_coffee_roastery(top, right, bottom, left)
 		_:
 			_draw_default_building(top, right, bottom, left)
 
@@ -755,153 +993,230 @@ func _draw_solar_dryer(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 	var mat2 := PackedVector2Array([bottom * 0.2, right * 0.65, bottom * 0.75, (bottom + left) * 0.4])
 	draw_colored_polygon(mat2, Color(0.92, 0.80, 0.25, 0.95))
 
-func _draw_garage(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
-	var wall_h: float = 46.0
+func _draw_art_building(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	if building_type == "bayanihan_center":
+		# Soft grounded shadow under the middleman's trading post and truck
+		var shadow_poly := PackedVector2Array()
+		for a in range(16):
+			var rad: float = float(a) * TAU / 16.0
+			shadow_poly.append(Vector2(cos(rad) * 62.0, sin(rad) * 31.0 + 6.0))
+		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.35))
+	elif building_type == "gensan_seaport":
+		# Pier shadow and night dock illumination
+		if TimeManager.is_night():
+			draw_circle(Vector2(45.0, -10.0), 18.0, Color(1.0, 0.90, 0.40, 0.22))
+			draw_circle(Vector2(45.0, -10.0), 6.0, Color(1.0, 0.95, 0.60, 0.50))
+	elif building_type == "tacurong_mill" or building_type == "koronadal_wholesale":
+		if TimeManager.is_night():
+			draw_circle(Vector2(-15.0, -25.0), 20.0, Color(1.0, 0.85, 0.35, 0.18))
+			draw_circle(Vector2(-15.0, -25.0), 7.0, Color(1.0, 0.90, 0.50, 0.45))
 
-	# 1. Concrete mechanics service apron in front (3x2 footprint)
-	var apron := PackedVector2Array([
-		left * 0.95, bottom * 0.95, bottom * 0.95 + Vector2(0, 4), left * 0.95 + Vector2(0, 4)
+func _draw_bayanihan_center(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var post_h: float = 44.0
+	var t: float = float(Time.get_ticks_msec()) * 0.001
+
+	# 1. Soft Isometric Ground Shadow beneath the 2x2 pavilion
+	var shadow_poly := PackedVector2Array([
+		top * 0.95 + Vector2(0, 4),
+		right * 0.95 + Vector2(6, 4),
+		bottom * 0.95 + Vector2(0, 6),
+		left * 0.95 + Vector2(-6, 4)
 	])
-	draw_colored_polygon(apron, Color(0.24, 0.26, 0.28))
+	draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.05, 0.30))
 
-	# Apron surface with tire scuff marks and oil stain
-	var apron_surf := PackedVector2Array([top * 0.4, right * 0.4, bottom * 0.95, left * 0.95])
-	draw_colored_polygon(apron_surf, Color(0.38, 0.40, 0.42))
-	draw_circle(Vector2(-14, 10), 6.0, Color(0.20, 0.20, 0.22, 0.60)) # Oil puddle
-
-	# 2. Corrugated iron workshop back & side walls
-	var w_left := PackedVector2Array([
-		left * 0.85, (left + bottom) * 0.45, (left + bottom) * 0.45 + Vector2(0, -wall_h), left * 0.85 + Vector2(0, -wall_h)
+	# 2. Packed Earth & Raised Bamboo Slatted Platform (Kawayan Deck)
+	var deck_elev: float = -8.0
+	var deck_pts := PackedVector2Array([
+		top * 0.82 + Vector2(0, deck_elev),
+		right * 0.82 + Vector2(0, deck_elev),
+		bottom * 0.82 + Vector2(0, deck_elev),
+		left * 0.82 + Vector2(0, deck_elev)
 	])
-	draw_colored_polygon(w_left, Color(0.48, 0.52, 0.56))
-	draw_polyline(w_left, Color(0.26, 0.30, 0.34), 1.5)
-
-	var w_back := PackedVector2Array([
-		left * 0.85 + Vector2(0, -wall_h), top * 0.85 + Vector2(0, -wall_h),
-		top * 0.85, left * 0.85
+	# Deck edge foundation skirting
+	var skirt_pts := PackedVector2Array([
+		left * 0.82 + Vector2(0, deck_elev),
+		bottom * 0.82 + Vector2(0, deck_elev),
+		bottom * 0.82,
+		left * 0.82
 	])
-	draw_colored_polygon(w_back, Color(0.40, 0.44, 0.48))
-
-	var w_right := PackedVector2Array([
-		top * 0.85, right * 0.85, right * 0.85 + Vector2(0, -wall_h), top * 0.85 + Vector2(0, -wall_h)
+	draw_colored_polygon(skirt_pts, Color(0.38, 0.28, 0.18))
+	var skirt_right := PackedVector2Array([
+		bottom * 0.82 + Vector2(0, deck_elev),
+		right * 0.82 + Vector2(0, deck_elev),
+		right * 0.82,
+		bottom * 0.82
 	])
-	draw_colored_polygon(w_right, Color(0.34, 0.38, 0.42))
-	draw_polyline(w_right, Color(0.20, 0.24, 0.28), 1.5)
+	draw_colored_polygon(skirt_right, Color(0.32, 0.22, 0.14))
 
-	# Corrugated siding rib lines
-	for rx in range(int(left.x * 0.8), int(top.x * 0.8), 8):
-		draw_line(Vector2(rx, -4), Vector2(rx, -wall_h), Color(0.32, 0.36, 0.40, 0.6), 1.0)
+	# Polished bamboo slat deck surface
+	draw_colored_polygon(deck_pts, Color(0.72, 0.58, 0.34))
+	draw_polyline(deck_pts, Color(0.42, 0.30, 0.16), 1.5)
 
-	# 3. OPEN SERVICE BAYS: Inside view
-	var bay1_center := Vector2(-22, -6)
-	var bay2_center := Vector2(10, -12)
+	# Bamboo slat floor texture lines
+	for i in range(1, 7):
+		var f: float = float(i) / 7.0
+		var p1 := (left * 0.82 + Vector2(0, deck_elev)).lerp(top * 0.82 + Vector2(0, deck_elev), f)
+		var p2 := (bottom * 0.82 + Vector2(0, deck_elev)).lerp(right * 0.82 + Vector2(0, deck_elev), f)
+		draw_line(p1, p2, Color(0.55, 0.42, 0.24, 0.5), 1.0)
 
-	# Interior back wall shadow & concrete slab
-	var bay_floor := PackedVector2Array([
-		Vector2(-42, -18), Vector2(28, -26), Vector2(28, -6), Vector2(-42, 2)
-	])
-	draw_colored_polygon(bay_floor, Color(0.22, 0.24, 0.26))
+	# 3. Four Heavy Bamboo / Molave Corner Timber Posts
+	var p_top := top * 0.75 + Vector2(0, deck_elev)
+	var p_right := right * 0.75 + Vector2(0, deck_elev)
+	var p_bottom := bottom * 0.75 + Vector2(0, deck_elev)
+	var p_left := left * 0.75 + Vector2(0, deck_elev)
 
-	# Overhead steel gantry beam across the bay opening
-	var beam_left := Vector2(-45, -wall_h + 10)
-	var beam_right := Vector2(30, -wall_h + 4)
-	draw_line(beam_left, beam_right, Color(0.85, 0.68, 0.15), 4.0) # Safety yellow gantry rail
-	draw_line(beam_left, beam_right, Color(0.15, 0.15, 0.15), 1.5)
+	# Rear posts drawn first
+	for pt: Vector2 in [p_top, p_right, p_left]:
+		draw_line(pt, pt + Vector2(0, -post_h), Color(0.46, 0.34, 0.20), 4.0)
+		draw_line(pt, pt + Vector2(0, -post_h), Color(0.68, 0.52, 0.30), 2.0)
+		# Bamboo node rings
+		for n in range(3):
+			var ny: float = -post_h * (float(n + 1) / 4.0)
+			draw_line(pt + Vector2(-2, ny), pt + Vector2(2, ny), Color(0.32, 0.22, 0.12), 1.5)
 
-	# Chains and engine hoist hook
-	var hoist_top := beam_left.lerp(beam_right, 0.45)
-	draw_line(hoist_top, hoist_top + Vector2(0, 14), Color(0.65, 0.70, 0.75), 1.5)
-	draw_circle(hoist_top + Vector2(0, 15), 2.5, Color(0.85, 0.20, 0.15)) # Hoist block
+	# 4. Communal Chalkboard / Directive Bulletin Board (Mounted on rear wall)
+	var board_center := (p_top + p_right) * 0.5 + Vector2(-2, -post_h * 0.45)
+	var b_w: float = 24.0
+	var b_h: float = 16.0
+	# Wooden frame
+	draw_rect(Rect2(board_center.x - b_w * 0.5 - 2, board_center.y - b_h * 0.5 - 2, b_w + 4, b_h + 4), Color(0.40, 0.28, 0.16))
+	# Chalkboard slate
+	draw_rect(Rect2(board_center.x - b_w * 0.5, board_center.y - b_h * 0.5, b_w, b_h), Color(0.18, 0.26, 0.20))
+	# Chalk scribbles / directive icons
+	draw_line(board_center + Vector2(-9, -4), board_center + Vector2(9, -4), Color(1.0, 1.0, 1.0, 0.8), 1.2) # Header line
+	draw_line(board_center + Vector2(-8, 0), board_center + Vector2(4, 0), Color(0.95, 0.88, 0.50, 0.75), 1.0)
+	draw_line(board_center + Vector2(-8, 3), board_center + Vector2(6, 3), Color(0.70, 0.90, 0.75, 0.75), 1.0)
+	# Handshake chalk emblem
+	draw_circle(board_center + Vector2(5, -4), 1.5, Color(1.0, 0.90, 0.40))
 
-	# -----------------------------------------------------------------------
-	# PARKED MACHINERY INSIDE THE SHED:
-	# Bay 1 (Left): Parked Red Kuliglig Hand-Tractor
-	# -----------------------------------------------------------------------
-	var k_pos := bay1_center
-	draw_circle(k_pos + Vector2(-6, 2), 5.5, Color(0.18, 0.20, 0.22)) # Left cage wheel
-	draw_circle(k_pos + Vector2(6, 4), 5.5, Color(0.18, 0.20, 0.22))  # Right cage wheel
-	for a in range(4):
-		var ang: float = float(a) * PI / 2.0
-		draw_line(k_pos + Vector2(-6, 2), k_pos + Vector2(-6 + cos(ang) * 5.0, 2 + sin(ang) * 5.0), Color(0.50, 0.55, 0.60), 1.2)
-		draw_line(k_pos + Vector2(6, 4), k_pos + Vector2(6 + cos(ang) * 5.0, 4 + sin(ang) * 5.0), Color(0.50, 0.55, 0.60), 1.2)
-	# Red single cylinder diesel engine cowl
-	var eng_poly := PackedVector2Array([
-		k_pos + Vector2(-7, -1), k_pos + Vector2(7, 1),
-		k_pos + Vector2(7, -8), k_pos + Vector2(-7, -10)
-	])
-	draw_colored_polygon(eng_poly, Color(0.85, 0.20, 0.15))
-	draw_polyline(eng_poly, Color(0.45, 0.10, 0.08), 1.2)
-	# Chrome exhaust & handlebars
-	draw_line(k_pos + Vector2(-3, -10), k_pos + Vector2(-3, -17), Color(0.75, 0.80, 0.85), 1.5)
-	draw_line(k_pos + Vector2(2, -4), k_pos + Vector2(12, -12), Color(0.20, 0.22, 0.25), 1.8)
+	# 5. Earthen Water Jar (Palayok / Banga) on Left Deck Corner
+	var jar_pos := p_left + Vector2(8, 2)
+	draw_circle(jar_pos, 5.0, Color(0.65, 0.34, 0.18)) # Clay belly
+	draw_circle(jar_pos + Vector2(0, -3), 3.0, Color(0.75, 0.42, 0.24)) # Jar neck
+	draw_circle(jar_pos + Vector2(0, -4), 2.0, Color(0.45, 0.20, 0.10)) # Opening
+	draw_line(jar_pos + Vector2(2, -4), jar_pos + Vector2(7, -8), Color(0.85, 0.75, 0.50), 1.2) # Coconut shell ladle handle
 
-	# -----------------------------------------------------------------------
-	# Bay 2 (Right): Parked Combine Harvester (Unlocked at Lv.2+)
-	# -----------------------------------------------------------------------
+	# 6. Woven Rice Sacks (Kaban) Stacked on Right Deck Corner
+	var sack_pos := p_right + Vector2(-10, 4)
+	draw_colored_polygon(PackedVector2Array([
+		sack_pos + Vector2(-6, 2), sack_pos + Vector2(6, 2),
+		sack_pos + Vector2(4, -5), sack_pos + Vector2(-4, -5)
+	]), Color(0.82, 0.74, 0.58))
+	draw_line(sack_pos + Vector2(-5, 0), sack_pos + Vector2(5, 0), Color(0.20, 0.45, 0.80), 1.2) # Blue twine stripe
+
+	# Front post drawn after interior items
+	draw_line(p_bottom, p_bottom + Vector2(0, -post_h), Color(0.46, 0.34, 0.20), 4.0)
+	draw_line(p_bottom, p_bottom + Vector2(0, -post_h), Color(0.68, 0.52, 0.30), 2.0)
+	for n in range(3):
+		var ny: float = -post_h * (float(n + 1) / 4.0)
+		draw_line(p_bottom + Vector2(-2, ny), p_bottom + Vector2(2, ny), Color(0.32, 0.22, 0.12), 1.5)
+
+	# 7. Level 2 & 3 Enhancements: Bamboo bench & dried corn/palay harvest garlands
 	if level >= 2:
-		var c_pos := bay2_center
-		# Caterpillar tracks (dark treads)
-		draw_colored_polygon(PackedVector2Array([
-			c_pos + Vector2(-12, 4), c_pos + Vector2(14, 4),
-			c_pos + Vector2(12, 8), c_pos + Vector2(-14, 8)
-		]), Color(0.12, 0.14, 0.16))
-		# Green Combine chassis body
-		var c_body := PackedVector2Array([
-			c_pos + Vector2(-10, 3), c_pos + Vector2(12, 3),
-			c_pos + Vector2(12, -14), c_pos + Vector2(-10, -14)
+		# Bamboo resting bench across front-left
+		var bench_poly := PackedVector2Array([
+			Vector2(-24, -12), Vector2(-10, -5), Vector2(-12, -2), Vector2(-26, -9)
 		])
-		draw_colored_polygon(c_body, Color(0.22, 0.55, 0.28))
-		draw_polyline(c_body, Color(0.12, 0.32, 0.15), 1.2)
-		# Yellow reel cutter bar on front
-		draw_line(c_pos + Vector2(-14, 2), c_pos + Vector2(-4, 4), Color(0.95, 0.80, 0.15), 3.0)
-		# Overhead grain unloading auger tube
-		draw_line(c_pos + Vector2(6, -14), c_pos + Vector2(18, -24), Color(0.85, 0.70, 0.12), 2.5)
+		draw_colored_polygon(bench_poly, Color(0.78, 0.64, 0.38))
+		draw_polyline(bench_poly, Color(0.45, 0.32, 0.16), 1.2)
+		# Hanging bundles of golden grain from rafters
+		for gx in [-16, 0, 14]:
+			var gp := Vector2(gx, -post_h + 8)
+			draw_line(gp, gp + Vector2(0, 8), Color(0.92, 0.78, 0.20), 2.0)
+			draw_circle(gp + Vector2(0, 9), 2.0, Color(0.85, 0.68, 0.15))
 
-	# -----------------------------------------------------------------------
-	# Mechanics Details: Workbench, Tires, Oil Drums
-	# -----------------------------------------------------------------------
-	# Stack of 3 black tractor tires leaning against left wall
-	var tire_p := Vector2(-38, -6)
-	draw_circle(tire_p, 4.5, Color(0.12, 0.12, 0.14))
-	draw_circle(tire_p + Vector2(3, -4), 4.5, Color(0.15, 0.15, 0.17))
-	draw_circle(tire_p + Vector2(6, -8), 4.5, Color(0.18, 0.18, 0.20))
-
-	# 55-Gallon Oil Drums (1 Blue, 1 Red) on right
-	var drum_p := Vector2(26, -2)
-	draw_rect(Rect2(drum_p.x - 3, drum_p.y - 10, 6, 10), Color(0.18, 0.42, 0.72))
-	draw_rect(Rect2(drum_p.x - 3, drum_p.y - 10, 6, 10), Color(0.10, 0.20, 0.40), false, 1.0)
-	draw_rect(Rect2(drum_p.x + 4, drum_p.y - 8, 6, 8), Color(0.78, 0.22, 0.18))
-	draw_rect(Rect2(drum_p.x + 4, drum_p.y - 8, 6, 8), Color(0.40, 0.10, 0.08), false, 1.0)
-
-	# Level 3: Air compressor with pressure gauge
 	if level >= 3:
-		var comp_p := Vector2(20, -18)
-		draw_rect(Rect2(comp_p.x - 4, comp_p.y - 7, 8, 14), Color(0.85, 0.25, 0.20))
-		draw_circle(comp_p + Vector2(0, -9), 2.5, Color(0.88, 0.75, 0.20))
+		# Brass calling bell on front rafter beam
+		var bell_pos := Vector2(0, -post_h + 4)
+		draw_line(bell_pos, bell_pos + Vector2(0, 6), Color(0.30, 0.25, 0.20), 1.5)
+		draw_circle(bell_pos + Vector2(0, 7), 3.5, Color(0.92, 0.78, 0.22)) # Shiny brass gong
+		draw_circle(bell_pos + Vector2(0, 7), 1.5, Color(1.0, 0.95, 0.60))
 
-	# 4. Gabled Corrugated Iron Roof with Weathered Patina
-	var roof_pts := PackedVector2Array([
-		top * 0.85 + Vector2(0, -wall_h - 10),
-		right * 0.85 + Vector2(0, -wall_h),
-		(bottom + right) * 0.40 + Vector2(0, -wall_h),
-		left * 0.85 + Vector2(0, -wall_h)
-	])
-	draw_colored_polygon(roof_pts, Color(0.65, 0.28, 0.22))
-	draw_polyline(roof_pts, Color(0.38, 0.16, 0.12), 2.0)
+	# 8. Thatched Nipa / Cogon Grass Pavilion Roof (Pyramidal / Hip Roof)
+	var apex := Vector2(0, -post_h - 26.0)
+	var e_top := top * 0.95 + Vector2(0, -post_h)
+	var e_right := right * 0.95 + Vector2(0, -post_h)
+	var e_bottom := bottom * 0.95 + Vector2(0, -post_h)
+	var e_left := left * 0.95 + Vector2(0, -post_h)
 
-	# Overhang awning timber posts
-	draw_line(left * 0.85 + Vector2(0, -wall_h), (left + bottom) * 0.45, Color(0.35, 0.25, 0.15), 3.0)
-	draw_line((bottom + right) * 0.40 + Vector2(0, -wall_h), right * 0.45, Color(0.35, 0.25, 0.15), 3.0)
+	# Roof left facet
+	var r_left := PackedVector2Array([apex, e_left, e_bottom])
+	draw_colored_polygon(r_left, Color(0.68, 0.54, 0.28))
+	draw_polyline(r_left, Color(0.38, 0.26, 0.12), 1.5)
 
-	# Night Floodlights
+	# Roof right facet
+	var r_right := PackedVector2Array([apex, e_bottom, e_right])
+	draw_colored_polygon(r_right, Color(0.76, 0.62, 0.34))
+	draw_polyline(r_right, Color(0.42, 0.30, 0.14), 1.5)
+
+	# Thatch tier layering lines
+	for k in range(1, 4):
+		var f: float = float(k) / 4.0
+		var tl1 := apex.lerp(e_left, f)
+		var tl2 := apex.lerp(e_bottom, f)
+		var tr1 := apex.lerp(e_bottom, f)
+		var tr2 := apex.lerp(e_right, f)
+		draw_line(tl1, tl2, Color(0.82, 0.68, 0.38, 0.65), 1.5)
+		draw_line(tr1, tr2, Color(0.86, 0.74, 0.42, 0.65), 1.5)
+
+	# Overhanging thatch fringe (cogon grass tassels along eaves)
+	for i in range(12):
+		var f: float = float(i) / 11.0
+		var pt_l := e_left.lerp(e_bottom, f)
+		draw_line(pt_l, pt_l + Vector2(0, 3.5), Color(0.55, 0.40, 0.20), 1.2)
+		var pt_r := e_bottom.lerp(e_right, f)
+		draw_line(pt_r, pt_r + Vector2(0, 3.5), Color(0.60, 0.45, 0.22), 1.2)
+
+	# Ridge finial cap on apex
+	draw_circle(apex, 3.5, Color(0.52, 0.38, 0.20))
+	draw_line(apex + Vector2(-6, 2), apex + Vector2(6, 2), Color(0.40, 0.28, 0.14), 2.0)
+
+	# 9. Festive Banderitas (Philippine Fiesta Bunting Flags along front eaves)
+	var flag_colors: Array[Color] = [
+		Color(0.92, 0.22, 0.18), # Red
+		Color(0.96, 0.82, 0.18), # Gold
+		Color(0.20, 0.65, 0.30), # Green
+		Color(0.18, 0.50, 0.90), # Blue
+		Color(0.98, 0.98, 0.98), # White
+	]
+	var string_p1 := e_left + Vector2(0, 1)
+	var string_p2 := e_bottom + Vector2(0, 1)
+	var string_p3 := e_right + Vector2(0, 1)
+	draw_line(string_p1, string_p2, Color(0.85, 0.80, 0.70, 0.8), 1.0)
+	draw_line(string_p2, string_p3, Color(0.85, 0.80, 0.70, 0.8), 1.0)
+
+	for i in range(7):
+		var f: float = float(i) / 6.0
+		var pos_a := string_p1.lerp(string_p2, f)
+		var sway: float = sin(t * 3.0 + f * 4.0) * 1.5
+		var col: Color = flag_colors[i % flag_colors.size()]
+		var tri := PackedVector2Array([
+			pos_a + Vector2(-2, 0), pos_a + Vector2(2, 0),
+			pos_a + Vector2(0, 4.5 + sway)
+		])
+		draw_colored_polygon(tri, col)
+
+		var pos_b := string_p2.lerp(string_p3, f)
+		var col_b: Color = flag_colors[(i + 2) % flag_colors.size()]
+		var tri_b := PackedVector2Array([
+			pos_b + Vector2(-2, 0), pos_b + Vector2(2, 0),
+			pos_b + Vector2(0, 4.5 - sway)
+		])
+		draw_colored_polygon(tri_b, col_b)
+
+	# 10. Night Lighting: Warm Kerosene Gasera Lanterns hanging from rafters
 	if TimeManager.is_night():
-		var lamp1 := Vector2(-20, -wall_h + 4)
-		draw_circle(lamp1, 24.0, Color(1.0, 0.85, 0.40, 0.25))
-		draw_circle(lamp1, 6.0, Color(1.0, 0.95, 0.60, 0.60))
-		draw_circle(lamp1, 2.0, Color(1.0, 1.0, 0.90, 0.95))
-		var lamp2 := Vector2(10, -wall_h + 2)
-		draw_circle(lamp2, 24.0, Color(1.0, 0.85, 0.40, 0.25))
-		draw_circle(lamp2, 6.0, Color(1.0, 0.95, 0.60, 0.60))
+		var l_pos1 := (e_left + e_bottom) * 0.5 + Vector2(4, 2)
+		draw_circle(l_pos1, 26.0, Color(1.0, 0.85, 0.40, 0.22))
+		draw_circle(l_pos1, 8.0, Color(1.0, 0.92, 0.55, 0.50))
+		draw_circle(l_pos1, 2.5, Color(1.0, 1.0, 0.85, 0.95))
+		draw_line(l_pos1 + Vector2(0, -6), l_pos1, Color(0.35, 0.25, 0.15), 1.2) # Chain
+
+		var l_pos2 := (e_bottom + e_right) * 0.5 + Vector2(-4, 2)
+		draw_circle(l_pos2, 26.0, Color(1.0, 0.85, 0.40, 0.22))
+		draw_circle(l_pos2, 8.0, Color(1.0, 0.92, 0.55, 0.50))
+		draw_circle(l_pos2, 2.5, Color(1.0, 1.0, 0.85, 0.95))
+		draw_line(l_pos2 + Vector2(0, -6), l_pos2, Color(0.35, 0.25, 0.15), 1.2)
 
 func _draw_water_tower(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	if TEX_WATER_STATION != null:
@@ -1702,6 +2017,380 @@ func _draw_sprinkler(_top: Vector2, _right: Vector2, _bottom: Vector2, _left: Ve
 		draw_arc(Vector2.ZERO, 26.0, 0, TAU, 20, Color(0.45, 0.85, 1.0, 0.18 + 0.08 * sin(t * 3.0)), 1.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
+# ---------------------------------------------------------------------------
+# 4. Agro-Industrial Milling & Value-Added Facilities (2.5D Philippine Vernacular)
+# ---------------------------------------------------------------------------
+func _draw_rice_mill(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var t: float = float(Time.get_ticks_msec()) * 0.001
+	var vib: float = sin(t * 24.0) * 1.2 if state == BuildingState.ACTIVE else 0.0
+
+	# Ground contact shadow
+	draw_set_transform(Vector2(0, 8), 0.0, Vector2(1.0, 0.48))
+	draw_circle(Vector2.ZERO, 58.0, Color(0.08, 0.06, 0.04, 0.35))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# Main Millhouse Body (Weathered timber framing & corrugated metal)
+	var wall_h: float = 46.0
+	var w_left := PackedVector2Array([
+		left * 0.72, bottom * 0.72,
+		bottom * 0.72 + Vector2(0, -wall_h),
+		left * 0.72 + Vector2(0, -wall_h)
+	])
+	draw_colored_polygon(w_left, Color(0.48, 0.42, 0.36))
+	draw_polyline(w_left, Color(0.24, 0.20, 0.16), 1.5)
+
+	var w_right := PackedVector2Array([
+		bottom * 0.72, right * 0.72,
+		right * 0.72 + Vector2(0, -wall_h),
+		bottom * 0.72 + Vector2(0, -wall_h)
+	])
+	draw_colored_polygon(w_right, Color(0.56, 0.50, 0.42))
+	draw_polyline(w_right, Color(0.28, 0.24, 0.18), 1.5)
+
+	# Gabled Galvanized Iron (Yero) Roof
+	var apex_y: float = -wall_h - 26.0
+	var roof_pts_left := PackedVector2Array([
+		left * 0.82 + Vector2(0, -wall_h),
+		bottom * 0.82 + Vector2(0, -wall_h),
+		Vector2(0, apex_y),
+		top * 0.4 + Vector2(0, apex_y + 12.0)
+	])
+	draw_colored_polygon(roof_pts_left, Color(0.58, 0.62, 0.66))
+	draw_polyline(roof_pts_left, Color(0.32, 0.36, 0.40), 1.8)
+
+	var roof_pts_right := PackedVector2Array([
+		bottom * 0.82 + Vector2(0, -wall_h),
+		right * 0.82 + Vector2(0, -wall_h),
+		top * 0.4 + Vector2(0, apex_y + 12.0),
+		Vector2(0, apex_y)
+	])
+	draw_colored_polygon(roof_pts_right, Color(0.68, 0.72, 0.76))
+	draw_polyline(roof_pts_right, Color(0.38, 0.42, 0.46), 1.8)
+
+	# Corrugated roof ridge lines
+	for i in range(1, 5):
+		var frac: float = float(i) / 5.0
+		var p1 = (bottom * 0.82 + Vector2(0, -wall_h)).lerp(right * 0.82 + Vector2(0, -wall_h), frac)
+		var p2 = Vector2(0, apex_y).lerp(top * 0.4 + Vector2(0, apex_y + 12.0), frac)
+		draw_line(p1, p2, Color(0.52, 0.56, 0.60, 0.7), 1.0)
+
+	# Rear/Side Paddy Intake Hopper Funnel (Pyramidal steel bin with golden palay)
+	var hopper_center := left * 0.55 + Vector2(0, -32.0 + vib)
+	var hopper_poly := PackedVector2Array([
+		hopper_center + Vector2(-16, -14),
+		hopper_center + Vector2(16, -14),
+		hopper_center + Vector2(6, 10),
+		hopper_center + Vector2(-6, 10)
+	])
+	draw_colored_polygon(hopper_poly, Color(0.32, 0.36, 0.40))
+	draw_polyline(hopper_poly, Color(0.18, 0.22, 0.25), 1.5)
+	# Golden unhusked palay inside the hopper
+	draw_circle(hopper_center + Vector2(0, -10), 9.0, Color(0.92, 0.78, 0.28))
+
+	# Polishing Huller Cylinder & Pulley Belt
+	var huller_pos := Vector2(12.0, -22.0)
+	draw_line(huller_pos + Vector2(-10, 0), huller_pos + Vector2(10, 0), Color(0.25, 0.26, 0.28), 7.0)
+	draw_circle(huller_pos + Vector2(-10, 0), 4.5, Color(0.85, 0.65, 0.20))
+	draw_circle(huller_pos + Vector2(10, 0), 5.5, Color(0.40, 0.42, 0.45))
+	# Drive belt line
+	draw_line(huller_pos + Vector2(-10, -3), huller_pos + Vector2(10, -4), Color(0.12, 0.12, 0.12), 1.8)
+
+	# Front discharge chute & Wooden Collection Bin
+	var bin_pos := bottom * 0.45 + Vector2(4.0, -8.0)
+	var bin_box := PackedVector2Array([
+		bin_pos + Vector2(-14, -6), bin_pos + Vector2(14, -6),
+		bin_pos + Vector2(10, 10), bin_pos + Vector2(-10, 10)
+	])
+	draw_colored_polygon(bin_box, Color(0.42, 0.28, 0.16))
+	draw_polyline(bin_box, Color(0.24, 0.16, 0.08), 1.5)
+	# Polished White Rice pile overflowing the bin
+	draw_circle(bin_pos + Vector2(0, -3), 7.5, Color(0.96, 0.98, 0.98))
+
+	# Stacked Burlap Rice Sacks on front staging pallet
+	var sack_base := bottom * 0.45 + Vector2(-22.0, -4.0)
+	for s_idx in range(3):
+		var s_off = Vector2(s_idx * 7.0 - 6.0, -s_idx * 4.0)
+		var sack_poly := PackedVector2Array([
+			sack_base + s_off + Vector2(-6, -4),
+			sack_base + s_off + Vector2(6, -4),
+			sack_base + s_off + Vector2(5, 5),
+			sack_base + s_off + Vector2(-5, 5)
+		])
+		draw_colored_polygon(sack_poly, Color(0.82, 0.72, 0.52))
+		draw_polyline(sack_poly, Color(0.55, 0.45, 0.30), 1.2)
+		draw_circle(sack_base + s_off + Vector2(0, -4), 1.8, Color(0.35, 0.25, 0.15))
+
+	# Night lantern glow over doorway
+	if TimeManager.is_night():
+		var lamp_pos := bottom * 0.35 + Vector2(0, -34.0)
+		draw_circle(lamp_pos, 16.0, Color(1.0, 0.88, 0.40, 0.25))
+		draw_circle(lamp_pos, 7.0, Color(1.0, 0.92, 0.55, 0.50))
+		draw_circle(lamp_pos, 2.5, Color(1.0, 0.98, 0.85, 0.95))
+
+func _draw_sugar_mill(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var t: float = float(Time.get_ticks_msec()) * 0.001
+
+	# Ground contact shadow (large 3x2 oval)
+	draw_set_transform(Vector2(0, 10), 0.0, Vector2(1.0, 0.46))
+	draw_circle(Vector2.ZERO, 72.0, Color(0.08, 0.06, 0.04, 0.35))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# Masonry Brick Foundation Platform
+	var slab_poly := PackedVector2Array([left * 0.9, bottom * 0.9, right * 0.9, top * 0.9])
+	draw_colored_polygon(slab_poly, Color(0.52, 0.24, 0.18))
+	draw_polyline(slab_poly, Color(0.30, 0.12, 0.08), 2.0)
+
+	# 1. Industrial Brick Smokestack / Boiler Chimney (Left rear)
+	var stack_base := left * 0.5 + Vector2(4.0, -14.0)
+	var stack_h: float = 78.0
+	var stack_poly := PackedVector2Array([
+		stack_base + Vector2(-9, 0),
+		stack_base + Vector2(9, 0),
+		stack_base + Vector2(6, -stack_h),
+		stack_base + Vector2(-6, -stack_h)
+	])
+	draw_colored_polygon(stack_poly, Color(0.56, 0.22, 0.16))
+	draw_polyline(stack_poly, Color(0.32, 0.10, 0.06), 1.8)
+	# Chimney crown iron ring
+	draw_line(stack_base + Vector2(-7, -stack_h), stack_base + Vector2(7, -stack_h), Color(0.20, 0.20, 0.22), 3.0)
+
+	# Animated Rising Steam/Smoke Plume from Chimney
+	if state == BuildingState.ACTIVE:
+		var c_top := stack_base + Vector2(0, -stack_h)
+		for s in range(3):
+			var phase: float = fmod(t * 1.2 + float(s) * 0.65, 2.0)
+			var s_y: float = phase * 22.0
+			var s_x: float = sin(phase * 4.0 + float(s)) * 5.0
+			var s_alpha: float = (1.0 - phase / 2.0) * 0.45
+			var s_rad: float = 4.0 + phase * 4.5
+			draw_circle(c_top + Vector2(s_x, -s_y), s_rad, Color(0.92, 0.94, 0.96, s_alpha))
+
+	# 2. Main Open-Air Crushing Shed & Terracotta Tile Roof
+	var wall_h: float = 38.0
+	var shed_l := PackedVector2Array([
+		left * 0.2, bottom * 0.55,
+		bottom * 0.55 + Vector2(0, -wall_h),
+		left * 0.2 + Vector2(0, -wall_h)
+	])
+	draw_colored_polygon(shed_l, Color(0.42, 0.34, 0.26))
+	draw_polyline(shed_l, Color(0.22, 0.16, 0.12), 1.5)
+
+	var roof_pts := PackedVector2Array([
+		left * 0.35 + Vector2(0, -wall_h),
+		bottom * 0.65 + Vector2(0, -wall_h),
+		right * 0.35 + Vector2(0, -wall_h - 18.0),
+		top * 0.15 + Vector2(0, -wall_h - 18.0)
+	])
+	draw_colored_polygon(roof_pts, Color(0.72, 0.38, 0.22)) # Spanish Terracotta Tile
+	draw_polyline(roof_pts, Color(0.42, 0.18, 0.08), 2.0)
+
+	# 3. Triple Iron Roller Cane Crusher Gears (Trapiche)
+	var gear_c := Vector2(-8.0, -18.0)
+	draw_circle(gear_c + Vector2(-7, 0), 7.0, Color(0.28, 0.30, 0.34))
+	draw_circle(gear_c + Vector2(7, 0), 7.0, Color(0.32, 0.34, 0.38))
+	draw_circle(gear_c + Vector2(0, -8), 7.0, Color(0.24, 0.26, 0.30))
+	# Rotating gear tooth spokes
+	var rot_a: float = t * 4.0 if state == BuildingState.ACTIVE else 0.0
+	draw_line(gear_c + Vector2(cos(rot_a)*5, sin(rot_a)*5), gear_c - Vector2(cos(rot_a)*5, sin(rot_a)*5), Color(0.70, 0.72, 0.75), 1.8)
+
+	# Sugarcane Stalk Feed Trough
+	draw_line(gear_c + Vector2(-24, 6), gear_c + Vector2(-8, 2), Color(0.45, 0.68, 0.22), 4.0)
+	draw_line(gear_c + Vector2(-22, 9), gear_c + Vector2(-6, 5), Color(0.55, 0.78, 0.26), 3.0)
+
+	# 4. Boiling Cauldrons (Kawa) Array with dark amber cane syrup
+	var kawa_c := right * 0.35 + Vector2(-6.0, -8.0)
+	draw_circle(kawa_c, 9.0, Color(0.20, 0.20, 0.22)) # Cast iron rim
+	draw_circle(kawa_c, 7.5, Color(0.72, 0.38, 0.12)) # Boiling amber syrup
+	if state == BuildingState.ACTIVE:
+		# Boiling bubbles
+		draw_circle(kawa_c + Vector2(sin(t * 8.0) * 3, cos(t * 7.0) * 2), 2.0, Color(0.92, 0.60, 0.20, 0.8))
+
+	# 5. Front Cooling Table with Solid Muscovado Sugar Blocks
+	var table_c := bottom * 0.45 + Vector2(18.0, 2.0)
+	var table_poly := PackedVector2Array([
+		table_c + Vector2(-16, -6), table_c + Vector2(16, -6),
+		table_c + Vector2(12, 6), table_c + Vector2(-12, 6)
+	])
+	draw_colored_polygon(table_poly, Color(0.48, 0.32, 0.18))
+	draw_polyline(table_poly, Color(0.28, 0.18, 0.08), 1.2)
+	# Dark rich muscovado blocks
+	draw_rect(Rect2(table_c + Vector2(-10, -5), Vector2(7, 6)), Color(0.28, 0.14, 0.06))
+	draw_rect(Rect2(table_c + Vector2(-1, -6), Vector2(7, 7)), Color(0.32, 0.16, 0.08))
+	draw_rect(Rect2(table_c + Vector2(8, -5), Vector2(6, 6)), Color(0.25, 0.12, 0.05))
+
+func _draw_copra_dryer(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var t: float = float(Time.get_ticks_msec()) * 0.001
+	var flame_scale: float = (sin(t * 12.0) * 0.25 + 0.85) if state == BuildingState.ACTIVE else 0.4
+
+	# Ground contact shadow
+	draw_set_transform(Vector2(0, 8), 0.0, Vector2(1.0, 0.48))
+	draw_circle(Vector2.ZERO, 56.0, Color(0.08, 0.06, 0.04, 0.35))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# Traditional Tapahan Fieldstone & Clay Hearth Structure
+	var hearth_h: float = 32.0
+	var h_left := PackedVector2Array([
+		left * 0.75, bottom * 0.75,
+		bottom * 0.75 + Vector2(0, -hearth_h),
+		left * 0.75 + Vector2(0, -hearth_h)
+	])
+	draw_colored_polygon(h_left, Color(0.45, 0.38, 0.32)) # Riverstone masonry
+	draw_polyline(h_left, Color(0.22, 0.18, 0.15), 1.5)
+
+	var h_right := PackedVector2Array([
+		bottom * 0.75, right * 0.75,
+		right * 0.75 + Vector2(0, -hearth_h),
+		bottom * 0.75 + Vector2(0, -hearth_h)
+	])
+	draw_colored_polygon(h_right, Color(0.52, 0.45, 0.38))
+	draw_polyline(h_right, Color(0.26, 0.22, 0.18), 1.5)
+
+	# Arched Furnace Hearth Firemouth (Center front)
+	var fire_mouth := bottom * 0.45 + Vector2(0, -8.0)
+	draw_circle(fire_mouth, 12.0, Color(0.12, 0.08, 0.05))
+	draw_rect(Rect2(fire_mouth + Vector2(-12, 0), Vector2(24, 10)), Color(0.12, 0.08, 0.05))
+
+	# Glowing Coconut Shell Charcoal Fire & Dancing Embers
+	draw_circle(fire_mouth + Vector2(0, 2), 8.0 * flame_scale, Color(1.0, 0.35, 0.05, 0.95))
+	draw_circle(fire_mouth + Vector2(0, 1), 5.0 * flame_scale, Color(1.0, 0.85, 0.20, 0.95))
+	draw_circle(fire_mouth + Vector2(0, 0), 2.5 * flame_scale, Color(1.0, 0.98, 0.80, 1.0))
+
+	# Split-Bamboo Drying Grate Floor (Bila)
+	var grate_y: float = -hearth_h
+	var grate_poly := PackedVector2Array([
+		left * 0.78 + Vector2(0, grate_y),
+		bottom * 0.78 + Vector2(0, grate_y),
+		right * 0.78 + Vector2(0, grate_y),
+		top * 0.78 + Vector2(0, grate_y)
+	])
+	draw_colored_polygon(grate_poly, Color(0.68, 0.58, 0.42))
+	draw_polyline(grate_poly, Color(0.38, 0.30, 0.20), 1.5)
+
+	# Bamboo slat floor texture lines
+	for i in range(-3, 4):
+		var x_off: float = float(i) * 9.0
+		draw_line(
+			left * 0.7 + Vector2(x_off, grate_y),
+			right * 0.7 + Vector2(x_off, grate_y),
+			Color(0.50, 0.40, 0.28, 0.8), 1.2
+		)
+
+	# Drying Coconut Halves on the Grate (White meat visible inside brown shells)
+	var nut_locs := [
+		Vector2(-18, grate_y - 4), Vector2(-6, grate_y - 2), Vector2(8, grate_y - 5),
+		Vector2(-12, grate_y + 4), Vector2(3, grate_y + 3), Vector2(16, grate_y + 1),
+		Vector2(-4, grate_y - 8), Vector2(10, grate_y - 9)
+	]
+	for n_pos in nut_locs:
+		draw_circle(n_pos, 4.2, Color(0.38, 0.22, 0.12)) # Outer husk
+		draw_circle(n_pos, 2.8, Color(0.95, 0.96, 0.94)) # White copra meat
+
+	# Heavy Screw Expeller Oil Press (Right side timber upright)
+	var press_c := right * 0.6 + Vector2(-6.0, -28.0)
+	draw_line(press_c + Vector2(0, 24), press_c + Vector2(0, -18), Color(0.35, 0.24, 0.15), 5.5)
+	# Threaded iron spindle and T-handle
+	draw_line(press_c + Vector2(0, -14), press_c + Vector2(0, 10), Color(0.65, 0.68, 0.72), 2.5)
+	draw_line(press_c + Vector2(-10, -16), press_c + Vector2(10, -16), Color(0.20, 0.22, 0.25), 3.0)
+	# Virgin Coconut Oil collection container below press
+	var drum_c := right * 0.6 + Vector2(-6.0, 4.0)
+	draw_rect(Rect2(drum_c + Vector2(-6, -8), Vector2(12, 12)), Color(0.32, 0.36, 0.40))
+	draw_circle(drum_c + Vector2(0, -8), 6.0, Color(0.92, 0.98, 0.85)) # Crystal clear VCO
+
+	# Light smoke wafting from drying coconuts
+	if state == BuildingState.ACTIVE:
+		for sm in range(2):
+			var sm_phase: float = fmod(t * 0.9 + float(sm) * 0.8, 1.8)
+			var sm_y: float = sm_phase * 24.0
+			var sm_alpha: float = (1.0 - sm_phase / 1.8) * 0.35
+			draw_circle(Vector2(sin(sm_phase * 3.0) * 8.0, grate_y - 12.0 - sm_y), 5.0 + sm_phase * 4.0, Color(0.95, 0.95, 0.95, sm_alpha))
+
+func _draw_coffee_roastery(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var t: float = float(Time.get_ticks_msec()) * 0.001
+
+	# Ground contact shadow
+	draw_set_transform(Vector2(0, 8), 0.0, Vector2(1.0, 0.48))
+	draw_circle(Vector2.ZERO, 56.0, Color(0.08, 0.06, 0.04, 0.35))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# Red Volcanic Brick Roastery Building Base
+	var wall_h: float = 44.0
+	var w_left := PackedVector2Array([
+		left * 0.75, bottom * 0.75,
+		bottom * 0.75 + Vector2(0, -wall_h),
+		left * 0.75 + Vector2(0, -wall_h)
+	])
+	draw_colored_polygon(w_left, Color(0.50, 0.22, 0.18))
+	draw_polyline(w_left, Color(0.28, 0.10, 0.08), 1.5)
+
+	var w_right := PackedVector2Array([
+		bottom * 0.75, right * 0.75,
+		right * 0.75 + Vector2(0, -wall_h),
+		bottom * 0.75 + Vector2(0, -wall_h)
+	])
+	draw_colored_polygon(w_right, Color(0.60, 0.28, 0.22))
+	draw_polyline(w_right, Color(0.34, 0.14, 0.10), 1.5)
+
+	# Slate Grey Pitched Industrial Roof
+	var apex_y: float = -wall_h - 22.0
+	var roof_l := PackedVector2Array([
+		left * 0.8 + Vector2(0, -wall_h),
+		bottom * 0.8 + Vector2(0, -wall_h),
+		Vector2(0, apex_y),
+		top * 0.4 + Vector2(0, apex_y + 10.0)
+	])
+	draw_colored_polygon(roof_l, Color(0.30, 0.34, 0.38))
+	draw_polyline(roof_l, Color(0.16, 0.18, 0.22), 1.8)
+
+	var roof_r := PackedVector2Array([
+		bottom * 0.8 + Vector2(0, -wall_h),
+		right * 0.8 + Vector2(0, -wall_h),
+		top * 0.4 + Vector2(0, apex_y + 10.0),
+		Vector2(0, apex_y)
+	])
+	draw_colored_polygon(roof_r, Color(0.38, 0.42, 0.46))
+	draw_polyline(roof_r, Color(0.20, 0.22, 0.26), 1.8)
+
+	# 1. Cast-Iron Rotating Drum Roaster (Mounted in front center aperture)
+	var drum_c := Vector2(-10.0, -22.0)
+	draw_circle(drum_c, 14.0, Color(0.20, 0.22, 0.24)) # Cast iron cylinder
+	draw_circle(drum_c, 11.5, Color(0.28, 0.30, 0.34))
+	# Copper accent bands & rotating crank axle
+	draw_line(drum_c + Vector2(-14, 0), drum_c + Vector2(14, 0), Color(0.78, 0.48, 0.25), 2.2)
+	var rot_d: float = t * 6.0 if state == BuildingState.ACTIVE else 0.0
+	draw_line(drum_c, drum_c + Vector2(cos(rot_d) * 9, sin(rot_d) * 9), Color(0.92, 0.72, 0.35), 2.0)
+
+	# Gas burner flame inspection sight glass (glowing warm orange)
+	draw_circle(drum_c + Vector2(0, 7), 3.0, Color(1.0, 0.45, 0.10, 0.95))
+
+	# 2. Circular Cooling Agitation Tray (Front staging area)
+	var tray_c := bottom * 0.45 + Vector2(12.0, 0.0)
+	draw_set_transform(tray_c, 0.0, Vector2(1.0, 0.5))
+	draw_circle(Vector2.ZERO, 15.0, Color(0.65, 0.68, 0.72)) # Stainless steel rim
+	draw_circle(Vector2.ZERO, 13.0, Color(0.24, 0.14, 0.08)) # Roasted dark brown coffee beans
+	# Rotating cooling paddles
+	var p_rot: float = t * 3.5 if state == BuildingState.ACTIVE else 0.0
+	draw_line(Vector2(cos(p_rot)*11, sin(p_rot)*11), Vector2(-cos(p_rot)*11, -sin(p_rot)*11), Color(0.85, 0.88, 0.92), 1.8)
+	draw_line(Vector2(cos(p_rot + 1.57)*11, sin(p_rot + 1.57)*11), Vector2(-cos(p_rot + 1.57)*11, -sin(p_rot + 1.57)*11), Color(0.85, 0.88, 0.92), 1.8)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	# 3. Exhaust Flue Chimney venting aromatic roaster smoke
+	var flue_base := top * 0.3 + Vector2(-12.0, apex_y + 6.0)
+	draw_line(flue_base, flue_base + Vector2(0, -22), Color(0.72, 0.75, 0.78), 3.5)
+	draw_circle(flue_base + Vector2(0, -22), 2.5, Color(0.45, 0.48, 0.52))
+
+	if state == BuildingState.ACTIVE:
+		for c_sm in range(2):
+			var c_phase: float = fmod(t * 1.4 + float(c_sm) * 0.7, 1.6)
+			var c_y: float = c_phase * 22.0
+			var c_alpha: float = (1.0 - c_phase / 1.6) * 0.40
+			draw_circle(flue_base + Vector2(sin(c_phase * 3.0) * 4.0, -22.0 - c_y), 3.5 + c_phase * 3.0, Color(0.85, 0.80, 0.75, c_alpha))
+
+	# 4. Stacks of Burlap Coffee Sacks
+	var sack_pos := bottom * 0.45 + Vector2(-20.0, -2.0)
+	draw_rect(Rect2(sack_pos + Vector2(-6, -8), Vector2(12, 10)), Color(0.78, 0.68, 0.48))
+	draw_circle(sack_pos + Vector2(0, -8), 2.0, Color(0.35, 0.22, 0.12)) # Tie
+	draw_rect(Rect2(sack_pos + Vector2(3, -6), Vector2(10, 9)), Color(0.72, 0.62, 0.42))
+
 func _draw_default_building(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	var w := PackedVector2Array([
 		left * 0.8, bottom * 0.8, bottom * 0.8 + Vector2(0, -36), left * 0.8 + Vector2(0, -36)
@@ -1713,7 +2402,10 @@ func _draw_scaffold_overlay(top: Vector2, right: Vector2, bottom: Vector2, left:
 	# 2.5D Isometric construction timber scaffolding
 	var wood := Color(0.80, 0.58, 0.25, 0.95)
 	var scaffold_h: float = 55.0
-	if building_type in ["water_tower", "drone_station", "weather_station"]:
+	var fit: Dictionary = get_art_fit(building_type)
+	if not fit.is_empty():
+		scaffold_h = float(fit.get("scaffold_h", 70.0))
+	elif building_type in ["water_tower", "drone_station", "weather_station"]:
 		scaffold_h = 75.0
 	elif building_type == "cold_storage":
 		scaffold_h = 65.0

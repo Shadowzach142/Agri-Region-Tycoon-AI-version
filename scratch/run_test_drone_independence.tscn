@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8k2s42aa2rba"]
+
+[ext_resource type="Script" path="res://scratch/test_drone_independence.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

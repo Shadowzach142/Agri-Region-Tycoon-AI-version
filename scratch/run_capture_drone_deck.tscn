@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8k2s42aa2q77"]
+
+[ext_resource type="Script" path="res://scratch/capture_drone_deck.gd" id="1_cap"]
+
+[node name="CaptureRoot" type="Node"]
+script = ExtResource("1_cap")

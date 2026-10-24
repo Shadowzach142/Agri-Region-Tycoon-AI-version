@@ -1,42 +1,73 @@
-[gd_scene format=3 uid="uid://bivourbb4u4s7"]
+[gd_scene format=3 uid="uid://maingame"]
 
-[ext_resource type="Texture2D" uid="uid://c0qvbl7h2td3d" path="res://assets/Regions Art/Cotabto/Cotabato BG.png" id="1_cotabato_bg"]
-[ext_resource type="Texture2D" uid="uid://cxrgu6312tqdc" path="res://assets/sprites/StartMenu/Arrows/arrow_left_normal.png" id="2_arrow_l_norm"]
-[ext_resource type="Texture2D" uid="uid://bhh3ycptpeh4r" path="res://assets/sprites/StartMenu/Arrows/arrow_left_hover.png" id="3_arrow_l_hov"]
-[ext_resource type="Texture2D" uid="uid://c1rj7in7eenyk" path="res://assets/sprites/StartMenu/Arrows/arrow_left_pressed.png" id="4_arrow_l_press"]
-[ext_resource type="Texture2D" uid="uid://ns7cvy0qu5v4" path="res://assets/sprites/StartMenu/Arrows/arrow_right_normal.png" id="5_arrow_r_norm"]
-[ext_resource type="Texture2D" uid="uid://c3icaao1rxdfc" path="res://assets/sprites/StartMenu/Arrows/arrow_right_hover.png" id="6_arrow_r_hov"]
-[ext_resource type="Texture2D" uid="uid://ca68ginc2g2k1" path="res://assets/sprites/StartMenu/Arrows/arrow_right_pressed.png" id="7_arrow_r_press"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/BigRectangleLogs.tres" id="8_big_logs"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/LongRectangle.tres" id="9_long_rect"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Samplebox1.tres" id="10_samplebox"]
+[ext_resource type="Script" uid="uid://npptjcjxv1wr" path="res://scenes/MainMenu.gd" id="1_mainmenu"]
+[ext_resource type="Texture2D" uid="uid://c0qvbl7h2td3d" path="res://assets/Regions Art/Cotabto/Cotabato BG.png" id="2_cotabato_bg"]
+[ext_resource type="Texture2D" uid="uid://cbjagdmyhvscb" path="res://assets/Regions Art/Cotabto/ph_transparent.png" id="3_ph_trans"]
+[ext_resource type="Texture2D" uid="uid://cxrgu6312tqdc" path="res://assets/sprites/StartMenu/Arrows/arrow_left_normal.png" id="4_arrow_l_norm"]
+[ext_resource type="Texture2D" uid="uid://bhh3ycptpeh4r" path="res://assets/sprites/StartMenu/Arrows/arrow_left_hover.png" id="5_arrow_l_hov"]
+[ext_resource type="Texture2D" uid="uid://c1rj7in7eenyk" path="res://assets/sprites/StartMenu/Arrows/arrow_left_pressed.png" id="6_arrow_l_press"]
+[ext_resource type="Texture2D" uid="uid://ns7cvy0qu5v4" path="res://assets/sprites/StartMenu/Arrows/arrow_right_normal.png" id="7_arrow_r_norm"]
+[ext_resource type="Texture2D" uid="uid://c3icaao1rxdfc" path="res://assets/sprites/StartMenu/Arrows/arrow_right_hover.png" id="8_arrow_r_hov"]
+[ext_resource type="Texture2D" uid="uid://ca68ginc2g2k1" path="res://assets/sprites/StartMenu/Arrows/arrow_right_pressed.png" id="9_arrow_r_press"]
 [ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Brownbutton/BrownButton.tres" id="11_brownbox"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Brownbutton/BrownButtonHover.tres" id="12_brown_hov"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Brownbutton/BrownButtonPressed.tres" id="13_brown_press"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/Goldbutton.tres" id="14_gold_btn"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/GoldbuttonHover.tres" id="15_gold_hov"]
-[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/GoldbuttonPresesd.tres" id="16_gold_press"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/Goldbutton.tres" id="12_gold_btn"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/GoldbuttonHover.tres" id="13_gold_hov"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/GoldButton/GoldbuttonPresesd.tres" id="14_gold_press"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/BigRectangleLogs.tres" id="15_big_logs"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/LongRectangle.tres" id="16_long_rect"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Samplebox1.tres" id="17_samplebox"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Brownbutton/BrownButtonHover.tres" id="18_brown_hov"]
+[ext_resource type="StyleBox" path="res://assets/sprites/StartMenu/Brownbutton/BrownButtonPressed.tres" id="19_brown_press"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/WoodenButton/WoodenButton.tres" id="20_wood_btn"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonHover.tres" id="21_wood_hov"]
+[ext_resource type="StyleBox" path="res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonPressed.tres" id="22_wood_press"]
 
-[node name="StartMenu" type="Control" unique_id=794314961]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_map"]
+bg_color = Color(0.06, 0.08, 0.06, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.68, 0.53, 0.28, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_middle"]
+bg_color = Color(0.06, 0.08, 0.06, 0.78)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.68, 0.53, 0.28, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="StartMenu" type="Control" unique_id=2068563992]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_mainmenu")
 
-[node name="BackgroundArt" type="TextureRect" parent="." unique_id=1669808633]
+[node name="BackgroundArt" type="TextureRect" parent="." unique_id=964918978]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-texture = ExtResource("1_cotabato_bg")
+texture = ExtResource("2_cotabato_bg")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="DarkVignette" type="ColorRect" parent="." unique_id=1410748226]
+[node name="DarkVignette" type="ColorRect" parent="." unique_id=1419422101]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -45,7 +76,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.02, 0.03, 0.02, 0.35)
 
-[node name="TopCenterHeader" type="VBoxContainer" parent="." unique_id=1037737690]
+[node name="TopCenterHeader" type="VBoxContainer" parent="." unique_id=35587538]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -58,7 +89,7 @@ grow_horizontal = 2
 theme_override_constants/separation = 2
 alignment = 1
 
-[node name="GameTitle" type="Label" parent="TopCenterHeader" unique_id=1341281390]
+[node name="GameTitle" type="Label" parent="TopCenterHeader" unique_id=497327427]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.45, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
@@ -69,7 +100,7 @@ theme_override_font_sizes/font_size = 28
 text = "AGRI-REGION TYCOON"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="TopCenterHeader" unique_id=1340562251]
+[node name="Subtitle" type="Label" parent="TopCenterHeader" unique_id=1980299115]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.92, 0.82, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
@@ -79,7 +110,516 @@ theme_override_font_sizes/font_size = 13
 text = "SOCCSKSARGEN (Region 12) Agricultural Tycoon & Supply Chain"
 horizontal_alignment = 1
 
-[node name="ModeSelectView" type="Control" parent="." unique_id=72899199]
+[node name="TopRightMapCard" type="PanelContainer" parent="." unique_id=404249075]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -180.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 248.0
+grow_horizontal = 0
+theme_override_styles/panel = ExtResource("17_samplebox")
+
+[node name="MapMargin" type="MarginContainer" parent="TopRightMapCard" unique_id=1566266764]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="MapVBox" type="VBoxContainer" parent="TopRightMapCard/MapMargin" unique_id=1758435275]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="MapTitle" type="Label" parent="TopRightMapCard/MapMargin/MapVBox" unique_id=2005390617]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+text = "PHILIPPINES"
+horizontal_alignment = 1
+
+[node name="LocationMap" type="TextureRect" parent="TopRightMapCard/MapMargin/MapVBox" unique_id=1196771129]
+unique_name_in_owner = true
+texture_filter = 1
+layout_mode = 2
+size_flags_vertical = 3
+texture = ExtResource("3_ph_trans")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RegionIndexLabel" type="Label" parent="TopRightMapCard/MapMargin/MapVBox" unique_id=1544445584]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.26, 0.15, 1)
+theme_override_font_sizes/font_size = 13
+text = "REGION 1 OF 5"
+horizontal_alignment = 1
+
+[node name="CarouselBar" type="HBoxContainer" parent="." unique_id=39444495]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -340.0
+offset_top = 80.0
+offset_right = 340.0
+offset_bottom = 134.0
+grow_horizontal = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="PrevButton" type="TextureButton" parent="CarouselBar" unique_id=1256248830]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_default_cursor_shape = 2
+texture_normal = ExtResource("4_arrow_l_norm")
+texture_pressed = ExtResource("6_arrow_l_press")
+texture_hover = ExtResource("5_arrow_l_hov")
+stretch_mode = 3
+
+[node name="RegionHeaderBox" type="PanelContainer" parent="CarouselBar" unique_id=356809650]
+custom_minimum_size = Vector2(620, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = ExtResource("16_long_rect")
+
+[node name="HeaderVBox" type="VBoxContainer" parent="CarouselBar/RegionHeaderBox" unique_id=569162711]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="RegionNameLabel" type="Label" parent="CarouselBar/RegionHeaderBox/HeaderVBox" unique_id=490318587]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 21
+text = "COTABATO BASIN"
+horizontal_alignment = 1
+
+[node name="RegionSpecialtyLabel" type="Label" parent="CarouselBar/RegionHeaderBox/HeaderVBox" unique_id=512660938]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.26, 0.15, 1)
+theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 14
+text = "Rice Paddies & Wetland Agriculture"
+horizontal_alignment = 1
+
+[node name="NextButton" type="TextureButton" parent="CarouselBar" unique_id=728526013]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_default_cursor_shape = 2
+texture_normal = ExtResource("7_arrow_r_norm")
+texture_pressed = ExtResource("9_arrow_r_press")
+texture_hover = ExtResource("8_arrow_r_hov")
+stretch_mode = 3
+
+[node name="MiddleCard" type="PanelContainer" parent="." unique_id=897025023]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -440.0
+offset_top = -205.0
+offset_right = 440.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("17_samplebox")
+
+[node name="CardMargin" type="MarginContainer" parent="MiddleCard" unique_id=144168972]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 14
+
+[node name="CardVBox" type="VBoxContainer" parent="MiddleCard/CardMargin" unique_id=1008674269]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DossierHeader" type="Label" parent="MiddleCard/CardMargin/CardVBox" unique_id=1571284071]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 18
+text = "REGIONAL PROFILE & BRIEFING"
+
+[node name="DescLabel" type="Label" parent="MiddleCard/CardMargin/CardVBox" unique_id=1593344193]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(800, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_constants/line_spacing = 3
+theme_override_font_sizes/font_size = 16
+text = "The fertile rice bowl of Central Mindanao, fed by the Pulangi river basin with rich alluvial soils for continuous cultivation."
+autowrap_mode = 3
+
+[node name="HSep1" type="HSeparator" parent="MiddleCard/CardMargin/CardVBox" unique_id=1241659660]
+layout_mode = 2
+
+[node name="SpecsGrid" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox" unique_id=2092046796]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="MoistureBox" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid" unique_id=1402162473]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="MoistureTitle" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/MoistureBox" unique_id=1855938844]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.28, 0.16, 1)
+theme_override_font_sizes/font_size = 13
+text = "SOIL MOISTURE"
+
+[node name="MoistureVal" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/MoistureBox" unique_id=679528741]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 16
+text = "65% (Wetland)"
+
+[node name="CropsBox" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid" unique_id=1947898422]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="CropsTitle" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/CropsBox" unique_id=1127039806]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.28, 0.16, 1)
+theme_override_font_sizes/font_size = 13
+text = "RECOMMENDED CROPS"
+
+[node name="CropsVal" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/CropsBox" unique_id=2002303324]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 16
+text = "Palay (Rice), Cavendish Banana"
+
+[node name="HazardBox" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid" unique_id=1153510455]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HazardTitle" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/HazardBox" unique_id=1613686617]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.28, 0.16, 1)
+theme_override_font_sizes/font_size = 13
+text = "PRIMARY HAZARD"
+
+[node name="HazardVal" type="Label" parent="MiddleCard/CardMargin/CardVBox/SpecsGrid/HazardBox" unique_id=1617812040]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 16
+text = "Flash Flood (15%)"
+
+[node name="HSep2" type="HSeparator" parent="MiddleCard/CardMargin/CardVBox" unique_id=918826993]
+layout_mode = 2
+
+[node name="ProsConsArea" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox" unique_id=2016889528]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="ProsBox" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea" unique_id=249036681]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ProsHeader" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox" unique_id=2098513411]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.12, 0.48, 0.14, 1)
+theme_override_font_sizes/font_size = 16
+text = "[+] REGIONAL ADVANTAGES"
+
+[node name="ProsList" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox" unique_id=987001001]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ProRow1" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList" unique_id=987001002]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ProIcon1" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow1" unique_id=987001003]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ProLabel1" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow1" unique_id=987001004]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• High natural soil moisture (65%)"
+autowrap_mode = 2
+
+[node name="ProRow2" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList" unique_id=987001005]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ProIcon2" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow2" unique_id=987001006]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ProLabel2" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow2" unique_id=987001007]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Accelerated Palay growth"
+autowrap_mode = 2
+
+[node name="ProRow3" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList" unique_id=987001008]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ProIcon3" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow3" unique_id=987001009]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ProLabel3" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox/ProsList/ProRow3" unique_id=987001010]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Low drought vulnerability"
+autowrap_mode = 2
+
+[node name="ProsText" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ProsBox" unique_id=3664497]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 15
+text = "• High natural soil moisture (65%)
+• Accelerated Palay growth
+• Low drought vulnerability"
+autowrap_mode = 2
+
+[node name="VSep" type="VSeparator" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea" unique_id=639865229]
+layout_mode = 2
+
+[node name="ConsBox" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea" unique_id=827977015]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ConsHeader" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox" unique_id=280040702]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.16, 0.1, 1)
+theme_override_font_sizes/font_size = 16
+text = "[!] CLIMATE RISKS & HAZARDS"
+
+[node name="ConsList" type="VBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox" unique_id=987002001]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ConRow1" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList" unique_id=987002002]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ConIcon1" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow1" unique_id=987002003]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ConLabel1" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow1" unique_id=987002004]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Severe flash flood risks (La Nina)"
+autowrap_mode = 2
+
+[node name="ConRow2" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList" unique_id=987002005]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ConIcon2" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow2" unique_id=987002006]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ConLabel2" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow2" unique_id=987002007]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Golden Apple Snail infestations"
+autowrap_mode = 2
+
+[node name="ConRow3" type="HBoxContainer" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList" unique_id=987002008]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ConIcon3" type="TextureRect" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow3" unique_id=987002009]
+unique_name_in_owner = true
+texture_filter = 1
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ConLabel3" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox/ConsList/ConRow3" unique_id=987002010]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.20, 0.12, 0.06, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Over-saturation triggers crop rot"
+autowrap_mode = 2
+
+[node name="ConsText" type="Label" parent="MiddleCard/CardMargin/CardVBox/ProsConsArea/ConsBox" unique_id=1203003417]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 15
+text = "• Severe flash flood risks (La Nina)
+• Golden Apple Snail infestations
+• Over-saturation triggers crop rot"
+autowrap_mode = 2
+
+[node name="FooterBar" type="HBoxContainer" parent="." unique_id=1960360389]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -62.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+
+[node name="FooterSpacer" type="Control" parent="FooterBar" unique_id=1079276431]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RegionSeasonBox" type="HBoxContainer" parent="FooterBar" unique_id=408793641]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="SeasonLabel" type="Label" parent="FooterBar/RegionSeasonBox" unique_id=1256146921]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.7, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 14
+text = "SEASON LENGTH:"
+vertical_alignment = 1
+
+[node name="Season30Btn" type="Button" parent="FooterBar/RegionSeasonBox" unique_id=1404482136]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(76, 40)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = ExtResource("20_wood_btn")
+theme_override_styles/hover = ExtResource("21_wood_hov")
+theme_override_styles/pressed = ExtResource("22_wood_press")
+text = "⚡ 30d"
+
+[node name="Season60Btn" type="Button" parent="FooterBar/RegionSeasonBox" unique_id=772150808]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(76, 40)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = ExtResource("12_gold_btn")
+theme_override_styles/hover = ExtResource("13_gold_hov")
+theme_override_styles/pressed = ExtResource("14_gold_press")
+text = "⭐ 60d"
+
+[node name="Season90Btn" type="Button" parent="FooterBar/RegionSeasonBox" unique_id=69988777]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(76, 40)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = ExtResource("20_wood_btn")
+theme_override_styles/hover = ExtResource("21_wood_hov")
+theme_override_styles/pressed = ExtResource("22_wood_press")
+text = "👑 90d"
+
+[node name="FooterSeasonSpacer" type="Control" parent="FooterBar" unique_id=1079276432]
+layout_mode = 2
+custom_minimum_size = Vector2(10, 0)
+
+[node name="StartButton" type="Button" parent="FooterBar" unique_id=1125766979]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 48)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_hover_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = ExtResource("12_gold_btn")
+theme_override_styles/pressed = ExtResource("14_gold_press")
+theme_override_styles/hover = ExtResource("13_gold_hov")
+text = "START FARMING IN COTABATO BASIN  >"
+
+[node name="ModeSelectView" type="Control" parent="." unique_id=1898095309]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -89,66 +629,220 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="CenterContainer" type="CenterContainer" parent="ModeSelectView" unique_id=1412530403]
+[node name="LeftMenuPanel" type="PanelContainer" parent="ModeSelectView" unique_id=1428589201]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
+anchors_preset = 9
 anchor_bottom = 1.0
-grow_horizontal = 2
+offset_left = 32.0
+offset_top = 100.0
+offset_right = 328.0
+offset_bottom = -100.0
 grow_vertical = 2
+theme_override_styles/panel = ExtResource("17_samplebox")
 
-[node name="BillboardPanel" type="PanelContainer" parent="ModeSelectView/CenterContainer" unique_id=1566092725]
-custom_minimum_size = Vector2(1000, 520)
+[node name="LeftMenuMargin" type="MarginContainer" parent="ModeSelectView/LeftMenuPanel" unique_id=1428589202]
 layout_mode = 2
-theme_override_styles/panel = ExtResource("8_big_logs")
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
 
-[node name="BillboardVBox" type="VBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel" unique_id=1331344353]
+[node name="LeftMenuVBox" type="VBoxContainer" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin" unique_id=1428589203]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 6
+theme_override_constants/separation = 10
 
-[node name="TopNotice" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=666243620]
+[node name="MenuTitle" type="Label" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589204]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
 theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 16
-text = "CHOOSE GAME MODE "
+theme_override_font_sizes/font_size = 14
+text = "🌾  EXPEDITION MODES  🌾"
 horizontal_alignment = 1
 
-[node name="ModeIndexLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=866097182]
+[node name="SideCampaignBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589205]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(256, 48)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_hover_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = ExtResource("12_gold_btn")
+theme_override_styles/hover = ExtResource("13_gold_hov")
+theme_override_styles/pressed = ExtResource("14_gold_press")
+text = "🏆 RTS CAMPAIGN"
+
+[node name="SideCareerBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589206]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(256, 48)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = ExtResource("20_wood_btn")
+theme_override_styles/hover = ExtResource("21_wood_hov")
+theme_override_styles/pressed = ExtResource("22_wood_press")
+text = "🌾 ENDLESS CAREER"
+
+[node name="HSepSide" type="HSeparator" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589207]
+layout_mode = 2
+
+[node name="RecordsTitle" type="Label" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589208]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.26, 0.15, 1)
+theme_override_font_sizes/font_size = 13
+text = "SAVED EXPEDITIONS"
+horizontal_alignment = 1
+
+[node name="ModeLoadBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1395168891]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(256, 44)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = ExtResource("20_wood_btn")
+theme_override_styles/hover = ExtResource("21_wood_hov")
+theme_override_styles/pressed = ExtResource("22_wood_press")
+text = "💾 LOAD SAVED GAME"
+
+[node name="ModeLeaderboardBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=987123456]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(256, 42)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = ExtResource("20_wood_btn")
+theme_override_styles/hover = ExtResource("21_wood_hov")
+theme_override_styles/pressed = ExtResource("22_wood_press")
+text = "🎖️ HALL OF FAME"
+
+[node name="LeftSpacer" type="Control" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589209]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ModeHoverCard" type="PanelContainer" parent="ModeSelectView" unique_id=1182739485]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 345.0
+offset_top = 110.0
+offset_right = 865.0
+offset_bottom = 350.0
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("17_samplebox")
+
+[node name="HoverMargin" type="MarginContainer" parent="ModeSelectView/ModeHoverCard" unique_id=1182739486]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 18
+
+[node name="HoverVBox" type="VBoxContainer" parent="ModeSelectView/ModeHoverCard/HoverMargin" unique_id=1182739487]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="HoverTitleLabel" type="Label" parent="ModeSelectView/ModeHoverCard/HoverMargin/HoverVBox" unique_id=1182739488]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.38, 0.24, 0.14, 0.9)
-theme_override_font_sizes/font_size = 11
-text = "— GAME MODE 1 OF 2 —"
-horizontal_alignment = 1
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = "🏆 TIMED RTS CAMPAIGN"
 
-[node name="ModeCarouselBar" type="HBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=581342635]
+[node name="HoverTaglineLabel" type="Label" parent="ModeSelectView/ModeHoverCard/HoverMargin/HoverVBox" unique_id=1182739489]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.48, 0.32, 0.18, 1)
+theme_override_font_sizes/font_size = 14
+text = "[ COMPETITIVE RTS SCORE ATTACK • 30–90 DAYS ]"
+
+[node name="HoverHSeparator" type="HSeparator" parent="ModeSelectView/ModeHoverCard/HoverMargin/HoverVBox" unique_id=1182739490]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="HoverDescLabel" type="Label" parent="ModeSelectView/ModeHoverCard/HoverMargin/HoverVBox" unique_id=1182739491]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(470, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.2, 0.14, 0.08, 1)
+theme_override_constants/line_spacing = 5
+theme_override_font_sizes/font_size = 16
+text = "• Compete against 8 regional AI rivals in a timed score-attack race across Mindanao markets.
+• Choose a 30, 60, or 90 day RTS season clock to harvest crops, manage disaster risks, and earn maximum profits.
+• Climb through 5 agro-tycoon prestige tiers to secure a permanent spot in the Hall of Fame."
+autowrap_mode = 3
+
+[node name="HoverTipLabel" type="Label" parent="ModeSelectView/ModeHoverCard/HoverMargin/HoverVBox" unique_id=1182739492]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.12, 0.48, 0.14, 1)
+theme_override_font_sizes/font_size = 13
+text = "👉 Click to choose region & start campaign"
+
+[node name="ModeCard" type="PanelContainer" parent="ModeSelectView" unique_id=1428589200]
+visible = false
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -910.0
+offset_top = 74.0
+offset_right = -140.0
+offset_bottom = -74.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = ExtResource("15_big_logs")
+
+[node name="ModeCardMargin" type="MarginContainer" parent="ModeSelectView/ModeCard" unique_id=1428589212]
+layout_mode = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 22
+
+[node name="CardVBox" type="VBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin" unique_id=567282494]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 7
+
+[node name="ModeCarouselBar" type="HBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=1769245104]
 layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="PrevModeBtn" type="TextureButton" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeCarouselBar" unique_id=1026128243]
+[node name="PrevModeBtn" type="TextureButton" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/ModeCarouselBar" unique_id=1682653411]
 unique_name_in_owner = true
 texture_filter = 1
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_default_cursor_shape = 2
-texture_normal = ExtResource("2_arrow_l_norm")
-texture_pressed = ExtResource("4_arrow_l_press")
-texture_hover = ExtResource("3_arrow_l_hov")
+texture_normal = ExtResource("4_arrow_l_norm")
+texture_pressed = ExtResource("6_arrow_l_press")
+texture_hover = ExtResource("5_arrow_l_hov")
 stretch_mode = 5
 
-[node name="ModePlaque" type="PanelContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeCarouselBar" unique_id=740463708]
-custom_minimum_size = Vector2(540, 52)
+[node name="ModePlaque" type="PanelContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/ModeCarouselBar" unique_id=999132753]
+custom_minimum_size = Vector2(480, 48)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_styles/panel = ExtResource("9_long_rect")
+theme_override_styles/panel = ExtResource("16_long_rect")
 
-[node name="ModeNameLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeCarouselBar/ModePlaque" unique_id=1062989365]
+[node name="ModeNameLabel" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/ModeCarouselBar/ModePlaque" unique_id=2034210063]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 1
@@ -156,186 +850,148 @@ theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
 theme_override_colors/font_shadow_color = Color(0.96, 0.9, 0.8, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 20
 text = "🏆 TIMED RTS CAMPAIGN"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="NextModeBtn" type="TextureButton" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeCarouselBar" unique_id=1071793400]
+[node name="NextModeBtn" type="TextureButton" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/ModeCarouselBar" unique_id=1817954127]
 unique_name_in_owner = true
 texture_filter = 1
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_default_cursor_shape = 2
-texture_normal = ExtResource("5_arrow_r_norm")
-texture_pressed = ExtResource("7_arrow_r_press")
-texture_hover = ExtResource("6_arrow_r_hov")
+texture_normal = ExtResource("7_arrow_r_norm")
+texture_pressed = ExtResource("9_arrow_r_press")
+texture_hover = ExtResource("8_arrow_r_hov")
 stretch_mode = 5
 
-[node name="ModeTaglineLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=1882146908]
+[node name="ModeIndexLabel" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=1020368643]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.38, 0.24, 0.14, 0.9)
+theme_override_font_sizes/font_size = 11
+text = "— GAME MODE 1 OF 2 —"
+horizontal_alignment = 1
+
+[node name="ModeTaglineLabel" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=1452947130]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 0.26, 0.15, 1)
-theme_override_font_sizes/font_size = 11
-text = "[ COMPETITIVE SCORE ATTACK • SEASON SPRINT ]"
+theme_override_font_sizes/font_size = 14
+text = "[ COMPETITIVE SCORE ATTACK • 30–90 DAYS ]"
 horizontal_alignment = 1
 
-[node name="ModeDescLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=2059229545]
+[node name="ModeDescLabel" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=307232710]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(800, 32)
+custom_minimum_size = Vector2(580, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.18, 0.12, 0.08, 1)
 theme_override_constants/line_spacing = 3
-theme_override_font_sizes/font_size = 12
-text = "Race against the seasonal clock in a high-stakes agricultural sprint across Mindanao! Cultivate strategic crop rotations, optimize harvesting logistics, and fulfill export contracts through regional shipping hubs. Every bushel delivered with high freshness and Grade A quality earns delivery combo multipliers, cash bonuses, and league points."
+theme_override_font_sizes/font_size = 16
+text = "Race against the clock in a timed farming sprint across Mindanao! Plant strategic crops, deliver fresh Grade A harvests to market hubs, build combo streaks, and compete with 8 rival AI farmers for the championship title."
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="PillarsCard" type="PanelContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=81293669]
-custom_minimum_size = Vector2(0, 146)
+[node name="PillarsCard" type="PanelContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=1590331758]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("10_samplebox")
+theme_override_styles/panel = ExtResource("17_samplebox")
 
-[node name="PillarsHBox" type="HBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard" unique_id=383149157]
+[node name="PillarsHBox" type="HBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard" unique_id=1731068793]
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
-[node name="PillarCol1" type="VBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox" unique_id=237535695]
+[node name="PillarCol1" type="VBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox" unique_id=1475804974]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
-[node name="Pillar1Title" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol1" unique_id=550484131]
+[node name="Pillar1Title" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol1" unique_id=150387421]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
-theme_override_font_sizes/font_size = 14
-text = "⏱️ RTS Season Timer"
+theme_override_font_sizes/font_size = 17
+text = "⏱️ Season Timer"
 horizontal_alignment = 1
 
-[node name="Pillar1Body" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol1" unique_id=895239005]
+[node name="Pillar1Body" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol1" unique_id=1097800727]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.14, 0.08, 1)
-theme_override_constants/line_spacing = 7
-theme_override_font_sizes/font_size = 12
-text = "• Choose a 30, 60, or 90 day campaign duration.
-• Real-time Day/Night clock (3 minutes per day).
-• Early harvest rescues crops ahead of typhoons."
+theme_override_constants/line_spacing = 5
+theme_override_font_sizes/font_size = 15
+text = "• Choose 30, 60, or 90 days.
+• Day/Night clock (3 min/day).
+• Early harvest before typhoons."
 autowrap_mode = 3
 
-[node name="VSeparator1" type="VSeparator" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox" unique_id=121564127]
+[node name="VSeparator1" type="VSeparator" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox" unique_id=686067392]
 layout_mode = 2
 
-[node name="PillarCol2" type="VBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox" unique_id=1209911468]
+[node name="PillarCol2" type="VBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox" unique_id=1938989086]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
-[node name="Pillar2Title" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol2" unique_id=1471225430]
+[node name="Pillar2Title" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol2" unique_id=1446332349]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
-theme_override_font_sizes/font_size = 14
-text = "🏆 Mindanao League"
+theme_override_font_sizes/font_size = 17
+text = "🏆 Rival League"
 horizontal_alignment = 1
 
-[node name="Pillar2Body" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol2" unique_id=1836944966]
+[node name="Pillar2Body" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol2" unique_id=520773663]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.14, 0.08, 1)
-theme_override_constants/line_spacing = 7
-theme_override_font_sizes/font_size = 12
-text = "• Compete against 8 simulated regional AI rivals.
-• Grade A crops grant a massive 2.5× point multiplier.
-• Fast hub deliveries build combo streaks up to 2.0×."
+theme_override_constants/line_spacing = 5
+theme_override_font_sizes/font_size = 15
+text = "• Compete against 8 AI rivals.
+• Grade A crops give 2.5× points.
+• Fast deliveries build combos."
 autowrap_mode = 3
 
-[node name="VSeparator2" type="VSeparator" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox" unique_id=1264433021]
+[node name="VSeparator2" type="VSeparator" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox" unique_id=2095654099]
 layout_mode = 2
 
-[node name="PillarCol3" type="VBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox" unique_id=20260960]
+[node name="PillarCol3" type="VBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox" unique_id=125374946]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
-[node name="Pillar3Title" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol3" unique_id=1368533136]
+[node name="Pillar3Title" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol3" unique_id=895478271]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 17
 text = "🎖️ Tycoon Prestige"
 horizontal_alignment = 1
 
-[node name="Pillar3Body" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/PillarsCard/PillarsHBox/PillarCol3" unique_id=1044472630]
+[node name="Pillar3Body" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/PillarsCard/PillarsHBox/PillarCol3" unique_id=589383638]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 0.14, 0.08, 1)
-theme_override_constants/line_spacing = 7
-theme_override_font_sizes/font_size = 12
-text = "• Climb 5 prestige tiers to Mindanao Agro-Tycoon.
-• Match regional climate affinities for +30% export bonuses.
-• Permanent Hall of Fame records your personal best."
+theme_override_constants/line_spacing = 5
+theme_override_font_sizes/font_size = 15
+text = "• Climb 5 prestige tiers.
+• Regional bonuses up to +30%.
+• Saved in Hall of Fame."
 autowrap_mode = 3
 
-[node name="ModeSeasonContainer" type="HBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=1078197682]
+[node name="ModeSeasonExplainLabel" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=520934096]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 10
-alignment = 1
-
-[node name="SeasonLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeSeasonContainer" unique_id=284660042]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.28, 0.18, 0.1, 1)
-theme_override_font_sizes/font_size = 12
-text = "SEASON DURATION:"
-
-[node name="Season30Btn" type="Button" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeSeasonContainer" unique_id=1325900162]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(175, 34)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = ExtResource("11_brownbox")
-theme_override_styles/pressed = ExtResource("13_brown_press")
-theme_override_styles/hover = ExtResource("12_brown_hov")
-text = "⚡ 30 Days (Sprint)"
-
-[node name="Season60Btn" type="Button" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeSeasonContainer" unique_id=1833361809]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(175, 34)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = ExtResource("14_gold_btn")
-theme_override_styles/pressed = ExtResource("16_gold_press")
-theme_override_styles/hover = ExtResource("15_gold_hov")
-text = "⭐ 60 Days (Standard)"
-
-[node name="Season90Btn" type="Button" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeSeasonContainer" unique_id=1007317470]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(175, 34)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_font_sizes/font_size = 11
-theme_override_styles/normal = ExtResource("11_brownbox")
-theme_override_styles/pressed = ExtResource("13_brown_press")
-theme_override_styles/hover = ExtResource("12_brown_hov")
-text = "👑 90 Days (Quarter)"
-
-[node name="ModeSeasonExplainLabel" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=1562214577]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.35, 0.22, 0.12, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 14
 text = "Standard 60-Day Campaign (2 Months) — Balanced timeline allowing all 7 crops and perennial groves to mature."
 horizontal_alignment = 1
 
-[node name="CareerPerksContainer" type="HBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=1227018522]
+[node name="CareerPerksContainer" type="HBoxContainer" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=1615073267]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 30)
@@ -343,57 +999,33 @@ layout_mode = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="Perk1" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/CareerPerksContainer" unique_id=506820380]
+[node name="Perk1" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/CareerPerksContainer" unique_id=2116756528]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.38, 0.12, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "[ 💾 5 In-Game Save Slots ]"
 
-[node name="Perk2" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/CareerPerksContainer" unique_id=1455640682]
+[node name="Perk2" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/CareerPerksContainer" unique_id=1852512645]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.38, 0.12, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "[ 🌙 Midnight Autosave ]"
 
-[node name="Perk3" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/CareerPerksContainer" unique_id=1737053850]
+[node name="Perk3" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/CareerPerksContainer" unique_id=961112873]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.38, 0.12, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "[ 🗺️ 24×24 Island Expansion ]"
 
-[node name="Perk4" type="Label" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/CareerPerksContainer" unique_id=1253443207]
+[node name="Perk4" type="Label" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox/CareerPerksContainer" unique_id=482769944]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.38, 0.12, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 text = "[ 🌴 Long-Term Perennial Plantations ]"
 
-[node name="ModeActionHBox" type="HBoxContainer" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox" unique_id=2009536906]
-layout_mode = 2
-theme_override_constants/separation = 16
-alignment = 1
-
-[node name="ModeStartBtn" type="Button" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeActionHBox" unique_id=1565237290]
+[node name="ModeStartBtn" type="Button" parent="ModeSelectView/ModeCard/ModeCardMargin/CardVBox" unique_id=222952614]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(390, 44)
+visible = false
 layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_colors/font_color = Color(0.96, 0.92, 0.75, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 0.9, 1)
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = ExtResource("14_gold_btn")
-theme_override_styles/pressed = ExtResource("16_gold_press")
-theme_override_styles/hover = ExtResource("15_gold_hov")
-text = "PROCEED TO REGION SELECT (START CAMPAIGN)  >"
-
-[node name="ModeLoadBtn" type="Button" parent="ModeSelectView/CenterContainer/BillboardPanel/BillboardVBox/ModeActionHBox" unique_id=466143664]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(210, 44)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_colors/font_color = Color(0.96, 0.92, 0.75, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 0.9, 1)
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = ExtResource("11_brownbox")
-theme_override_styles/pressed = ExtResource("13_brown_press")
-theme_override_styles/hover = ExtResource("12_brown_hov")
-text = "📂 LOAD SAVED GAME"
+theme_override_font_sizes/font_size = 16
+text = "PROCEED TO SELECT  >"

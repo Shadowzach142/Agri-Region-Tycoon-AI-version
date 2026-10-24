@@ -13,6 +13,18 @@ extends RefCounted
 # Daily crop simulation (called once per in-game day per growing tile)
 # ---------------------------------------------------------------------------
 static func process_day(tile: FarmTile, pos: Vector2i) -> void:
+	if tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null:
+		return
+
+	# Uncultivated plowed soil gradually regrows wild grass back to EMPTY after 3 days
+	if tile.state == FarmTile.TileState.PLOWED and tile.crop_type == "":
+		tile.days_without_water += 1
+		if tile.days_without_water >= 3:
+			tile.state = FarmTile.TileState.EMPTY
+			tile.soil_moisture = 60.0
+			tile.days_without_water = 0
+		return
+
 	var crop_data: Dictionary = Data.get_crop(tile.crop_type)
 	if crop_data.is_empty():
 		return
@@ -47,10 +59,11 @@ static func process_day(tile: FarmTile, pos: Vector2i) -> void:
 # Hourly soil simulation (evaporation, drip irrigation, waterlogging, rainfall)
 # ---------------------------------------------------------------------------
 static func process_hour(tile: FarmTile, has_drip: bool, pos: Vector2i = Vector2i(-1, -1)) -> void:
-	if tile.state == FarmTile.TileState.OBSTACLE:
+	if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.building_ref != null:
 		return
 	if tile.state == FarmTile.TileState.LOCKED:
 		return
+
 
 	var wm = WeatherManager
 

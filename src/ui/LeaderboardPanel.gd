@@ -153,7 +153,10 @@ func _build_ui() -> void:
 
 	# -- Current Run Live Performance Banner --------------------------------
 	var live_banner := PanelContainer.new()
-	live_banner.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
+	if ResourceLoader.exists("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"):
+		live_banner.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"))
+	else:
+		live_banner.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
 	root_vbox.add_child(live_banner)
 
 	var live_vbox := VBoxContainer.new()

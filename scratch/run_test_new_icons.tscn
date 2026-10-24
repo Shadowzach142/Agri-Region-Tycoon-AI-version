@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c8k2s42aa2q0x"]
+
+[ext_resource type="Script" path="res://scratch/test_new_icons_integration.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

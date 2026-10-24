@@ -29,7 +29,7 @@ const SaveLoadModalScript = preload("res://src/ui/SaveLoadModal.gd")
 @onready var pros_text: Label = %ProsText
 @onready var cons_text: Label = %ConsText
 
-@onready var admin_checkbox: CheckBox = %AdminCheckbox
+var admin_checkbox: CheckBox = null
 @onready var start_button: Button = %StartButton
 
 # Mode Selection & Navigation UI
@@ -48,6 +48,59 @@ var _season_container: HBoxContainer = null
 var _career_notice_label: Label = null
 var _season_buttons: Dictionary = {}
 
+# Mode Explanations for Hover Card
+const MODE_EXPLANATIONS: Dictionary = {
+	"campaign": {
+		"title": "🏆 TIMED RTS CAMPAIGN",
+		"tagline": "[ COMPETITIVE RTS SCORE ATTACK • 30–90 DAYS ]",
+		"sentences": [
+			"Compete against 8 regional AI rivals in a timed score-attack race across Mindanao markets.",
+			"Choose a 30, 60, or 90 day RTS season clock to harvest crops, manage disaster risks, and earn maximum profits.",
+			"Climb through 5 agro-tycoon prestige tiers to secure a permanent spot in the Hall of Fame."
+		],
+		"tip": "👉 Click to choose region & start campaign"
+	},
+	"career": {
+		"title": "🌾 CAREER / ENDLESS TYCOON",
+		"tagline": "[ RELAXED PERSISTENT SANDBOX • SAVE & LOAD ]",
+		"sentences": [
+			"Build and manage your agricultural enterprise at your own relaxed pace with no time limits or pressure.",
+			"Cultivate perennial groves across an expandable 24×24 grid with safe midnight autosaves and 5 flexible save slots.",
+			"Unlock autonomous drone fleets and agro-industrial processing facilities to create a lasting farming empire."
+		],
+		"tip": "👉 Click to choose region & start new career"
+	},
+	"saves": {
+		"title": "💾 SAVED EXPEDITIONS",
+		"tagline": "[ IN-GAME SAVE & LOAD MANAGEMENT ]",
+		"sentences": [
+			"Access up to 5 manual save slots or resume your ongoing agricultural career.",
+			"Daily midnight autosaves keep your farm grid, treasury, and crop harvests secure.",
+			"Load previous tycoon playthroughs anytime or back up your homestead before expanding."
+		],
+		"tip": "👉 Click to browse and load previous playthroughs"
+	},
+	"hall_of_fame": {
+		"title": "🎖️ TYCOON HALL OF FAME",
+		"tagline": "[ REGIONAL LEADERBOARDS & RECORDS ]",
+		"sentences": [
+			"View your highest score-attack campaign records and career achievements.",
+			"Track personal best rankings across all 5 SOCCSKSARGEN agricultural territories.",
+			"Review your prestige titles from Bronze Planter to Master Hacienda Tycoon."
+		],
+		"tip": "👉 Click to inspect regional records"
+	}
+}
+
+# Mode Hover Card
+var _mode_hover_card: PanelContainer = null
+var _hover_title_label: Label = null
+var _hover_tagline_label: Label = null
+var _hover_desc_label: Label = null
+var _hover_tip_label: Label = null
+var _hover_card_tween: Tween = null
+var _current_hovered_mode: String = ""
+
 # Game Mode Carousel UI
 var mode_keys: Array = ["campaign", "career"]
 var current_mode_idx: int = 0
@@ -64,13 +117,14 @@ var _pillar2_body: Label = null
 var _pillar3_title: Label = null
 var _pillar3_body: Label = null
 
-var _mode_season_container: HBoxContainer = null
+var _mode_season_container: Control = null
 var _mode_season_buttons: Dictionary = {}
 var _mode_season_explain_label: Label = null
-var _career_perks_container: HBoxContainer = null
+var _career_perks_container: Control = null
 
 var _mode_start_btn: Button = null
 var _mode_load_btn: Button = null
+var _mode_leaderboard_btn: Button = null
 
 # StartMenu Textures & Styles Cache
 var tex_big_logs: Texture2D = null
@@ -84,6 +138,9 @@ var tex_arrow_r_press: Texture2D = null
 var style_gold_btn: StyleBox = null
 var style_gold_hov: StyleBox = null
 var style_gold_press: StyleBox = null
+var style_wood_btn: StyleBox = null
+var style_wood_hov: StyleBox = null
+var style_wood_press: StyleBox = null
 var style_brown_btn: StyleBox = null
 var style_brown_hov: StyleBox = null
 var style_brown_press: StyleBox = null
@@ -161,11 +218,97 @@ const REGION_METADATA = {
 	}
 }
 
+const REGION_VISUAL_FACTORS = {
+	"cotabato": {
+		"pros": [
+			{"icon": "res://assets/icons/Topleft/water-drop.png", "text": "• High natural moisture (65%) feeds rich wetland soils"},
+			{"icon": "res://assets/icons/Plants/Rice.png", "text": "• Accelerated Palay (Rice) growth with bumper harvests"},
+			{"icon": "res://assets/icons/Tempreture/Just-Right.png", "text": "• River basin naturally shelters crops from heat damage"}
+		],
+		"cons": [
+			{"icon": "res://assets/icons/Disaster/Wave.png", "text": "• 15% Flash flood hazard during heavy monsoon downpours"},
+			{"icon": "res://assets/icons/Disaster/Warning.png", "text": "• Golden apple snails attack tender young seedlings"},
+			{"icon": "res://assets/icons/Topleft/Rain.png", "text": "• Over-saturated waterlogging spoils unharvested plots"}
+		]
+	},
+	"south_cotabato": {
+		"pros": [
+			{"icon": "res://assets/icons/Plants/coffee.png", "text": "• Rich volcanic soil produces premium Arabica coffee"},
+			{"icon": "res://assets/icons/Plants/Corn.png", "text": "• High-altitude yellow corn commands premium prices"},
+			{"icon": "res://assets/icons/Tempreture/Cold .png", "text": "• Cool mountain air slows down harvested crop spoilage"}
+		],
+		"cons": [
+			{"icon": "res://assets/icons/Disaster/Warning.png", "text": "• Steep terrain creates 12% landslide risk in rainy spells"},
+			{"icon": "res://assets/icons/Topleft/Rain.png", "text": "• Frequent mountain rains delay plowing and planting"},
+			{"icon": "res://assets/icons/HUD/Market.png", "text": "• Winding highland roads increase freight and trip costs"}
+		]
+	},
+	"sarangani": {
+		"pros": [
+			{"icon": "res://assets/icons/Plants/Coconut.png", "text": "• Sandy coastal soil supports expansive 2×2 Coconut groves"},
+			{"icon": "res://assets/icons/Plants/Banana.png", "text": "• High market demand for export-quality Cavendish bananas"},
+			{"icon": "res://assets/icons/Tempreture/Sunny.png", "text": "• Constant coastal sunshine speeds up solar crop drying"}
+		],
+		"cons": [
+			{"icon": "res://assets/icons/Tempreture/Fire.png", "text": "• 14% El Nino drought hazard causes severe arid heat"},
+			{"icon": "res://assets/icons/Topleft/water-drop.png", "text": "• Porous sandy soil loses moisture fast without irrigation"},
+			{"icon": "res://assets/icons/Disaster/Warning.png", "text": "• Dry foliage attracts aggressive leaf-chewing pest swarms"}
+		]
+	},
+	"sultan_kudarat": {
+		"pros": [
+			{"icon": "res://assets/icons/Plants/Corn.png", "text": "• Wide open valley corridor is ideal for corn & grain fields"},
+			{"icon": "res://assets/icons/Plants/Rice.png", "text": "• High fertility permits efficient multi-crop rotations"},
+			{"icon": "res://assets/icons/HUD/Market.png", "text": "• Direct highway connectivity lowers transit costs to hubs"}
+		],
+		"cons": [
+			{"icon": "res://assets/icons/Disaster/Warning.png", "text": "• Humid valley conditions spawn armyworms and black bugs"},
+			{"icon": "res://assets/icons/Disaster/Wave.png", "text": "• Low flatland basins face 9% flash flood runoff hazard"},
+			{"icon": "res://assets/icons/Tempreture/Fire.png", "text": "• Sudden dry spells cause rapid drop in soil moisture"}
+		]
+	},
+	"general_santos": {
+		"pros": [
+			{"icon": "res://assets/icons/HUD/Market.png", "text": "• International seaport delivers +30% export revenue bonus"},
+			{"icon": "res://assets/icons/Plants/Banana.png", "text": "• Prime trade hub for high-yield commercial fruit shipments"},
+			{"icon": "res://assets/icons/HUD/Build.png", "text": "• Advanced industrial logistics speed up farm construction"}
+		],
+		"cons": [
+			{"icon": "res://assets/icons/HUD/Market.png", "text": "• Higher urban wage rates and commercial shipping fees"},
+			{"icon": "res://assets/icons/Tempreture/Fire.png", "text": "• City heat island increases water evaporation by 10%"},
+			{"icon": "res://assets/icons/Disaster/Warning.png", "text": "• Strict international export standards reject Grade C crops"}
+		]
+	}
+}
+
+var _pro_icons: Array = []
+var _pro_labels: Array = []
+var _con_icons: Array = []
+var _con_labels: Array = []
+var _side_campaign_btn: Button = null
+var _side_career_btn: Button = null
+var _region_season_box: Control = null
+
 var _transition_tween: Tween = null
 
 func _ready() -> void:
 	if location_map:
 		location_map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	# Cache visual pro and con row nodes
+	_pro_icons.clear()
+	_pro_labels.clear()
+	_con_icons.clear()
+	_con_labels.clear()
+	for i in range(1, 4):
+		var p_icon = find_child("ProIcon%d" % i, true, false) as TextureRect
+		var p_label = find_child("ProLabel%d" % i, true, false) as Label
+		if p_icon: _pro_icons.append(p_icon)
+		if p_label: _pro_labels.append(p_label)
+		var c_icon = find_child("ConIcon%d" % i, true, false) as TextureRect
+		var c_label = find_child("ConLabel%d" % i, true, false) as Label
+		if c_icon: _con_icons.append(c_icon)
+		if c_label: _con_labels.append(c_label)
 
 	_top_center_header = find_child("TopCenterHeader", true, false) as VBoxContainer
 	if not _top_center_header:
@@ -174,12 +317,15 @@ func _ready() -> void:
 	_top_right_map_card = find_child("TopRightMapCard", true, false) as PanelContainer
 	_carousel_bar = find_child("CarouselBar", true, false) as HBoxContainer
 	_footer_bar = find_child("FooterBar", true, false) as HBoxContainer
+	_region_season_box = find_child("RegionSeasonBox", true, false) as Control
 
 	# Connect navigation signals
 	prev_btn.pressed.connect(_prev_region)
 	next_btn.pressed.connect(_next_region)
 	start_button.pressed.connect(_on_start_pressed)
-	admin_checkbox.toggled.connect(_on_admin_checkbox_toggled)
+	admin_checkbox = find_child("AdminCheckbox", true, false) as CheckBox
+	if admin_checkbox:
+		admin_checkbox.toggled.connect(_on_admin_checkbox_toggled)
 
 	# Initial selection (index 0 - Cotabato)
 	_select_region(0, false)
@@ -397,6 +543,12 @@ func _load_startmenu_resources() -> void:
 		style_gold_btn = load("res://assets/sprites/StartMenu/GoldButton/Goldbutton.tres")
 		style_gold_hov = load("res://assets/sprites/StartMenu/GoldButton/GoldbuttonHover.tres")
 		style_gold_press = load("res://assets/sprites/StartMenu/GoldButton/GoldbuttonPresesd.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButton.tres"):
+		style_wood_btn = load("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButton.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonHover.tres"):
+		style_wood_hov = load("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonHover.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonPressed.tres"):
+		style_wood_press = load("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButtonPressed.tres")
 
 	if ResourceLoader.exists("res://assets/sprites/StartMenu/Brownbutton/BrownButton.tres"):
 		style_brown_btn = load("res://assets/sprites/StartMenu/Brownbutton/BrownButton.tres")
@@ -441,37 +593,101 @@ func _load_startmenu_resources() -> void:
 			style_long_rect.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
 
 func _build_mode_select_view() -> void:
-	_mode_select_view = %ModeSelectView
-	_mode_index_label = %ModeIndexLabel
-	_mode_name_label = %ModeNameLabel
-	_mode_tagline_label = %ModeTaglineLabel
-	_mode_desc_label = %ModeDescLabel
-	_pillar1_title = %Pillar1Title
-	_pillar1_body = %Pillar1Body
-	_pillar2_title = %Pillar2Title
-	_pillar2_body = %Pillar2Body
-	_pillar3_title = %Pillar3Title
-	_pillar3_body = %Pillar3Body
-	_mode_season_container = %ModeSeasonContainer
-	_mode_season_explain_label = %ModeSeasonExplainLabel
-	_career_perks_container = %CareerPerksContainer
-	_mode_start_btn = %ModeStartBtn
-	_mode_load_btn = %ModeLoadBtn
+	_mode_select_view = find_child("ModeSelectView", true, false) as Control
+	_mode_index_label = find_child("ModeIndexLabel", true, false) as Label
+	_mode_name_label = find_child("ModeNameLabel", true, false) as Label
+	_mode_tagline_label = find_child("ModeTaglineLabel", true, false) as Label
+	_mode_desc_label = find_child("ModeDescLabel", true, false) as Label
+	_pillar1_title = find_child("Pillar1Title", true, false) as Label
+	_pillar1_body = find_child("Pillar1Body", true, false) as Label
+	_pillar2_title = find_child("Pillar2Title", true, false) as Label
+	_pillar2_body = find_child("Pillar2Body", true, false) as Label
+	_pillar3_title = find_child("Pillar3Title", true, false) as Label
+	_pillar3_body = find_child("Pillar3Body", true, false) as Label
+	_mode_season_container = find_child("ModeSeasonContainer", true, false) as Control
+	_mode_season_explain_label = find_child("ModeSeasonExplainLabel", true, false) as Label
+	_career_perks_container = find_child("CareerPerksContainer", true, false) as Control
+	_mode_start_btn = find_child("ModeStartBtn", true, false) as Button
+	_mode_load_btn = find_child("ModeLoadBtn", true, false) as Button
+
+	# Mode Hover Card
+	_mode_hover_card = find_child("ModeHoverCard", true, false) as PanelContainer
+	_hover_title_label = find_child("HoverTitleLabel", true, false) as Label
+	_hover_tagline_label = find_child("HoverTaglineLabel", true, false) as Label
+	_hover_desc_label = find_child("HoverDescLabel", true, false) as Label
+	_hover_tip_label = find_child("HoverTipLabel", true, false) as Label
+	if _mode_hover_card:
+		_mode_hover_card.visible = false
+		_mode_hover_card.modulate.a = 0.0
 
 	# Connect navigation and button signals
-	%PrevModeBtn.pressed.connect(_prev_mode)
-	%NextModeBtn.pressed.connect(_next_mode)
-	%ModeStartBtn.pressed.connect(_on_mode_start_pressed)
-	%ModeLoadBtn.pressed.connect(_open_load_modal)
+	var prev_btn = find_child("PrevModeBtn", true, false) as TextureButton
+	if prev_btn:
+		prev_btn.pressed.connect(_prev_mode)
+	var next_btn = find_child("NextModeBtn", true, false) as TextureButton
+	if next_btn:
+		next_btn.pressed.connect(_next_mode)
+	if _mode_start_btn:
+		_mode_start_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_select_game_mode("campaign")
+		)
+	if _mode_load_btn:
+		_mode_load_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["saves"]["sentences"])
+		_mode_load_btn.mouse_entered.connect(func(): _on_mode_button_hovered("saves", _mode_load_btn))
+		_mode_load_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("saves"))
+		_mode_load_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_open_load_modal()
+		)
 
-	_mode_season_buttons = {
-		30: %Season30Btn,
-		60: %Season60Btn,
-		90: %Season90Btn
-	}
-	%Season30Btn.pressed.connect(func(): _set_mode_season_duration(30))
-	%Season60Btn.pressed.connect(func(): _set_mode_season_duration(60))
-	%Season90Btn.pressed.connect(func(): _set_mode_season_duration(90))
+	_side_campaign_btn = find_child("SideCampaignBtn", true, false) as Button
+	if _side_campaign_btn:
+		_side_campaign_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["campaign"]["sentences"])
+		_side_campaign_btn.mouse_entered.connect(func(): _on_mode_button_hovered("campaign", _side_campaign_btn))
+		_side_campaign_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("campaign"))
+		_side_campaign_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_select_game_mode("campaign")
+		)
+
+	_side_career_btn = find_child("SideCareerBtn", true, false) as Button
+	if _side_career_btn:
+		_side_career_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["career"]["sentences"])
+		_side_career_btn.mouse_entered.connect(func(): _on_mode_button_hovered("career", _side_career_btn))
+		_side_career_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("career"))
+		_side_career_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_select_game_mode("career")
+		)
+
+	# The single admin debug checkbox is located on the main menu left panel
+	if admin_checkbox:
+		admin_checkbox.tooltip_text = "Press backtick (`) in-game to toggle developer console (add cash, speed crops, test weather)."
+
+	_mode_leaderboard_btn = find_child("ModeLeaderboardBtn", true, false) as Button
+	if _mode_leaderboard_btn:
+		_mode_leaderboard_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["hall_of_fame"]["sentences"])
+		_mode_leaderboard_btn.mouse_entered.connect(func(): _on_mode_button_hovered("hall_of_fame", _mode_leaderboard_btn))
+		_mode_leaderboard_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("hall_of_fame"))
+		_mode_leaderboard_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_open_leaderboard_modal()
+		)
+
+	var s30 = find_child("Season30Btn", true, false) as Button
+	var s60 = find_child("Season60Btn", true, false) as Button
+	var s90 = find_child("Season90Btn", true, false) as Button
+	_mode_season_buttons = {}
+	if s30:
+		_mode_season_buttons[30] = s30
+		s30.pressed.connect(func(): _set_mode_season_duration(30))
+	if s60:
+		_mode_season_buttons[60] = s60
+		s60.pressed.connect(func(): _set_mode_season_duration(60))
+	if s90:
+		_mode_season_buttons[90] = s90
+		s90.pressed.connect(func(): _set_mode_season_duration(90))
 
 	_select_mode_carousel(0)
 
@@ -486,47 +702,78 @@ func _select_mode_carousel(idx: int) -> void:
 	var mode_id: String = mode_keys[current_mode_idx]
 	Data.game_mode = mode_id
 
+	# Update side button styles based on active mode
+	if _side_campaign_btn and _side_career_btn:
+		if mode_id == "campaign":
+			if style_gold_btn:
+				_side_campaign_btn.add_theme_stylebox_override("normal", style_gold_btn)
+				_side_campaign_btn.add_theme_stylebox_override("hover", style_gold_hov)
+				_side_campaign_btn.add_theme_stylebox_override("pressed", style_gold_press)
+			_side_campaign_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
+			_side_campaign_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
+
+			if style_wood_btn:
+				_side_career_btn.add_theme_stylebox_override("normal", style_wood_btn)
+				_side_career_btn.add_theme_stylebox_override("hover", style_wood_hov)
+				_side_career_btn.add_theme_stylebox_override("pressed", style_wood_press)
+			_side_career_btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
+			_side_career_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
+		else:
+			if style_wood_btn:
+				_side_campaign_btn.add_theme_stylebox_override("normal", style_wood_btn)
+				_side_campaign_btn.add_theme_stylebox_override("hover", style_wood_hov)
+				_side_campaign_btn.add_theme_stylebox_override("pressed", style_wood_press)
+			_side_campaign_btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
+			_side_campaign_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
+
+			if style_gold_btn:
+				_side_career_btn.add_theme_stylebox_override("normal", style_gold_btn)
+				_side_career_btn.add_theme_stylebox_override("hover", style_gold_hov)
+				_side_career_btn.add_theme_stylebox_override("pressed", style_gold_press)
+			_side_career_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
+			_side_career_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
+
 	if mode_id == "campaign":
-		_mode_index_label.text = "GAME MODE 1 OF 2"
-		_mode_name_label.text = "🏆 TIMED RTS CAMPAIGN"
-		_mode_tagline_label.text = "[ COMPETITIVE SCORE ATTACK • SEASON SPRINT ]"
-		_mode_desc_label.text = "Race against the seasonal clock in a high-stakes agricultural sprint across Mindanao! Cultivate strategic crop rotations, optimize harvesting logistics, and fulfill export contracts through regional shipping hubs. Every bushel delivered with high freshness and Grade A quality earns delivery combo multipliers, cash bonuses, and league points."
+		if _mode_index_label: _mode_index_label.text = "GAME MODE 1 OF 2"
+		if _mode_name_label: _mode_name_label.text = "🏆 TIMED RTS CAMPAIGN"
+		if _mode_tagline_label: _mode_tagline_label.text = "[ COMPETITIVE SCORE ATTACK • 30–90 DAYS ]"
+		if _mode_desc_label: _mode_desc_label.text = "Race against the seasonal clock in a high-stakes agricultural sprint across Mindanao! Cultivate strategic crop rotations, optimize harvesting logistics, and fulfill export contracts through regional shipping hubs."
 
-		_pillar1_title.text = "⏱️ RTS Season Timer"
-		_pillar1_body.text = "• Choose a 30, 60, or 90 day campaign duration.\n• Real-time Day/Night clock (3 minutes per day).\n• Early harvest rescues crops ahead of typhoons."
+		if _pillar1_title: _pillar1_title.text = "⏱️ Season Timer"
+		if _pillar1_body: _pillar1_body.text = "• Choose 30, 60, or 90 days.\n• Day/Night clock (3 min/day).\n• Early harvest before typhoons."
 
-		_pillar2_title.text = "🏆 Mindanao League"
-		_pillar2_body.text = "• Compete against 8 simulated regional AI rivals.\n• Grade A crops grant a massive 2.5× point multiplier.\n• Fast hub deliveries build combo streaks up to 2.0×."
+		if _pillar2_title: _pillar2_title.text = "🏆 Rival League"
+		if _pillar2_body: _pillar2_body.text = "• Compete against 8 AI rivals.\n• Grade A crops give 2.5× points.\n• Fast deliveries build combos."
 
-		_pillar3_title.text = "🎖️ Tycoon Prestige"
-		_pillar3_body.text = "• Climb 5 prestige tiers to Mindanao Agro-Tycoon.\n• Match regional climate affinities for +30% export bonuses.\n• Permanent Hall of Fame records your personal best."
+		if _pillar3_title: _pillar3_title.text = "🎖️ Tycoon Prestige"
+		if _pillar3_body: _pillar3_body.text = "• Climb 5 prestige tiers.\n• Regional bonuses up to +30%.\n• Saved in Hall of Fame."
 
-		_mode_season_container.visible = true
-		_mode_season_explain_label.visible = true
-		_career_perks_container.visible = false
+		if _mode_season_container: _mode_season_container.visible = true
+		if _mode_season_explain_label: _mode_season_explain_label.visible = true
+		if _career_perks_container: _career_perks_container.visible = false
 		_update_mode_season_buttons_ui()
 
-		_mode_start_btn.text = "PROCEED TO REGION SELECT (START CAMPAIGN)  >"
+		if _mode_start_btn: _mode_start_btn.text = "PROCEED TO REGIONS  >"
 	else:
-		_mode_index_label.text = "GAME MODE 2 OF 2"
-		_mode_name_label.text = "🌾 CAREER / ENDLESS TYCOON"
-		_mode_tagline_label.text = "[ PERSISTENT FARM BUILDER • SAVE & LOAD ]"
-		_mode_desc_label.text = "Cultivate and expand your agricultural empire at your own relaxed pace with no time limits or countdown pressure. Clear dense wilderness, purchase all 4 island territory deeds, construct advanced drying infrastructure, and build thriving perennial groves with full save and load support anytime."
+		if _mode_index_label: _mode_index_label.text = "GAME MODE 2 OF 2"
+		if _mode_name_label: _mode_name_label.text = "🌾 CAREER / ENDLESS TYCOON"
+		if _mode_tagline_label: _mode_tagline_label.text = "[ RELAXED ENDLESS SANDBOX • SAVE & LOAD ]"
+		if _mode_desc_label: _mode_desc_label.text = "Cultivate and expand your agricultural empire at your own relaxed pace with no time limits or countdown pressure. Clear dense wilderness, purchase all 4 island territory deeds, construct advanced drying infrastructure, and build thriving perennial groves with full save and load support anytime."
 
-		_pillar1_title.text = "🌾 Unlimited Sandbox"
-		_pillar1_body.text = "• Play for 100+ in-game days with no deadlines.\n• Expand across all 24x24 plots (North, South, East, West).\n• Construct dryers, solar patios, and hire farmhands."
+		if _pillar1_title: _pillar1_title.text = "🌾 Unlimited Sandbox"
+		if _pillar1_body: _pillar1_body.text = "• Play for 100+ days with no deadlines.\n• Expand across all 24x24 plots.\n• Build dryers, silos, and hire workers."
 
-		_pillar2_title.text = "💾 5-Slot Save & Load"
-		_pillar2_body.text = "• Full in-game save system with 5 manual save slots.\n• Saves treasury, buildings, 576-tile grid, crops, and market.\n• Resume your farm anytime from main menu or pause menu."
+		if _pillar2_title: _pillar2_title.text = "💾 5 Save Slots"
+		if _pillar2_body: _pillar2_body.text = "• In-game save and load anytime.\n• Saves money, buildings, tiles, and market.\n• Resume farm from menu or pause screen."
 
-		_pillar3_title.text = "🌙 Midnight Autosave"
-		_pillar3_body.text = "• Automatic backup saves every in-game midnight (00:00).\n• Your progress is always protected against unexpected exits.\n• Freely experiment with multi-tile Coconut & Banana groves."
+		if _pillar3_title: _pillar3_title.text = "🌙 Auto-Saves"
+		if _pillar3_body: _pillar3_body.text = "• Game automatically saves every midnight.\n• Safe against accidental closures.\n• Grow multi-tile Banana & Coconut groves."
 
-		_mode_season_container.visible = false
-		_mode_season_explain_label.visible = false
-		_career_perks_container.visible = true
+		if _mode_season_container: _mode_season_container.visible = false
+		if _mode_season_explain_label: _mode_season_explain_label.visible = false
+		if _career_perks_container: _career_perks_container.visible = true
 
-		_mode_start_btn.text = "PROCEED TO REGION SELECT (START NEW CAREER)  >"
+		if _mode_start_btn: _mode_start_btn.text = "PROCEED TO REGIONS  >"
 
 func _on_mode_start_pressed() -> void:
 	_select_game_mode(mode_keys[current_mode_idx])
@@ -534,6 +781,9 @@ func _on_mode_start_pressed() -> void:
 func _set_mode_season_duration(days: int) -> void:
 	_select_season_duration(days)
 	_update_mode_season_buttons_ui()
+	_update_start_button_text()
+	if _mode_badge_label and Data.game_mode == "campaign":
+		_mode_badge_label.text = "[ TIMED CAMPAIGN: %d DAYS ]" % Data.selected_season_days
 
 func _update_mode_season_buttons_ui() -> void:
 	for days in _mode_season_buttons.keys():
@@ -545,15 +795,18 @@ func _update_mode_season_buttons_ui() -> void:
 				btn.add_theme_stylebox_override("pressed", style_gold_press)
 			btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
 			btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
-			btn.add_theme_font_size_override("font_size", 13)
+			btn.add_theme_font_size_override("font_size", 14)
 		else:
-			if style_brown_btn:
-				btn.add_theme_stylebox_override("normal", style_brown_btn)
-				btn.add_theme_stylebox_override("hover", style_brown_hov)
-				btn.add_theme_stylebox_override("pressed", style_brown_press)
+			var inactive_style = style_wood_btn if style_wood_btn else style_brown_btn
+			var inactive_hov = style_wood_hov if style_wood_hov else style_brown_hov
+			var inactive_press = style_wood_press if style_wood_press else style_brown_press
+			if inactive_style:
+				btn.add_theme_stylebox_override("normal", inactive_style)
+				btn.add_theme_stylebox_override("hover", inactive_hov)
+				btn.add_theme_stylebox_override("pressed", inactive_press)
 			btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
 			btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
-			btn.add_theme_font_size_override("font_size", 13)
+			btn.add_theme_font_size_override("font_size", 14)
 
 	if _mode_season_explain_label:
 		if Data.selected_season_days == 30:
@@ -562,6 +815,80 @@ func _update_mode_season_buttons_ui() -> void:
 			_mode_season_explain_label.text = "Full 90-Day Quarter (3 Months) — Deep strategic campaign enabling massive multi-tile perennial plantation investments."
 		else:
 			_mode_season_explain_label.text = "Standard 60-Day Campaign (2 Months) — Balanced timeline allowing all 7 crops and perennial groves to mature."
+
+func _on_mode_button_hovered(mode_id: String, source_button: Button) -> void:
+	if not _mode_hover_card or not is_instance_valid(_mode_hover_card):
+		return
+	if _mode_select_view and not _mode_select_view.visible:
+		return
+	if not MODE_EXPLANATIONS.has(mode_id):
+		return
+
+	_current_hovered_mode = mode_id
+	var data: Dictionary = MODE_EXPLANATIONS[mode_id]
+
+	if _hover_title_label:
+		_hover_title_label.text = data.get("title", "")
+	if _hover_tagline_label:
+		_hover_tagline_label.text = data.get("tagline", "")
+	if _hover_desc_label:
+		var sentences: Array = data.get("sentences", [])
+		var lines: Array = []
+		for s in sentences:
+			lines.append("• " + str(s))
+		_hover_desc_label.text = "\n".join(lines)
+	if _hover_tip_label:
+		_hover_tip_label.text = data.get("tip", "")
+
+	# Compute target Y position aligned with button
+	var btn_global_y: float = 120.0
+	if source_button and is_instance_valid(source_button):
+		btn_global_y = source_button.global_position.y
+	var target_y: float = clampf(btn_global_y - 14.0, 70.0, 430.0)
+
+	if _hover_card_tween and _hover_card_tween.is_valid():
+		_hover_card_tween.kill()
+
+	_hover_card_tween = create_tween().set_parallel(true)
+	if not _mode_hover_card.visible or _mode_hover_card.modulate.a < 0.05:
+		_mode_hover_card.position.x = 345.0
+		_mode_hover_card.position.y = target_y + 4.0
+		_mode_hover_card.modulate.a = 0.0
+		_mode_hover_card.visible = true
+		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 355.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_hover_card_tween.tween_property(_mode_hover_card, "position:y", target_y, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 1.0, 0.12)
+	else:
+		_hover_card_tween.tween_property(_mode_hover_card, "position:y", target_y, 0.10).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 355.0, 0.10)
+		_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 1.0, 0.08)
+
+func _on_mode_button_unhovered(mode_id: String) -> void:
+	if _current_hovered_mode != mode_id:
+		return
+	_current_hovered_mode = ""
+
+	if not _mode_hover_card or not is_instance_valid(_mode_hover_card):
+		return
+
+	if _hover_card_tween and _hover_card_tween.is_valid():
+		_hover_card_tween.kill()
+
+	_hover_card_tween = create_tween().set_parallel(true)
+	_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 0.0, 0.12)
+	_hover_card_tween.tween_property(_mode_hover_card, "position:x", 345.0, 0.12)
+	_hover_card_tween.chain().tween_callback(func():
+		if _current_hovered_mode == "" and _mode_hover_card and is_instance_valid(_mode_hover_card):
+			_mode_hover_card.visible = false
+	)
+
+func _hide_mode_hover_card_immediate() -> void:
+	_current_hovered_mode = ""
+	if _hover_card_tween and _hover_card_tween.is_valid():
+		_hover_card_tween.kill()
+	if _mode_hover_card and is_instance_valid(_mode_hover_card):
+		_mode_hover_card.visible = false
+		_mode_hover_card.modulate.a = 0.0
 
 func _setup_region_back_navigation() -> void:
 	# Add back button and active mode badge positioned in top-left
@@ -575,11 +902,15 @@ func _setup_region_back_navigation() -> void:
 	_region_nav_box.offset_bottom = 58.0
 
 	_back_to_modes_btn = Button.new()
-	_back_to_modes_btn.text = "← BACK TO GAME MODES"
-	_back_to_modes_btn.custom_minimum_size = Vector2(180, 36)
-	_back_to_modes_btn.add_theme_font_size_override("font_size", 12)
+	_back_to_modes_btn.text = "<  GAME MODES"
+	_back_to_modes_btn.custom_minimum_size = Vector2(190, 38)
+	_back_to_modes_btn.add_theme_font_size_override("font_size", 14)
 	_back_to_modes_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	if style_brown_btn:
+	if style_wood_btn:
+		_back_to_modes_btn.add_theme_stylebox_override("normal", style_wood_btn)
+		_back_to_modes_btn.add_theme_stylebox_override("hover", style_wood_hov)
+		_back_to_modes_btn.add_theme_stylebox_override("pressed", style_wood_press)
+	elif style_brown_btn:
 		_back_to_modes_btn.add_theme_stylebox_override("normal", style_brown_btn)
 		_back_to_modes_btn.add_theme_stylebox_override("hover", style_brown_hov)
 		_back_to_modes_btn.add_theme_stylebox_override("pressed", style_brown_press)
@@ -590,7 +921,7 @@ func _setup_region_back_navigation() -> void:
 
 	_mode_badge_label = Label.new()
 	_mode_badge_label.text = "[ TIMED CAMPAIGN ]"
-	_mode_badge_label.add_theme_font_size_override("font_size", 11)
+	_mode_badge_label.add_theme_font_size_override("font_size", 13)
 	_mode_badge_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.40, 1.0))
 	_region_nav_box.add_child(_mode_badge_label)
 
@@ -607,6 +938,7 @@ func _select_game_mode(mode: String) -> void:
 
 func _show_mode_select() -> void:
 	_active_view = "mode"
+	_hide_mode_hover_card_immediate()
 	if _mode_select_view:
 		_mode_select_view.visible = true
 		_select_mode_carousel(current_mode_idx)
@@ -626,6 +958,7 @@ func _show_mode_select() -> void:
 
 func _show_region_select() -> void:
 	_active_view = "region"
+	_hide_mode_hover_card_immediate()
 	if _mode_select_view:
 		_mode_select_view.visible = false
 
@@ -642,6 +975,11 @@ func _show_region_select() -> void:
 	if _top_center_header:
 		_top_center_header.visible = true
 
+	if _region_season_box:
+		_region_season_box.visible = (Data.game_mode == "campaign")
+		if Data.game_mode == "campaign":
+			_update_mode_season_buttons_ui()
+
 	if _mode_badge_label:
 		if Data.game_mode == "campaign":
 			_mode_badge_label.text = "[ TIMED CAMPAIGN: %d DAYS ]" % Data.selected_season_days
@@ -650,13 +988,22 @@ func _show_region_select() -> void:
 			_mode_badge_label.text = "[ CAREER: ENDLESS ]"
 			_mode_badge_label.add_theme_color_override("font_color", Color(0.45, 1.0, 0.55, 1.0))
 
-	# Update season duration selector vs career notice in footer
-	if _season_container:
-		_season_container.visible = (Data.game_mode == "campaign")
+	# Update clean status notice in footer
 	if _career_notice_label:
-		_career_notice_label.visible = (Data.game_mode == "career")
+		if Data.game_mode == "campaign":
+			_career_notice_label.visible = false
+		else:
+			_career_notice_label.text = "🌾 Endless Sandbox • Full Save & Load Enabled"
+			_career_notice_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.65, 0.95))
+			_career_notice_label.visible = true
 
 	_update_start_button_text()
+
+func _open_leaderboard_modal() -> void:
+	var lb_cls = load("res://src/ui/LeaderboardPanel.gd")
+	if lb_cls:
+		var lb = lb_cls.new()
+		add_child(lb)
 
 func _open_load_modal() -> void:
 	var modal = SaveLoadModalScript.new(SaveLoadModalScript.Mode.LOAD)
@@ -736,14 +1083,33 @@ func _apply_region_data(meta: Dictionary, r_data: Dictionary, bg_tex: Texture2D,
 	var pros_array: Array = r_data.get("pros", [])
 	var pros_str: String = ""
 	for p in pros_array:
-		pros_str += "[+] %s\n\n" % p
+		pros_str += "• %s\n" % p
 	pros_text.text = pros_str.strip_edges()
 
 	var cons_array: Array = r_data.get("cons", [])
 	var cons_str: String = ""
 	for c in cons_array:
-		cons_str += "[!] %s\n\n" % c
+		cons_str += "• %s\n" % c
 	cons_text.text = cons_str.strip_edges()
+
+	# Populate visual pro and con rows with pixel-art icons and clear text
+	var key: String = region_keys[current_idx]
+	var factors: Dictionary = REGION_VISUAL_FACTORS.get(key, {})
+	var visual_pros: Array = factors.get("pros", [])
+	for i in range(mini(_pro_icons.size(), visual_pros.size())):
+		var item: Dictionary = visual_pros[i]
+		var icon_path: String = item.get("icon", "")
+		if ResourceLoader.exists(icon_path):
+			_pro_icons[i].texture = load(icon_path)
+		_pro_labels[i].text = item.get("text", "")
+
+	var visual_cons: Array = factors.get("cons", [])
+	for i in range(mini(_con_icons.size(), visual_cons.size())):
+		var item: Dictionary = visual_cons[i]
+		var icon_path: String = item.get("icon", "")
+		if ResourceLoader.exists(icon_path):
+			_con_icons[i].texture = load(icon_path)
+		_con_labels[i].text = item.get("text", "")
 
 	_update_start_button_text()
 
@@ -752,51 +1118,21 @@ func _setup_season_selector() -> void:
 	if not footer_bar:
 		return
 
-	_season_container = HBoxContainer.new()
-	_season_container.name = "SeasonModeContainer"
-	_season_container.add_theme_constant_override("separation", 6)
-	_season_container.alignment = BoxContainer.ALIGNMENT_CENTER
-
-	var lbl := Label.new()
-	lbl.text = "CAMPAIGN:"
-	lbl.add_theme_font_size_override("font_size", 11)
-	lbl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.55, 1.0))
-	_season_container.add_child(lbl)
-
-	var modes = [
-		{"days": 30, "text": "⚡ 30d Sprint"},
-		{"days": 60, "text": "⭐ 60d Standard"},
-		{"days": 90, "text": "👑 90d Quarter"}
-	]
-
-	for m in modes:
-		var days: int = m["days"]
-		var btn := Button.new()
-		btn.text = m["text"]
-		btn.custom_minimum_size = Vector2(96, 32)
-		btn.add_theme_font_size_override("font_size", 10)
-		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		btn.pressed.connect(func(): _select_season_duration(days))
-		_season_container.add_child(btn)
-		_season_buttons[days] = btn
-
-	# Career Mode notice label for footer
+	# Clean status notice label for footer in Region Select
 	_career_notice_label = Label.new()
 	_career_notice_label.name = "CareerNoticeLabel"
-	_career_notice_label.text = "🌾 Endless Sandbox • Full In-Game Save & Load Enabled"
-	_career_notice_label.add_theme_font_size_override("font_size", 12)
+	_career_notice_label.text = "🌾 Endless Sandbox • Full Save & Load Enabled"
+	_career_notice_label.add_theme_font_size_override("font_size", 14)
 	_career_notice_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.65, 0.95))
+	_career_notice_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_career_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_career_notice_label.visible = false
 
-	# Insert before StartButton in FooterBar
-	var start_idx: int = start_button.get_index()
-	footer_bar.add_child(_season_container)
-	footer_bar.move_child(_season_container, start_idx)
-
+	# Insert before RegionSeasonBox in FooterBar
+	var insert_idx: int = _region_season_box.get_index() if _region_season_box else start_button.get_index()
 	footer_bar.add_child(_career_notice_label)
-	footer_bar.move_child(_career_notice_label, start_idx)
+	footer_bar.move_child(_career_notice_label, insert_idx)
 
-	_update_season_buttons_ui()
 	_update_start_button_text()
 
 func _select_season_duration(days: int) -> void:
@@ -828,6 +1164,8 @@ func _update_start_button_text() -> void:
 
 func _on_admin_checkbox_toggled(on: bool) -> void:
 	_admin_mode_enabled = on
+	if admin_checkbox and admin_checkbox.button_pressed != on:
+		admin_checkbox.set_pressed_no_signal(on)
 	var flag_nodes = get_tree().get_nodes_in_group(ADMIN_FLAG_GROUP)
 	for n in flag_nodes:
 		n.queue_free()

@@ -83,11 +83,11 @@ func _build_ui() -> void:
 
 	_close_btn = Button.new()
 	_close_btn.text = "✕"
-	_close_btn.custom_minimum_size = Vector2(30, 26)
+	_close_btn.custom_minimum_size = Vector2(28, 28)
 	_close_btn.add_theme_font_size_override("font_size", 14)
-	_close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
-	_close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"))
-	_close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
+	_close_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+	_close_btn.add_theme_stylebox_override("hover", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+	_close_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
 	_close_btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.80))
 	_close_btn.pressed.connect(func(): close())
 	header.add_child(_close_btn)
@@ -133,7 +133,10 @@ func _build_ui() -> void:
 
 	# 3. Trade-offs Details Card
 	var details_card := PanelContainer.new()
-	details_card.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
+	if ResourceLoader.exists("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"):
+		details_card.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Big-Rectangle-Box/InnerBox2x.tres"))
+	else:
+		details_card.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/TopRight/BrownBox.tres"))
 	vbox.add_child(details_card)
 
 	var d_margin := MarginContainer.new()

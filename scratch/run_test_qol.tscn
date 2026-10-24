@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://df7x8k1m3q4p"]
+
+[ext_resource type="Script" path="res://scratch/test_qol_features.gd" id="1_test_qol"]
+
+[node name="TestQoL" type="Node2D"]
+script = ExtResource("1_test_qol")

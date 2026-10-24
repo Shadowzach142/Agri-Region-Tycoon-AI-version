@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bayanihan_test_runner"]
+
+[ext_resource type="Script" path="res://scratch/test_bayanihan_system.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dcropshader1"]
+
+[ext_resource type="Script" path="res://scratch/test_crop_shader.gd" id="1_test"]
+
+[node name="TestRoot" type="Node2D"]
+script = ExtResource("1_test")

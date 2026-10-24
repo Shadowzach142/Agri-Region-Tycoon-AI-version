@@ -1,0 +1,48 @@
+MODE_EXPLANATIONS: Dictionary = {
++	"campaign": {
++		"title": "🏆 TIMED RTS CAMPAIGN",
++		"tagline": "[ COMPETITIVE RTS SCORE ATTACK ]",
++		"sentences": [
++			"Compete against 8 regional AI rivals in a timed score-attack race across Mindanao markets.",
++			"Choose a 30, 60, or 90 day RTS season clock to harvest crops, manage disaster risks, and earn maximum profits.",
++			"Climb through 5 agro-tycoon prestige tiers to secure a permanent spot in the Hall of Fame."
++		],
++		"tip": "👉 Click to choose region & start campaign"
++	},
++	"career": {
++		"title": "🌾 CAREER / ENDLESS TYCOON",
++		"tagline": "[ RELAXED PERSISTENT SANDBOX ]",
++		"sentences": [
++			"Build and manage your agricultural enterprise at your own relaxed pace with no time limits or pressure.",
++			"Cultivate perennial groves across an expandable 24×24 grid with safe midnight autosaves and 5 flexible save slots.",
++			"Unlock autonomous drone fleets and agro-industrial processing facilities to create a lasting farming empire."
++		],
++		"tip": "👉 Click to choose region & start new career"
++	},
++	"saves": {
++		"title": "💾 SAVED GAMES",
++		"tagline": "[ SAVE & LOAD MANAGEMENT ]",
++		"sentences": [
++			"Access up to 5 manual save slots or resume your ongoing agricultural career.",
++			"Daily midnight autosaves keep your farm grid, treasury, and crop harvests secure.",
++			"Load previous tycoon playthroughs anytime or back up your homestead before expanding."
++		],
++		"tip": "👉 Click to browse and load previous playthroughs"
++	}
++}
++
++# Mode Hover Card
++var _mode_hover_card: PanelContainer = null
++var _hover_title_label: Label = null
++var _hover_tagline_label: Label = null
++var _hover_desc_label: Label = null
++var _hover_tip_label: Label = null
++var _hover_card_tween: Tween = null
++var _current_hovered_mode: String = ""
++
+ # StartMenu Textures & Styles Cache
+ var tex_big_logs: Texture2D = null
+ var tex_samplebox: Texture2D = null
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.

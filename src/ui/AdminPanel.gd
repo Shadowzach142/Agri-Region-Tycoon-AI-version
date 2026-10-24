@@ -30,18 +30,40 @@ var _toggle_hint:    Label          = null
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	layer = 200   # Always on top
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	is_enabled = true
 	_build_ui()
 	visible = false
 
 # ---------------------------------------------------------------------------
-# Input — ` key toggles the panel (only if enabled)
+# Public API
+# ---------------------------------------------------------------------------
+func open() -> void:
+	is_enabled = true
+	visible = true
+
+func close() -> void:
+	visible = false
+	admin_closed.emit()
+
+func toggle() -> void:
+	if visible:
+		close()
+	else:
+		open()
+
+# ---------------------------------------------------------------------------
+# Input — ` key toggles the panel, ESC closes it
 # ---------------------------------------------------------------------------
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_enabled:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_QUOTELEFT:  # ` backtick
-			visible = not visible
+			toggle()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_ESCAPE and visible:
+			close()
 			get_viewport().set_input_as_handled()
 
 # ---------------------------------------------------------------------------
@@ -83,9 +105,30 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	# ── Header ───────────────────────────────────────────────────────────────
+	var header_hbox := HBoxContainer.new()
+	header_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(header_hbox)
+
+	var header_spacer := Control.new()
+	header_spacer.custom_minimum_size = Vector2(28, 0)
+	header_hbox.add_child(header_spacer)
+
 	var header := _make_label("🛠️  ADMIN / DEBUG PANEL", 18, true)
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(header)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_hbox.add_child(header)
+
+	var header_close_btn := Button.new()
+	header_close_btn.text = "✕"
+	header_close_btn.custom_minimum_size = Vector2(28, 28)
+	header_close_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	header_close_btn.tooltip_text = "Close (ESC or `)"
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"):
+		header_close_btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
+		header_close_btn.add_theme_stylebox_override("hover", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
+		header_close_btn.add_theme_stylebox_override("pressed", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonPressed.tres"))
+	header_close_btn.pressed.connect(close)
+	header_hbox.add_child(header_close_btn)
 
 	var hint := _make_label("Press  `  (backtick) to toggle    •    Changes are NOT reversed on close", 12, false)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
