@@ -16,7 +16,7 @@ const COLOR_DOWN_LINE := Color(1.00, 0.38, 0.38, 1.0)
 const COLOR_DOWN_FILL := Color(1.00, 0.38, 0.38, 0.18)
 const COLOR_GRID      := Color(1.00, 1.00, 1.00, 0.08)
 const COLOR_BASE_LINE := Color(0.95, 0.75, 0.30, 0.45)
-const COLOR_MUTED_TXT := Color(0.85, 0.90, 0.85, 0.95)
+const COLOR_MUTED_TXT := Color(0.92, 0.96, 0.92, 1.0)
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(460, 180)
@@ -41,15 +41,15 @@ func _draw() -> void:
 	draw_rect(full_rect, Color(0.24, 0.34, 0.22, 0.85), false, 1.5)
 
 	# 2. Graph plot region boundaries
-	var pad_left: float   = 46.0
+	var pad_left: float   = 52.0
 	var pad_right: float  = 28.0
 	var pad_top: float    = 24.0
-	var pad_bottom: float = 24.0
+	var pad_bottom: float = 26.0
 
 	var gr := Rect2(pad_left, pad_top, maxf(size.x - pad_left - pad_right, 40.0), maxf(size.y - pad_top - pad_bottom, 30.0))
 
 	if price_data.is_empty():
-		draw_string(font, Vector2(size.x * 0.35, size.y * 0.5), "No price history available", HORIZONTAL_ALIGNMENT_CENTER, -1, 12, COLOR_MUTED_TXT)
+		draw_string(font, Vector2(size.x * 0.35, size.y * 0.5), "No price history available", HORIZONTAL_ALIGNMENT_CENTER, -1, 13, COLOR_MUTED_TXT)
 		return
 
 	# 3. Determine price range (min/max with 15% headroom)
@@ -74,7 +74,7 @@ func _draw() -> void:
 	for val in grid_levels:
 		var gy: float = to_y.call(val)
 		draw_line(Vector2(gr.position.x, gy), Vector2(gr.end.x, gy), COLOR_GRID, 1.0)
-		draw_string(font, Vector2(6, gy + 4), "₱%d" % int(round(val)), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, COLOR_MUTED_TXT)
+		draw_string(font, Vector2(6, gy + 4), "₱%d" % int(round(val)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, COLOR_MUTED_TXT)
 
 	# 5. Base Price Benchmark dashed guideline
 	var base_y: float = to_y.call(base_price)
@@ -85,7 +85,7 @@ func _draw() -> void:
 		cx += x_step
 
 	var base_txt: String = "Base ₱%d" % int(base_price)
-	draw_string(font, Vector2(gr.end.x - 56, base_y - 4), base_txt, HORIZONTAL_ALIGNMENT_RIGHT, -1, 11, Color(1.0, 0.85, 0.40, 1.0))
+	draw_string(font, Vector2(gr.end.x - 62, base_y - 4), base_txt, HORIZONTAL_ALIGNMENT_RIGHT, -1, 12, Color(1.0, 0.88, 0.45, 1.0))
 
 	# 6. Plot data points & polyline
 	var n: int = price_data.size()
@@ -126,10 +126,10 @@ func _draw() -> void:
 			var curr_val: int = int(round(float(price_data[i])))
 			var tag_str := "₱%d" % curr_val
 			var tag_pos := pt + Vector2(-18, -14 if pt.y > gr.position.y + 25 else 20)
-			var tag_bg := Rect2(tag_pos.x - 6, tag_pos.y - 10, 48, 16)
+			var tag_bg := Rect2(tag_pos.x - 8, tag_pos.y - 12, 52, 18)
 			draw_rect(tag_bg, Color(0.10, 0.14, 0.10, 0.95), true)
 			draw_rect(tag_bg, line_col, false, 1.0)
-			draw_string(font, tag_pos + Vector2(2, 2), tag_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 11, line_col)
+			draw_string(font, tag_pos + Vector2(2, 2), tag_str, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, line_col)
 		else:
 			draw_circle(pt, 3.0, line_col)
 			draw_circle(pt, 1.5, Color(0.08, 0.10, 0.08))
@@ -142,4 +142,4 @@ func _draw() -> void:
 		var lbl: String = day_names[lbl_idx] if lbl_idx < day_names.size() else "D+%d" % i
 		var lx: float = points[i].x
 		var col: Color = Color(1.0, 0.92, 0.50) if i == n - 1 else COLOR_MUTED_TXT
-		draw_string(font, Vector2(lx - 14, gr.end.y + 16), lbl, HORIZONTAL_ALIGNMENT_CENTER, -1, 11, col)
+		draw_string(font, Vector2(lx - 16, gr.end.y + 18), lbl, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, col)

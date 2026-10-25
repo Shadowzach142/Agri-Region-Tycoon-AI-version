@@ -148,7 +148,8 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 				"progress_timer": b.progress_timer,
 				"duration": b.duration,
 				"assigned_crops": b.assigned_crops.duplicate() if "assigned_crops" in b else [],
-				"used_storage": b.used_storage if "used_storage" in b else 0
+				"used_storage": b.used_storage if "used_storage" in b else 0,
+				"is_flipped": b.is_flipped if "is_flipped" in b else false
 			})
 
 	var building_manager_data: Dictionary = {
@@ -413,6 +414,7 @@ func apply_pending_save(farm_grid: Node) -> void:
 		building.duration = b_info.get("duration", 0.0)
 		building.assigned_crops = Array(b_info.get("assigned_crops", []), TYPE_STRING, &"", null)
 		building.used_storage = int(b_info.get("used_storage", 0))
+		building.is_flipped = b_info.get("is_flipped", false)
 
 		farm_grid.add_child(building)
 

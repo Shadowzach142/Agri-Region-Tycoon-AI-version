@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-25 (Session 115 — Revert Original Buildings to Classic 2.0x Scale & Calibrate Newly Added Buildings to Snugly Fit Within Tiles)
+> **Last Updated**: 2026-10-25 (Session 118 — Pixel Art Building Rescaling to 2.0x & Diamond Tile-Grid Alignment)
 
 ---
 
@@ -1010,4 +1010,102 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
      - All 33 audio streams and semantic audio checks in `run_test_audio.tscn` passed 100%.
      - All agro-industrial processing tests in `run_test_processing.tscn` passed 100%.
      - Dedicated verification script `run_test_all_buildings_fit.tscn` passed 17/17 buildings.
+
+---
+
+### Session 116 Summary (UI Font Enlargement, High-Contrast Typography & Container Overflow/Clipping Fixes)
+- **User Request Addressed**:
+  - *"UI tweaks: enlarge the font but don't overflow out of the container; make it visible make sure it contrasts with the background"*
+  - Analyzed 3 attached screenshots pinpointing specific font readability, low contrast, and clipping issues:
+    1. **TileInfoPanel (Clipboard Inspector)**: `CropLabel` clipped `"Bahay Kubo (Farm Shack) Lv.1"` into `"hay Kubo (Farm Shack) Lv"`; gauge values and stats had low contrast and small fonts.
+    2. **ShopPanel (Category Navigation Bar & Tabs)**: Category Breadcrumb Bar `CategoryTitleLabel` had dark brown text (`#3d2414`) on dark brown wood (`InnerBarBg.tres`) with a 1px shadow, rendering it nearly unreadable; TabContainer tab text was dull grayish-brown.
+    3. **Regional Commodity Market (MarketPanel & MarketChart)**: Left ticker crop names and trend tags were small/crowded; market intel was low-contrast; trade hubs comparison table rows were thin; chart price callouts and axis numbers lacked contrast.
+- **Architectural & Aesthetic Solutions**:
+  1. **TileInfoPanel (`src/ui/TileInfoPanel.gd` & `scenes/MainGame.tscn`)**:
+     - Fixed `CropLabel` clipping: sanitized building display names to remove bulky parentheticals (e.g. `"Bahay Kubo Lv.1"`), enabled `autowrap_mode = TextServer.AUTOWRAP_WORD_SMART` (`2`), set `custom_minimum_size = Vector2(130, 28)`, maintained `clip_text = true` for vertical layout stability.
+     - Enforced deep espresso text `Color(0.18, 0.10, 0.05, 1.0)` across title, crop name, state label, gauge values, and quality label.
+     - Elevated `PestLabel` contrast: replaced pale washed-out green (`#1f802e`) with deep forest green `Color(0.04, 0.38, 0.08)` for healthy status, and deep crimson `Color(0.72, 0.10, 0.06)` for infestations.
+     - Reduced `PlantBox` minimum size from 72px to 66px, providing ample vertical breathing room inside the 400×226 clipboard.
+  2. **ShopPanel (`src/market/ShopPanel.gd` & `scenes/MainGame.tscn`)**:
+     - Enlarged `CategoryTitleLabel` to 17pt, replacing dark brown text with radiant warm ivory `Color(1.0, 0.95, 0.82, 1.0)` and deep shadow `Color(0.08, 0.04, 0.02, 0.95)`, giving crisp contrast against the dark brown wooden bar (`InnerBarBg.tres`).
+     - Enlarged `CategoryPill` minimum size to 360×36px.
+     - Enlarged `TabContainer` and internal `TabBar` font size to 15pt, with high-contrast unselected text `Color(0.90, 0.86, 0.78, 0.95)`, vibrant gold active text `Color(1.0, 0.92, 0.40, 1.0)`, and hovered text `Color(1.0, 0.98, 0.88, 1.0)`.
+  3. **MarketPanel & MarketChart (`src/market/MarketPanel.gd` & `src/market/MarketChart.gd`)**:
+     - Expanded panel dimensions from 860×520 to 880×540 with generous padding.
+     - Enlarged header title to 20pt with deep espresso color `Color(0.18, 0.10, 0.05)`.
+     - Enlarged left ticker buttons to 230×44px, crop titles to 13pt, prices to 14pt, and sanitized short names (`Pineapple`, `Banana`, `Coconut`) to prevent any overflow near price tags.
+     - Enlarged market intel header and body to 12–13pt with dark espresso text.
+     - Enlarged crop title to 19pt, price display to 22pt, and market advice badge to 13pt.
+     - Enlarged regional trade hubs table headers to 12pt, row height to 28px, hub names and percentages to 13pt, price to 14pt bold, with vivid green/red/ice-blue color accents.
+     - In `MarketChart.gd`: increased Y-axis and day labels to 12pt with crisp ivory-green text `Color(0.92, 0.96, 0.92)`, expanded left padding to 52px for price clearance, and enlarged today's active price pill to 52×18px.
+- **Verification & Visual Confirmation**:
+  - Captured GPU screenshots of all 3 screens (`capture_tile_panel_showcase.png`, `capture_shop_panel_showcase.png`, `capture_market_panel_showcase.png`) and visually inspected via `view_file`.
+  - Ran `res://scratch/run_verify_ui.tscn` passing all 15 assertions 100%.
+  - Ran `res://scratch/run_verify_tile_panel.tscn` passing 100%.
+  - Ran `res://scratch/run_test_trade_hubs.tscn`, `res://scratch/run_test_bayanihan.tscn`, and `res://scratch/run_test_heatmap.tscn` with zero regressions.
+
+---
+
+### Session 117 Summary (Building Flip System, [R] Hotkey, New Building Sprites & Automatic Flipped Pixel Art Generation)
+- **User Request Addressed**:
+  - *"The new building sprites are now in to better fit with the tiles, ratio, and quality. There is now a flip versioon add a function t hat you can flip the building using R if theres a building with no flip spirte make one"*
+- **Completed Assets & Generation**:
+  - Identified new high-quality building sprites (`Cold_Storage.png`, `Drone_Station.png`, `Water_Station.png`, `Weather_Station.png`) and updated preloads across all systems (`ShopPanel.gd`, `TileInfoPanel.gd`, `Building.gd`).
+  - Automatically generated pixel-perfect horizontally flipped versions for all 8 buildings lacking flipped sprites using `ImageOps.mirror()`, preserving dimensions, transparency, and nearest-neighbor sampling:
+    - `assets/sprites/buildings/Water_Station_FLIPPED.png` (80×112)
+    - `assets/sprites/buildings/KUBO_FLIPPED.png` (64×96)
+    - `assets/sprites/buildings/DRYER_FLIPPED.PNG` (176×112)
+    - `assets/sprites/buildings/Silo/SILO-0_FLIPPED.PNG` to `SILO-100_FLIPPED.PNG` (48×64)
+  - Executed Godot engine asset scanner in headless mode to generate native `.import` files for all new flipped sprites.
+- **Orientation Flipping & [R] Hotkey Mechanics**:
+  1. **During Placement (`BuildingPlacementOverlay.gd` & `FarmGrid.gd`)**:
+     - Pressing `[R]` toggles `placing_is_flipped`, immediately redrawing the ghost preview with the mirrored sprite and offset.
+     - Placement badge displays `[R] Normal` or `[R] Flipped 🔄`.
+     - Placing the building initializes `building.is_flipped = placing_is_flipped`.
+  2. **Grid Hover Flipping (`FarmGrid.gd`)**:
+     - Hovering any placed building on the grid and pressing `[R]` instantly flips its orientation, plays `AudioManager.play_ui("click")`, and shows floating text `"🔄 Flipped!"`.
+  3. **Building Inspector (`BuildingCardPopup.gd`)**:
+     - Added dynamic button `"🔄 Flip Orientation [R]"` styled in carved wood with hover/press states.
+     - Pressing `[R]` while the popup is open or clicking the button flips the building orientation live, updates the button text to show the active orientation (`Left` vs `Right`), and shows floating feedback.
+  4. **Building Node Visuals (`Building.gd`)**:
+     - Added `is_flipped: bool = false`, `set_flipped(val: bool)`, `toggle_flip()`, and `_update_flipped_visuals()`.
+     - Extended `get_art_fit()` and `get_placement_preview()` to return flipped textures and mirrored center offsets `Vector2(W - coff.x, coff.y)` so diamond centering remains pixel-accurate without drifting.
+     - Updated procedural drawing routines (`_draw_bahay_kubo`, `_draw_solar_dryer`, `_draw_cold_storage`, `_draw_drone_station`, `_draw_weather_station`, `_draw_water_tower`, `_draw_bodega`, `_draw_art_building`, and `_get_silo_texture`) to mirror draw offsets, lights, and level indicators.
+  5. **Persistence (`SaveManager.gd`)**:
+     - Serialized `is_flipped` in `capture_game_state()`.
+     - Restored `building.is_flipped` during save slot load.
+- **Testing & Verification**:
+  - `scratch/run_test_building_flip.tscn`: All 5 flip test suites passed 100% (placement preview, art fits, node toggle, silo fill levels, save/load serialization).
+  - `scratch/run_test_all_buildings_fit.tscn`: 17/17 buildings passed tile-diamond calibration tests.
+  - `scratch/run_test_trade_hubs.tscn`: 9/9 trade hub and seaport checks passed 100%.
+  - `scratch/run_verify_ui.tscn`: 15/15 UI overhaul assertions passed 100%.
+
+---
+
+### Session 118 Summary (Pixel Art Building Rescaling to 2.0x & Diamond Tile-Grid Alignment)
+- **User Request Addressed**:
+  - *"All the new buildings are so small and dosent lined up with the tiles. Do what you did with the old buildings make sure the sprite matches with the tiles"*
+- **Root Cause & Architectural Solution**:
+  - Classic buildings (`bahay_kubo`, `weather_station`, `cold_storage`, `water_tower`, etc.) are rendered at `scale: 2.0` (Godot 128×64 world tile space vs 64×32 pixel art native resolution), perfectly filling 50%–87.5% of their footprint diamonds with crisp nearest-neighbor pixel art.
+  - The 8 newly added buildings had arbitrary miniature scales (`0.75` to `1.35`) in `src/buildings/Building.gd` (`get_art_fit()`), causing them to appear shrunken down (~33% diamond width) and misaligned with tile boundaries.
+  - Standardized all 8 new buildings to the canonical `scale: 2.0` integer scaling rule, with calibrated `center_offset` so building bases and piers cleanly align with the isometric tile diamonds and footprint boundaries:
+    1. `bayanihan_center` (2×2, 64×64): `scale: 2.0`, `center_offset: Vector2(32.0, 38.0)`, `roof_apex_y: -76.0`, `scaffold_h: 65.0` (50.0% diamond width).
+    2. `tacurong_mill` (3×3, 160×96): `scale: 2.0`, `center_offset: Vector2(86.0 if flipped else 74.0, 56.0)`, `roof_apex_y: -115.0`, `scaffold_h: 90.0` (83.3% diamond width).
+    3. `koronadal_wholesale` (4×4, 176×97): `scale: 2.0`, `center_offset: Vector2(88.0, 60.0)`, `roof_apex_y: -120.0`, `scaffold_h: 95.0` (68.8% diamond width).
+    4. `gensan_seaport` (4×4, 176×128): `scale: 2.0`, `center_offset: Vector2(92.0 if flipped else 84.0, 80.0)`, `roof_apex_y: -160.0`, `scaffold_h: 110.0` (68.8% diamond width; dock edge aligns parallel to coastal tile boundary).
+    5. `rice_mill` (2×2, 96×80): `scale: 2.0`, `center_offset: Vector2(48.0, 50.0)`, `roof_apex_y: -100.0`, `scaffold_h: 70.0` (75.0% diamond width).
+    6. `sugar_mill` (3×2, 112×80): `scale: 2.0`, `center_offset: Vector2(56.0, 50.0)`, `roof_apex_y: -100.0`, `scaffold_h: 70.0` (70.0% diamond width).
+    7. `copra_dryer` (3×2, 128×80): `scale: 2.0`, `center_offset: Vector2(64.0, 50.0)`, `roof_apex_y: -100.0`, `scaffold_h: 70.0` (80.0% diamond width).
+    8. `coffee_roastery` (2×2, 112×80): `scale: 2.0`, `center_offset: Vector2(56.0, 50.0)`, `roof_apex_y: -100.0`, `scaffold_h: 70.0` (87.5% diamond width).
+- **Shadows, Night Lights & Flip System Integration**:
+  - Scaled ground contact ambient shadows (`shadow_rx`, `shadow_ry`, `shadow_cy`) in `_draw_art_building()` to match the 2.0x base dimensions.
+  - Adjusted nighttime window and facade lighting positions to align with the enlarged facades.
+  - Flipped versions cleanly mirror `center_offset` (`W - coff.x, coff.y`) with zero drift across normal and flipped orientations.
+- **Testing & Verification**:
+  - `scratch/run_test_all_buildings_fit.tscn`: 17/17 buildings verified at 2.0x scale and calibrated tile-fit diamond ratios.
+  - `scratch/run_test_trade_hubs.tscn`: All 9 trade hub and seaport assertions passed with 2.0x scale.
+  - `scratch/run_test_building_flip.tscn`: All 5 flip test suites passed 100%.
+  - Visual verification artifact: `file:///C:/Users/ADMIN/.gemini/antigravity-ide/brain/21406458-c30b-4286-8be8-288c1533c852/all_8_new_buildings_2x_perfect.png` generated and verified.
+
+
 

@@ -80,6 +80,7 @@ var is_placing_building: bool        = false
 var placing_building_type: String    = ""
 var placing_footprint: Vector2i      = Vector2i(2, 2)
 var placing_hover_grid_pos: Vector2i = Vector2i.ZERO
+var placing_is_flipped: bool         = false
 var placement_overlay: Node2D        = null
 var building_card_popup: Node        = null
 var weather_app_modal: WeatherAppModal = null
@@ -1096,10 +1097,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# Handle building placement clicks
 	if is_placing_building:
-		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-			cancel_building_placement()
-			get_viewport().set_input_as_handled()
-			return
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_ESCAPE:
+				cancel_building_placement()
+				get_viewport().set_input_as_handled()
+				return
+			elif event.keycode == KEY_R:
+				placing_is_flipped = not placing_is_flipped
+				AudioManager.play_ui("click")
+				if placement_overlay:
+					placement_overlay.queue_redraw()
+				get_viewport().set_input_as_handled()
+				return
 
 		if event is InputEventMouseButton and event.pressed:
 			var mb := event as InputEventMouseButton
@@ -1111,6 +1120,24 @@ func _unhandled_input(event: InputEvent) -> void:
 				cancel_building_placement()
 				get_viewport().set_input_as_handled()
 				return
+
+	# Press R to flip hovered building or currently inspected building
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
+		if building_card_popup and is_instance_valid(building_card_popup) and building_card_popup.visible and is_instance_valid(building_card_popup.current_building):
+			building_card_popup.current_building.toggle_flip()
+			AudioManager.play_ui("click")
+			building_card_popup.refresh()
+			show_floating_text(building_card_popup.current_building.grid_pos, "🔄 Flipped!", Color(1.0, 0.9, 0.4))
+			get_viewport().set_input_as_handled()
+			return
+		var world_mouse := get_global_mouse_position()
+		var hover_b := BuildingManager.get_building_at_tile(FarmerMovement.pixel_to_grid(world_mouse, self))
+		if hover_b != null and is_instance_valid(hover_b):
+			hover_b.toggle_flip()
+			AudioManager.play_ui("click")
+			show_floating_text(hover_b.grid_pos, "🔄 Flipped!", Color(1.0, 0.9, 0.4))
+			get_viewport().set_input_as_handled()
+			return
 
 
 	# Press — begin drag tracking or single click
@@ -2228,6 +2255,7 @@ func start_building_placement(b_type: String) -> void:
 	is_placing_building   = true
 	placing_building_type = b_type
 	placing_footprint     = b_data.get("grid_size", Vector2i(2, 2))
+	placing_is_flipped    = false
 
 	# Seed the hover position to grid centre so overlay appears immediately
 	placing_hover_grid_pos = Vector2i(
@@ -2348,6 +2376,7 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 	building.grid_pos      = start_pos
 	building.footprint     = fp
 	building.duration      = float(b_data.get("build_time", 20.0))
+	building.is_flipped    = placing_is_flipped
 
 	add_child(building)
 

@@ -19,6 +19,7 @@ var current_building: Node = null
 @onready var next_stats_label: Label    = find_child("NextStats", true, false) as Label
 @onready var upgrade_btn: Button        = find_child("UpgradeBtn", true, false) as Button
 @onready var demolish_btn: Button       = find_child("DemolishBtn", true, false) as Button
+var flip_btn: Button                    = null
 
 # Storage routing & capacity controls
 @onready var storage_sub_card: PanelContainer = find_child("StorageSubCard", true, false) as PanelContainer
@@ -69,6 +70,26 @@ func _ready() -> void:
 	if preset_perishables_btn:
 		preset_perishables_btn.pressed.connect(_on_preset_perishables_pressed)
 
+	# Dynamic Flip orientation button
+	var side_vbox: VBoxContainer = find_child("SideVBox", true, false) as VBoxContainer
+	if side_vbox:
+		flip_btn = Button.new()
+		flip_btn.name = "FlipBtn"
+		flip_btn.custom_minimum_size = Vector2(0, 36)
+		flip_btn.text = "🔄 Flip Orientation [R]"
+		flip_btn.add_theme_font_size_override("font_size", 13)
+		flip_btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.82, 1.0))
+		flip_btn.add_theme_stylebox_override("normal", STYLE_BROWN_NORMAL)
+		flip_btn.add_theme_stylebox_override("hover", STYLE_BROWN_HOVER)
+		flip_btn.add_theme_stylebox_override("pressed", STYLE_BROWN_PRESSED)
+		flip_btn.pressed.connect(_on_flip_pressed)
+		if demolish_btn:
+			var idx: int = demolish_btn.get_index()
+			side_vbox.add_child(flip_btn)
+			side_vbox.move_child(flip_btn, idx)
+		else:
+			side_vbox.add_child(flip_btn)
+
 func open_for_building(b: Node) -> void:
 	current_building = b
 	refresh()
@@ -110,6 +131,9 @@ func refresh() -> void:
 			status_label.text = "✅ Active & Operating"
 			status_label.modulate = Color.WHITE
 			status_label.add_theme_color_override("font_color", Color(0.45, 0.92, 0.55))
+
+	if flip_btn:
+		flip_btn.text = "🔄 Flipped (Left) [R]" if current_building.is_flipped else "🔄 Normal (Right) [R]"
 
 	# Left / Center Bigger Box: Main Facility Features & Live Operational Telemetry
 	var is_storage: bool = current_building.has_method("is_storage_building") and current_building.is_storage_building()
@@ -927,5 +951,22 @@ func _on_demolish_pressed() -> void:
 	close()
 	b.demolish()
 	demolish_requested.emit(b)
+
+func _on_flip_pressed() -> void:
+	if is_instance_valid(current_building):
+		current_building.toggle_flip()
+		AudioManager.play_ui("click")
+		refresh()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_R:
+			_on_flip_pressed()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_ESCAPE:
+			close()
+			get_viewport().set_input_as_handled()
 
 

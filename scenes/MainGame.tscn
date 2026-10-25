@@ -654,18 +654,18 @@ theme_override_constants/separation = 14
 [node name="PortraitBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox" unique_id=1357478827]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
-theme_override_constants/separation = 3
+theme_override_constants/separation = 2
 
 [node name="TitleLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox" unique_id=60542567]
 custom_minimum_size = Vector2(130, 22)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 16
 text = "Tile (0, 0)"
 horizontal_alignment = 1
 
 [node name="PlantBox" type="PanelContainer" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox" unique_id=610940770]
-custom_minimum_size = Vector2(72, 72)
+custom_minimum_size = Vector2(66, 66)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -673,7 +673,7 @@ theme_override_styles/panel = ExtResource("14_i1eed")
 
 [node name="PortraitTexture" type="TextureRect" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox/PlantBox" unique_id=1727596215]
 texture_filter = 1
-custom_minimum_size = Vector2(60, 60)
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -682,7 +682,7 @@ stretch_mode = 5
 
 [node name="PortraitIcon" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox/PlantBox" unique_id=1727596214]
 visible = false
-custom_minimum_size = Vector2(60, 60)
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 32
@@ -691,23 +691,25 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="CropLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox" unique_id=1955108444]
-custom_minimum_size = Vector2(130, 20)
+custom_minimum_size = Vector2(130, 28)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
+theme_override_font_sizes/font_size = 14
 text = "Uncultivated Soil"
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 2
 clip_text = true
 
 [node name="StateLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/PortraitBox" unique_id=1681950663]
 custom_minimum_size = Vector2(130, 18)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.38, 0.24, 0.14, 1)
+theme_override_colors/font_color = Color(0.24, 0.14, 0.08, 1)
 theme_override_font_sizes/font_size = 13
 text = "Empty Grass"
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 2
 clip_text = true
 
 [node name="RightDataBox" type="VBoxContainer" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox" unique_id=1806252230]
@@ -726,7 +728,7 @@ theme_override_constants/separation = 6
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/GrowthBox" unique_id=1740912574]
 custom_minimum_size = Vector2(56, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "Growth:"
 
@@ -748,7 +750,7 @@ show_percentage = false
 [node name="GrowthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/GrowthBox" unique_id=2074738848]
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "0%"
 horizontal_alignment = 2
@@ -760,7 +762,7 @@ theme_override_constants/separation = 6
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/HealthBox" unique_id=86996367]
 custom_minimum_size = Vector2(56, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "Health:"
 
@@ -783,7 +785,7 @@ show_percentage = false
 [node name="HealthVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/HealthBox" unique_id=932369578]
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "100%"
 horizontal_alignment = 2
@@ -795,7 +797,7 @@ theme_override_constants/separation = 6
 [node name="Label" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/MoistureBox" unique_id=1461235007]
 custom_minimum_size = Vector2(56, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "Moist:"
 
@@ -818,13 +820,13 @@ show_percentage = false
 [node name="MoistureVal" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/GaugesBox/MoistureBox" unique_id=1013795459]
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 15
 text = "60%"
 horizontal_alignment = 2
 
 [node name="StatusBox" type="PanelContainer" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox" unique_id=554888866]
-custom_minimum_size = Vector2(0, 46)
+custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_status_card")
 
@@ -834,13 +836,13 @@ theme_override_constants/separation = 4
 
 [node name="QualityLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/StatusBox/StatusVBox" unique_id=203942587]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_color = Color(0.18, 0.1, 0.05, 1)
 theme_override_font_sizes/font_size = 14
 text = "Quality: Grade A"
 
 [node name="PestLabel" type="Label" parent="HUDLayer/Control/TileInfoPanel/Margin/HBox/RightDataBox/StatusBox/StatusVBox" unique_id=1819283945]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.12, 0.5, 0.18, 1)
+theme_override_colors/font_color = Color(0.04, 0.38, 0.08, 1)
 theme_override_font_sizes/font_size = 14
 text = "Pests: None (Healthy)"
 
@@ -1052,10 +1054,10 @@ horizontal_alignment = 1
 [node name="TabContainer" type="TabContainer" parent="HUDLayer/Control/ShopPanel/VBox" unique_id=1450404158]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_selected_color = Color(1, 0.94, 0.82, 1)
-theme_override_colors/font_hovered_color = Color(1, 1, 0.9, 1)
-theme_override_colors/font_unselected_color = Color(0.72, 0.65, 0.55, 0.85)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_selected_color = Color(1, 0.92, 0.4, 1)
+theme_override_colors/font_hovered_color = Color(1, 0.98, 0.88, 1)
+theme_override_colors/font_unselected_color = Color(0.9, 0.86, 0.78, 0.95)
+theme_override_font_sizes/font_size = 15
 theme_override_styles/panel = SubResource("StyleBoxEmpty_tab_panel")
 theme_override_styles/tab_unselected = SubResource("StyleBoxFlat_tab_unselected")
 theme_override_styles/tab_hovered = SubResource("StyleBoxFlat_tab_hovered")

@@ -54,12 +54,13 @@ func _draw() -> void:
 		draw_line(p1, p2, border_color, 1.5)
 
 	# 3. Authentic Sprite Ghost Preview (scaled 1:1 to footprint diamond)
-	var fit: Dictionary = Building.get_art_fit(b_type)
-	if not fit.is_empty() and fit.has("texture") and fit["texture"] != null:
-		var tex: Texture2D = fit["texture"]
-		var sc: float = float(fit.get("scale", 1.0))
+	var is_flipped: bool = farm_grid.placing_is_flipped if (farm_grid != null and "placing_is_flipped" in farm_grid) else false
+	var prev: Dictionary = Building.get_placement_preview(b_type, is_flipped)
+	if not prev.is_empty() and prev.has("texture") and prev["texture"] != null:
+		var tex: Texture2D = prev["texture"]
+		var sc: float = float(prev.get("scale", 1.0))
 		var center := (top_pt + bottom_pt) * 0.5
-		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
+		var coff: Vector2 = prev.get("center_offset", Vector2.ZERO)
 		var sprite_origin: Vector2 = center - coff * sc
 		var dsz := tex.get_size() * sc
 		var ghost_mod: Color = Color(1.0, 1.0, 1.0, 0.65) if is_valid else Color(1.0, 0.40, 0.40, 0.50)
@@ -68,7 +69,8 @@ func _draw() -> void:
 	# 4. Footprint Ratio & Scale Badge above the placement diamond
 	var font := ThemeDB.fallback_font
 	var font_size: int = 12
-	var ratio_text: String = "%d×%d Tiles (Ratio 1:1)" % [fp.x, fp.y]
+	var flip_str: String = " | [R] Flipped 🔄" if is_flipped else " | [R] Normal"
+	var ratio_text: String = "%d×%d Tiles (Ratio 1:1)%s" % [fp.x, fp.y, flip_str]
 	var text_w: float = font.get_string_size(ratio_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var badge_pos: Vector2 = top_pt + Vector2(-text_w * 0.5, -16.0)
 	var badge_rect := Rect2(badge_pos - Vector2(8, 2), Vector2(text_w + 16, 18))

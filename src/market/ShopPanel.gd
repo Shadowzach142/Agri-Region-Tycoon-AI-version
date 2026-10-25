@@ -14,10 +14,10 @@ signal worker_spawn_requested()
 const TEX_KUBO: Texture2D            = preload("res://assets/sprites/buildings/KUBO.png")
 const TEX_SILO: Texture2D            = preload("res://assets/sprites/buildings/Silo/SILO-100.PNG")
 const TEX_DRYER: Texture2D           = preload("res://assets/sprites/buildings/DRYER.PNG")
-const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/Cold Storage.png")
-const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone Station.png")
-const TEX_WEATHER_STATION: Texture2D = preload("res://assets/sprites/buildings/Weather Station.png")
-const TEX_WATER_STATION: Texture2D   = preload("res://assets/sprites/buildings/Water Station.png")
+const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/Cold_Storage.png")
+const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone_Station.png")
+const TEX_WEATHER_STATION: Texture2D = preload("res://assets/sprites/buildings/Weather_Station.png")
+const TEX_WATER_STATION: Texture2D   = preload("res://assets/sprites/buildings/Water_Station.png")
 const TEX_FARMER: Texture2D          = preload("res://assets/icons/Topright/Farmer icon.png")
 const TEX_GRASS: Texture2D           = preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
 const TEX_HEATMAP: Texture2D         = preload("res://assets/icons/HUD/Heatmap.png")
@@ -253,7 +253,7 @@ func _setup_category_navigation() -> void:
 	var pill := PanelContainer.new()
 	pill.name = "CategoryPill"
 	pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pill.custom_minimum_size = Vector2(320, 32)
+	pill.custom_minimum_size = Vector2(360, 36)
 
 	if ResourceLoader.exists("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"):
 		pill.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"))
@@ -272,12 +272,23 @@ func _setup_category_navigation() -> void:
 	cat_title_label.name = "CategoryTitleLabel"
 	cat_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cat_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	cat_title_label.add_theme_font_size_override("font_size", 15)
-	cat_title_label.add_theme_color_override("font_color", Color(0.24, 0.14, 0.08, 1.0))
-	cat_title_label.add_theme_color_override("font_shadow_color", Color(0.96, 0.90, 0.80, 0.8))
+	cat_title_label.add_theme_font_size_override("font_size", 17)
+	cat_title_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.82, 1.0))
+	cat_title_label.add_theme_color_override("font_shadow_color", Color(0.08, 0.04, 0.02, 0.95))
 	cat_title_label.add_theme_constant_override("shadow_offset_x", 1)
 	cat_title_label.add_theme_constant_override("shadow_offset_y", 1)
 	pill.add_child(cat_title_label)
+
+	# High-contrast font overrides for TabContainer and its internal TabBar
+	tabs.add_theme_font_size_override("font_size", 15)
+	tabs.add_theme_color_override("font_selected_color", Color(1.0, 0.92, 0.40, 1.0))
+	tabs.add_theme_color_override("font_hovered_color", Color(1.0, 0.98, 0.88, 1.0))
+	tabs.add_theme_color_override("font_unselected_color", Color(0.90, 0.86, 0.78, 0.95))
+	if tab_bar:
+		tab_bar.add_theme_font_size_override("font_size", 15)
+		tab_bar.add_theme_color_override("font_selected_color", Color(1.0, 0.92, 0.40, 1.0))
+		tab_bar.add_theme_color_override("font_hovered_color", Color(1.0, 0.98, 0.88, 1.0))
+		tab_bar.add_theme_color_override("font_unselected_color", Color(0.90, 0.86, 0.78, 0.95))
 
 	# Next Category Button (►)
 	next_cat_btn = TextureButton.new()

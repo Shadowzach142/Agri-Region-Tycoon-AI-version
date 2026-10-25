@@ -9,10 +9,10 @@ func _init():
 		"res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-O1.png",
 		"res://assets/sprites/buildings/KUBO.png",
 		"res://assets/sprites/buildings/DRYER-BARE.PNG",
-		"res://assets/sprites/buildings/Cold Storage.png",
-		"res://assets/sprites/buildings/Drone Station.png",
-		"res://assets/sprites/buildings/Water Station.png",
-		"res://assets/sprites/buildings/Weather Station.png",
+		"res://assets/sprites/buildings/Cold_Storage.png",
+		"res://assets/sprites/buildings/Drone_Station.png",
+		"res://assets/sprites/buildings/Water_Station.png",
+		"res://assets/sprites/buildings/Weather_Station.png",
 		"res://assets/sprites/buildings/Silo/SILO-0.PNG"
 	]
 	for p in paths:

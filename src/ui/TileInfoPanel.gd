@@ -89,6 +89,14 @@ func _discover_nodes() -> void:
 	quality_label = find_child("QualityLabel", true, false) as Label
 	pest_label    = find_child("PestLabel", true, false) as Label
 
+	if crop_label:
+		crop_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		crop_label.clip_text = true
+		crop_label.custom_minimum_size = Vector2(130, 28)
+	if state_label:
+		state_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		state_label.clip_text = true
+
 func _set_portrait_texture(tex: Texture2D, fallback_icon: String = "") -> void:
 	if tex != null and portrait_texture != null:
 		portrait_texture.texture = tex
@@ -159,10 +167,10 @@ func _get_tile_texture(tile: FarmTile) -> Texture2D:
 				match b_ref.building_type:
 					"bahay_kubo": return preload("res://assets/sprites/buildings/KUBO.png")
 					"solar_dryer": return preload("res://assets/sprites/buildings/DRYER.PNG")
-					"cold_storage": return preload("res://assets/sprites/buildings/Cold Storage.png")
-					"drone_station": return preload("res://assets/sprites/buildings/Drone Station.png")
-					"water_station": return preload("res://assets/sprites/buildings/Water Station.png")
-					"weather_station": return preload("res://assets/sprites/buildings/Weather Station.png")
+					"cold_storage": return preload("res://assets/sprites/buildings/Cold_Storage.png")
+					"drone_station": return preload("res://assets/sprites/buildings/Drone_Station.png")
+					"water_station": return preload("res://assets/sprites/buildings/Water_Station.png")
+					"weather_station": return preload("res://assets/sprites/buildings/Weather_Station.png")
 					"grain_silo": return preload("res://assets/sprites/buildings/Silo/SILO-0.PNG")
 					_: return null
 			return null
@@ -258,10 +266,10 @@ func inspect_selection(tiles_pos_list: Array, tiles_grid: Array) -> void:
 	if pest_label:
 		if infected_count > 0:
 			pest_label.text = "⚠️ %d Infestations!" % infected_count
-			pest_label.add_theme_color_override("font_color", Color(0.85, 0.20, 0.15))
+			pest_label.add_theme_color_override("font_color", Color(0.72, 0.10, 0.06))
 		else:
 			pest_label.text = "✅ 0 Infestations"
-			pest_label.add_theme_color_override("font_color", Color(0.12, 0.50, 0.18))
+			pest_label.add_theme_color_override("font_color", Color(0.04, 0.38, 0.08))
 
 func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 	is_batch_inspect = false
@@ -304,7 +312,8 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 			var b_ref: Node = tile.building_ref
 			if b_ref != null and is_instance_valid(b_ref):
 				var b_data := Data.get_building(b_ref.building_type)
-				var b_name: String = b_data.get("display_name", b_ref.building_type)
+				var raw_name: String = b_data.get("display_name", b_ref.building_type)
+				var b_name: String = raw_name.split("(")[0].strip_edges()
 				crop_label.text = "%s Lv.%d" % [b_name, b_ref.level]
 				if state_label:
 					state_label.text = "Building Active"
@@ -346,10 +355,10 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		if tile.pest_type != "":
 			var p_data = Data.get_pest(tile.pest_type)
 			pest_label.text = "Infestation: " + p_data.get("display_name", tile.pest_type)
-			pest_label.add_theme_color_override("font_color", Color(0.85, 0.20, 0.15))
+			pest_label.add_theme_color_override("font_color", Color(0.72, 0.10, 0.06))
 		else:
 			pest_label.text = "Pests: None (Healthy)"
-			pest_label.add_theme_color_override("font_color", Color(0.12, 0.50, 0.18))
+			pest_label.add_theme_color_override("font_color", Color(0.04, 0.38, 0.08))
 
 func _tile_state_string(state_val: int) -> String:
 	match state_val:

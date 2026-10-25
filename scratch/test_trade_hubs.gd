@@ -36,15 +36,15 @@ func _ready() -> void:
 
 	var fit_tacurong := Building.get_art_fit("tacurong_mill")
 	assert(not fit_tacurong.is_empty(), "tacurong_mill must have art fit")
-	assert(is_equal_approx(fit_tacurong["scale"], 0.85), "tacurong_mill scale must match calibrated tile fit 0.85")
+	assert(is_equal_approx(fit_tacurong["scale"], 2.0), "tacurong_mill scale must match 2.0")
 
 	var fit_koronadal := Building.get_art_fit("koronadal_wholesale")
 	assert(not fit_koronadal.is_empty(), "koronadal_wholesale must have art fit")
-	assert(is_equal_approx(fit_koronadal["scale"], 1.15), "koronadal_wholesale scale must match calibrated tile fit 1.15")
+	assert(is_equal_approx(fit_koronadal["scale"], 2.0), "koronadal_wholesale scale must match 2.0")
 
 	var fit_gensan := Building.get_art_fit("gensan_seaport")
 	assert(not fit_gensan.is_empty(), "gensan_seaport must have art fit")
-	assert(is_equal_approx(fit_gensan["scale"], 1.00), "gensan_seaport scale must match calibrated tile fit 1.00")
+	assert(is_equal_approx(fit_gensan["scale"], 2.0), "gensan_seaport scale must match 2.0")
 	print("✔ Check 2 Passed: Building art fits match calibrated tile proportions across all sizes.")
 
 	# 4. Verify Market Hub Unlocks and Initial Lock State

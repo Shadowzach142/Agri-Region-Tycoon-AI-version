@@ -50,12 +50,12 @@ func _ready() -> void:
 	refresh_all()
 
 func _apply_panel_style() -> void:
-	custom_minimum_size = Vector2(860, 520)
+	custom_minimum_size = Vector2(880, 540)
 	set_anchors_preset(Control.PRESET_CENTER)
-	offset_left   = -430.0
-	offset_top    = -260.0
-	offset_right  =  430.0
-	offset_bottom =  260.0
+	offset_left   = -440.0
+	offset_top    = -270.0
+	offset_right  =  440.0
+	offset_bottom =  270.0
 	grow_horizontal = Control.GROW_DIRECTION_BOTH
 	grow_vertical   = Control.GROW_DIRECTION_BOTH
 
@@ -110,8 +110,8 @@ func _build_ui() -> void:
 
 	_header_label = Label.new()
 	_header_label.text = "📈 REGIONAL COMMODITY MARKET"
-	_header_label.add_theme_font_size_override("font_size", 18)
-	_header_label.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
+	_header_label.add_theme_font_size_override("font_size", 20)
+	_header_label.add_theme_color_override("font_color", Color(0.18, 0.10, 0.05, 1.0))
 	_header_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_header_label)
 
@@ -145,8 +145,8 @@ func _build_ui() -> void:
 
 	var hdr := Label.new()
 	hdr.text = "🌾 COMMODITIES (Click to View)"
-	hdr.add_theme_font_size_override("font_size", 12)
-	hdr.add_theme_color_override("font_color", Color(0.38, 0.25, 0.14, 1.0))
+	hdr.add_theme_font_size_override("font_size", 13)
+	hdr.add_theme_color_override("font_color", Color(0.24, 0.14, 0.06, 1.0))
 	left_col.add_child(hdr)
 
 	for crop_key in CROP_KEYS:
@@ -177,14 +177,14 @@ func _build_ui() -> void:
 
 	var news_title := Label.new()
 	news_title.text = "📰 MARKET INTEL"
-	news_title.add_theme_font_size_override("font_size", 12)
-	news_title.add_theme_color_override("font_color", Color(0.32, 0.18, 0.08, 1.0))
+	news_title.add_theme_font_size_override("font_size", 13)
+	news_title.add_theme_color_override("font_color", Color(0.24, 0.14, 0.06, 1.0))
 	news_inner.add_child(news_title)
 
 	_news_label = Label.new()
 	_news_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_news_label.add_theme_font_size_override("font_size", 11)
-	_news_label.add_theme_color_override("font_color", Color(0.24, 0.20, 0.16, 1.0))
+	_news_label.add_theme_font_size_override("font_size", 12)
+	_news_label.add_theme_color_override("font_color", Color(0.18, 0.14, 0.10, 1.0))
 	news_inner.add_child(_news_label)
 
 	# --- RIGHT: Chart & Regional Price Comparison ---
@@ -204,20 +204,20 @@ func _build_ui() -> void:
 
 	_crop_title_label = Label.new()
 	_crop_title_label.text = "🌾 Palay (Rice)"
-	_crop_title_label.add_theme_font_size_override("font_size", 18)
-	_crop_title_label.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
+	_crop_title_label.add_theme_font_size_override("font_size", 19)
+	_crop_title_label.add_theme_color_override("font_color", Color(0.18, 0.10, 0.05, 1.0))
 	title_col.add_child(_crop_title_label)
 
 	_crop_base_label = Label.new()
 	_crop_base_label.text = "Baseline: ₱100/u"
-	_crop_base_label.add_theme_font_size_override("font_size", 12)
-	_crop_base_label.add_theme_color_override("font_color", Color(0.42, 0.32, 0.20, 1.0))
+	_crop_base_label.add_theme_font_size_override("font_size", 13)
+	_crop_base_label.add_theme_color_override("font_color", Color(0.35, 0.24, 0.14, 1.0))
 	title_col.add_child(_crop_base_label)
 
 	_crop_price_label = Label.new()
 	_crop_price_label.text = "₱100 / u"
-	_crop_price_label.add_theme_font_size_override("font_size", 20)
-	_crop_price_label.add_theme_color_override("font_color", Color(0.06, 0.50, 0.14, 1.0))
+	_crop_price_label.add_theme_font_size_override("font_size", 22)
+	_crop_price_label.add_theme_color_override("font_color", Color(0.04, 0.48, 0.12, 1.0))
 	info_row.add_child(_crop_price_label)
 
 	_advice_badge = PanelContainer.new()
@@ -235,7 +235,7 @@ func _build_ui() -> void:
 	_advice_label = Label.new()
 	_advice_label.text = "🟢 BULL MARKET — High Demand"
 	_advice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_advice_label.add_theme_font_size_override("font_size", 12)
+	_advice_label.add_theme_font_size_override("font_size", 13)
 	adv_margin.add_child(_advice_label)
 
 	# 7-Day Chart
@@ -251,8 +251,8 @@ func _build_ui() -> void:
 	var tip_lbl := Label.new()
 	tip_lbl.text = "💡 Want to sell your harvest? Click \"🚚 SELL HARVEST\" in the bottom-right corner!"
 	tip_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tip_lbl.add_theme_font_size_override("font_size", 12)
-	tip_lbl.add_theme_color_override("font_color", Color(0.38, 0.25, 0.12, 1.0))
+	tip_lbl.add_theme_font_size_override("font_size", 13)
+	tip_lbl.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
 	right_col.add_child(tip_lbl)
 
 func _build_ticker_card(crop_key: String) -> Button:
@@ -260,9 +260,15 @@ func _build_ticker_card(crop_key: String) -> Button:
 	var icon_str: String = crop_data.get("icon", "🌱")
 	var disp_name: String = crop_data.get("display_name", crop_key.capitalize())
 	var short_name: String = disp_name.split("(")[0].strip_edges()
+	if crop_key == "pineapple":
+		short_name = "Pineapple"
+	elif crop_key == "banana":
+		short_name = "Banana"
+	elif crop_key == "coconut":
+		short_name = "Coconut"
 
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(230, 42)
+	btn.custom_minimum_size = Vector2(230, 44)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(func(): _on_crop_selected(crop_key))
@@ -283,20 +289,20 @@ func _build_ticker_card(crop_key: String) -> Button:
 	name_lbl.name = "NameLbl"
 	name_lbl.text = "%s %s" % [icon_str, short_name]
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.add_theme_font_size_override("font_size", 12)
+	name_lbl.add_theme_font_size_override("font_size", 13)
 	hbox.add_child(name_lbl)
 
 	var price_lbl := Label.new()
 	price_lbl.name = "PriceLbl"
 	price_lbl.text = "₱--"
-	price_lbl.add_theme_font_size_override("font_size", 12)
+	price_lbl.add_theme_font_size_override("font_size", 14)
 	price_lbl.add_theme_color_override("font_color", Color(1.0, 0.90, 0.50))
 	hbox.add_child(price_lbl)
 
 	var trend_lbl := Label.new()
 	trend_lbl.name = "TrendLbl"
 	trend_lbl.text = "▲+0%"
-	trend_lbl.add_theme_font_size_override("font_size", 11)
+	trend_lbl.add_theme_font_size_override("font_size", 12)
 	hbox.add_child(trend_lbl)
 
 	return btn
@@ -325,8 +331,8 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 	for pair in [["BUYER / HUB", true], ["DIST.", false], ["PAYOUT", false], ["TODAY'S PRICE", false], ["ROT RISK", false]]:
 		var lbl := Label.new()
 		lbl.text = String(pair[0])
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", Color(0.28, 0.18, 0.10, 1.0))
+		lbl.add_theme_font_size_override("font_size", 12)
+		lbl.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
 		if bool(pair[1]):
 			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		else:
@@ -342,47 +348,47 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 	for hub_key in HUB_KEYS:
 		var hub_data: Dictionary = Data.get_market_hub(hub_key)
 		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(0, 26)
+		row.custom_minimum_size = Vector2(0, 28)
 		row.add_theme_constant_override("separation", 0)
 		vb.add_child(row)
 
 		var name_lbl := Label.new()
 		name_lbl.text = hub_data.get("display_name", hub_key)
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_font_size_override("font_size", 12)
-		name_lbl.add_theme_color_override("font_color", Color(0.20, 0.13, 0.08, 1.0))
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.18, 0.10, 0.05, 1.0))
 		row.add_child(name_lbl)
 
 		var dist_lbl := Label.new()
 		dist_lbl.text = "%d km" % int(hub_data.get("distance_km", 0))
 		dist_lbl.custom_minimum_size = Vector2(85, 0)
 		dist_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		dist_lbl.add_theme_font_size_override("font_size", 12)
-		dist_lbl.add_theme_color_override("font_color", Color(0.40, 0.30, 0.20, 1.0))
+		dist_lbl.add_theme_font_size_override("font_size", 13)
+		dist_lbl.add_theme_color_override("font_color", Color(0.32, 0.22, 0.14, 1.0))
 		row.add_child(dist_lbl)
 
 		var pct_lbl := Label.new()
 		pct_lbl.text = "%.0f%%" % (float(hub_data.get("price_multiplier", 1.0)) * 100.0)
 		pct_lbl.custom_minimum_size = Vector2(85, 0)
 		pct_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		pct_lbl.add_theme_font_size_override("font_size", 12)
-		pct_lbl.add_theme_color_override("font_color", Color(0.32, 0.20, 0.10, 1.0))
+		pct_lbl.add_theme_font_size_override("font_size", 13)
+		pct_lbl.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
 		row.add_child(pct_lbl)
 
 		var price_lbl := Label.new()
 		price_lbl.text = "₱---/u"
 		price_lbl.custom_minimum_size = Vector2(85, 0)
 		price_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		price_lbl.add_theme_font_size_override("font_size", 13)
-		price_lbl.add_theme_color_override("font_color", Color(0.06, 0.50, 0.14, 1.0))
+		price_lbl.add_theme_font_size_override("font_size", 14)
+		price_lbl.add_theme_color_override("font_color", Color(0.04, 0.48, 0.12, 1.0))
 		row.add_child(price_lbl)
 
 		var rot_lbl := Label.new()
 		rot_lbl.text = "0%"
 		rot_lbl.custom_minimum_size = Vector2(85, 0)
 		rot_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		rot_lbl.add_theme_font_size_override("font_size", 12)
-		rot_lbl.add_theme_color_override("font_color", Color(0.12, 0.40, 0.65, 1.0))
+		rot_lbl.add_theme_font_size_override("font_size", 13)
+		rot_lbl.add_theme_color_override("font_color", Color(0.08, 0.38, 0.65, 1.0))
 		row.add_child(rot_lbl)
 
 		_hub_rows.append({
@@ -471,7 +477,7 @@ func _update_news() -> void:
 	else:
 		var reg: String = String(Data.get_region(Data.current_region).get("display_name", "Cotabato")).split("(")[0].strip_edges()
 		news = "☀️ STABLE HARVEST: Good seasonal weather across %s. Steady regional trade volume." % reg
-		_news_label.add_theme_color_override("font_color", Color(0.22, 0.28, 0.18))
+		_news_label.add_theme_color_override("font_color", Color(0.12, 0.28, 0.10))
 	_news_label.text = news
 
 func _update_crop_view() -> void:
