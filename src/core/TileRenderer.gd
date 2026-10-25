@@ -20,7 +20,7 @@ extends RefCounted
 # ---------------------------------------------------------------------------
 const COLOR_BORDER:      Color = Color(0.12, 0.12, 0.10, 1.0)
 const COLOR_EMPTY:       Color = Color(0.35, 0.58, 0.28, 1.0)  # Grass green
-const COLOR_LOCKED:      Color = Color(0.17, 0.24, 0.14, 0.95)  # Darkened unbought territory
+const COLOR_LOCKED:      Color = Color(0.28, 0.38, 0.24, 0.95)  # Soft wilderness grass tone
 const COLOR_PLOWED:      Color = Color(0.46, 0.30, 0.18, 1.0)  # Cultivated soil brown
 const COLOR_PLANTED:     Color = Color(0.24, 0.45, 0.18, 1.0)  # Seedling green
 const COLOR_GROWING:     Color = Color(0.30, 0.65, 0.22, 1.0)  # Maturing green
@@ -270,7 +270,7 @@ func _apply_sprite_or_color(fill: Polygon2D, fallback_color: Color, tile: FarmTi
 				
 				# Preserve unbought wilderness shading on locked sprites
 				if tile.state == FarmTile.TileState.LOCKED:
-					sprite.modulate = Color(0.18, 0.23, 0.16, 1.0)
+					sprite.modulate = Color(0.58, 0.66, 0.54, 1.0)
 				elif tile.state == FarmTile.TileState.FLOODED:
 					sprite.modulate = Color(0.40, 0.65, 0.90, 0.95)
 				elif tile.state == FarmTile.TileState.INFECTED:

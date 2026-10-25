@@ -59,6 +59,11 @@ const TEX_TACURONG: Texture2D        = preload("res://assets/sprites/buildings/T
 const TEX_KORONADAL: Texture2D       = preload("res://assets/sprites/buildings/Koronadal-Wholesale.png")
 const TEX_GENSAN: Texture2D          = preload("res://assets/sprites/buildings/Gensan-seaport.png")
 
+const TEX_RICE_MILL: Texture2D       = preload("res://assets/sprites/buildings/Kiskisan_Rice_Mill.png")
+const TEX_SUGAR_MILL: Texture2D      = preload("res://assets/sprites/buildings/Trapiche_Sugar_Central.png")
+const TEX_COPRA_DRYER: Texture2D     = preload("res://assets/sprites/buildings/Tapahan_Copra_Dryer.png")
+const TEX_COFFEE_ROASTERY: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery.png")
+
 var art_sprite: Sprite2D = null
 
 static func get_art_fit(b_type: String) -> Dictionary:
@@ -66,38 +71,74 @@ static func get_art_fit(b_type: String) -> Dictionary:
 		"bayanihan_center":
 			return {
 				"texture": TEX_BYAHERO,
-				"scale": 2.8,
-				"center_offset": Vector2(47.0, 55.0),
+				"scale": 1.35, # 130×108px (50.8% of 2×2 tile diamond width, matching Bahay Kubo 128px)
+				"center_offset": Vector2(47.5, 58.0),
 				"has_slab": false,
-				"roof_apex_y": -90.0,
-				"scaffold_h": 60.0
+				"roof_apex_y": -65.0,
+				"scaffold_h": 45.0
 			}
 		"tacurong_mill":
 			return {
 				"texture": TEX_TACURONG,
-				"scale": 384.0 / 224.0, # 1.7143 (exact 1:1 match to 3×3 tile diamond width of 384px)
-				"center_offset": Vector2(122.0, 84.0),
+				"scale": 0.85, # 204×122px (53.1% of 3×3 tile diamond width, matching Cold Storage 192px)
+				"center_offset": Vector2(122.0, 85.0),
 				"has_slab": true,
-				"roof_apex_y": -130.0,
-				"scaffold_h": 85.0
+				"roof_apex_y": -85.0,
+				"scaffold_h": 65.0
 			}
 		"koronadal_wholesale":
 			return {
 				"texture": TEX_KORONADAL,
-				"scale": 512.0 / 295.0, # 1.7356 (exact 1:1 match to 4×4 tile diamond width of 512px)
-				"center_offset": Vector2(154.5, 87.0),
+				"scale": 1.15, # 276×147px (53.9% of 4×4 tile diamond width)
+				"center_offset": Vector2(119.0, 75.0),
 				"has_slab": true,
-				"roof_apex_y": -140.0,
-				"scaffold_h": 95.0
+				"roof_apex_y": -95.0,
+				"scaffold_h": 70.0
 			}
 		"gensan_seaport":
 			return {
 				"texture": TEX_GENSAN,
-				"scale": 512.0 / 304.0, # 1.6842 (pier and container ship float out into eastern ocean channel)
-				"center_offset": Vector2(155.0, 79.0),
+				"scale": 1.00, # 272×160px (53.1% of 4×4 tile diamond width)
+				"center_offset": Vector2(136.5, 90.0),
 				"has_slab": true,
-				"roof_apex_y": -135.0,
-				"scaffold_h": 90.0
+				"roof_apex_y": -95.0,
+				"scaffold_h": 70.0
+			}
+		"rice_mill":
+			return {
+				"texture": TEX_RICE_MILL,
+				"scale": 0.90, # 130×115px (50.8% of 2×2 tile diamond width)
+				"center_offset": Vector2(72.0, 89.0),
+				"has_slab": true,
+				"roof_apex_y": -80.0,
+				"scaffold_h": 55.0
+			}
+		"sugar_mill":
+			return {
+				"texture": TEX_SUGAR_MILL,
+				"scale": 0.95, # 167×122px (52.2% of 3×2 tile diamond width)
+				"center_offset": Vector2(87.5, 88.0),
+				"has_slab": true,
+				"roof_apex_y": -85.0,
+				"scaffold_h": 60.0
+			}
+		"copra_dryer":
+			return {
+				"texture": TEX_COPRA_DRYER,
+				"scale": 0.80, # 179×90px (55.9% of 3×2 tile diamond width)
+				"center_offset": Vector2(105.0, 65.0),
+				"has_slab": true,
+				"roof_apex_y": -65.0,
+				"scaffold_h": 50.0
+			}
+		"coffee_roastery":
+			return {
+				"texture": TEX_COFFEE_ROASTERY,
+				"scale": 0.75, # 132×96px (51.6% of 2×2 tile diamond width)
+				"center_offset": Vector2(87.5, 89.0),
+				"has_slab": true,
+				"roof_apex_y": -75.0,
+				"scaffold_h": 55.0
 			}
 	return {}
 
@@ -157,7 +198,7 @@ func _ready() -> void:
 		art_sprite = Sprite2D.new()
 		art_sprite.name = "ArtSprite"
 		art_sprite.texture = fit["texture"]
-		art_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		art_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		var sc: float = float(fit.get("scale", 1.0))
 		art_sprite.scale = Vector2(sc, sc)
 		art_sprite.centered = false
@@ -171,7 +212,7 @@ func _ready() -> void:
 	TimeManager.period_changed.connect(func(_p, _n): queue_redraw())
 	TimeManager.hour_changed.connect(func(_h): queue_redraw())
 	if BuildingManager.has_signal("storage_updated"):
-		BuildingManager.storage_updated.connect(func(_t, _u): queue_redraw())
+		BuildingManager.storage_updated.connect(func(_t, _u): _update_art_sprite_state(); queue_redraw())
 	queue_redraw()
 
 func _get_footprint_diamond_pts() -> Array[Vector2]:
@@ -390,10 +431,18 @@ func _update_ui_state() -> void:
 
 func _update_art_sprite_state() -> void:
 	if art_sprite and is_instance_valid(art_sprite):
+		if building_type == "bodega" or building_type == "climate_silo":
+			art_sprite.texture = _get_silo_texture()
 		if state == BuildingState.CONSTRUCTING or state == BuildingState.UPGRADING:
-			art_sprite.modulate = Color(1.0, 1.0, 1.0, 0.45)
+			if building_type == "climate_silo":
+				art_sprite.modulate = Color(0.85, 0.95, 1.15, 0.45)
+			else:
+				art_sprite.modulate = Color(1.0, 1.0, 1.0, 0.45)
 		else:
-			art_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			if building_type == "climate_silo":
+				art_sprite.modulate = Color(0.85, 0.95, 1.15, 1.0)
+			else:
+				art_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 # ---------------------------------------------------------------------------
 # Lifecycle
@@ -498,8 +547,6 @@ func _draw() -> void:
 			_draw_solar_dryer(top, right, bottom, left)
 		"machine_garage":
 			_draw_bayanihan_center(top, right, bottom, left)
-		"bayanihan_center", "tacurong_mill", "koronadal_wholesale", "gensan_seaport":
-			_draw_art_building(top, right, bottom, left)
 		"climate_silo":
 			_draw_silo(top, right, bottom, left)
 		"drone_station":
@@ -510,16 +557,11 @@ func _draw() -> void:
 			_draw_water_tower(top, right, bottom, left)
 		"sprinkler":
 			_draw_sprinkler(top, right, bottom, left)
-		"rice_mill":
-			_draw_rice_mill(top, right, bottom, left)
-		"sugar_mill":
-			_draw_sugar_mill(top, right, bottom, left)
-		"copra_dryer":
-			_draw_copra_dryer(top, right, bottom, left)
-		"coffee_roastery":
-			_draw_coffee_roastery(top, right, bottom, left)
 		_:
-			_draw_default_building(top, right, bottom, left)
+			if not fit.is_empty():
+				_draw_art_building(top, right, bottom, left)
+			else:
+				_draw_default_building(top, right, bottom, left)
 
 	# 3. Construction Scaffold Overlay (if constructing or upgrading)
 	if state == BuildingState.CONSTRUCTING or state == BuildingState.UPGRADING:
@@ -993,23 +1035,69 @@ func _draw_solar_dryer(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 	var mat2 := PackedVector2Array([bottom * 0.2, right * 0.65, bottom * 0.75, (bottom + left) * 0.4])
 	draw_colored_polygon(mat2, Color(0.92, 0.80, 0.25, 0.95))
 
-func _draw_art_building(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
-	if building_type == "bayanihan_center":
-		# Soft grounded shadow under the middleman's trading post and truck
-		var shadow_poly := PackedVector2Array()
+func _draw_art_building(_top: Vector2, _right: Vector2, _bottom: Vector2, _left: Vector2) -> void:
+	# 1. Soft grounded ambient contact shadow beneath the base
+	var shadow_poly := PackedVector2Array()
+	var shadow_rx: float = 0.0
+	var shadow_ry: float = 0.0
+	var shadow_cy: float = 0.0
+
+	match building_type:
+		"bayanihan_center":
+			shadow_rx = 50.0; shadow_ry = 25.0; shadow_cy = 6.0
+		"tacurong_mill":
+			shadow_rx = 70.0; shadow_ry = 35.0; shadow_cy = 8.0
+		"koronadal_wholesale":
+			shadow_rx = 90.0; shadow_ry = 45.0; shadow_cy = 10.0
+		"gensan_seaport":
+			shadow_rx = 95.0; shadow_ry = 48.0; shadow_cy = 10.0
+		"rice_mill":
+			shadow_rx = 50.0; shadow_ry = 25.0; shadow_cy = 6.0
+		"sugar_mill":
+			shadow_rx = 62.0; shadow_ry = 31.0; shadow_cy = 8.0
+		"copra_dryer":
+			shadow_rx = 68.0; shadow_ry = 34.0; shadow_cy = 8.0
+		"coffee_roastery":
+			shadow_rx = 52.0; shadow_ry = 26.0; shadow_cy = 6.0
+		_:
+			shadow_rx = 40.0; shadow_ry = 20.0; shadow_cy = 4.0
+
+	if shadow_rx > 0.0:
 		for a in range(16):
 			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 62.0, sin(rad) * 31.0 + 6.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.35))
-	elif building_type == "gensan_seaport":
-		# Pier shadow and night dock illumination
-		if TimeManager.is_night():
-			draw_circle(Vector2(45.0, -10.0), 18.0, Color(1.0, 0.90, 0.40, 0.22))
-			draw_circle(Vector2(45.0, -10.0), 6.0, Color(1.0, 0.95, 0.60, 0.50))
-	elif building_type == "tacurong_mill" or building_type == "koronadal_wholesale":
-		if TimeManager.is_night():
-			draw_circle(Vector2(-15.0, -25.0), 20.0, Color(1.0, 0.85, 0.35, 0.18))
-			draw_circle(Vector2(-15.0, -25.0), 7.0, Color(1.0, 0.90, 0.50, 0.45))
+			shadow_poly.append(Vector2(cos(rad) * shadow_rx, sin(rad) * shadow_ry + shadow_cy))
+		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.32))
+
+	# 2. Nighttime lighting
+	if TimeManager.is_night():
+		match building_type:
+			"bayanihan_center":
+				draw_circle(Vector2(0.0, -22.0), 16.0, Color(1.0, 0.85, 0.40, 0.25))
+				draw_circle(Vector2(0.0, -22.0), 6.0, Color(1.0, 0.92, 0.55, 0.50))
+			"tacurong_mill":
+				draw_circle(Vector2(-18.0, -28.0), 18.0, Color(1.0, 0.85, 0.35, 0.22))
+				draw_circle(Vector2(-18.0, -28.0), 6.0, Color(1.0, 0.90, 0.50, 0.50))
+				draw_circle(Vector2(35.0, -20.0), 14.0, Color(1.0, 0.85, 0.35, 0.20))
+			"koronadal_wholesale":
+				draw_circle(Vector2(-12.0, -28.0), 20.0, Color(1.0, 0.85, 0.35, 0.22))
+				draw_circle(Vector2(-12.0, -28.0), 6.0, Color(1.0, 0.90, 0.50, 0.50))
+				draw_circle(Vector2(50.0, -20.0), 16.0, Color(1.0, 0.85, 0.35, 0.20))
+			"gensan_seaport":
+				draw_circle(Vector2(45.0, -14.0), 18.0, Color(1.0, 0.90, 0.40, 0.25))
+				draw_circle(Vector2(45.0, -14.0), 6.0, Color(1.0, 0.95, 0.60, 0.55))
+				draw_circle(Vector2(-35.0, -30.0), 14.0, Color(0.40, 0.80, 1.0, 0.22))
+			"rice_mill":
+				draw_circle(Vector2(0.0, -20.0), 16.0, Color(1.0, 0.85, 0.35, 0.22))
+				draw_circle(Vector2(0.0, -20.0), 5.0, Color(1.0, 0.90, 0.50, 0.50))
+			"sugar_mill":
+				draw_circle(Vector2(-8.0, -24.0), 18.0, Color(1.0, 0.60, 0.20, 0.25))
+				draw_circle(Vector2(-8.0, -24.0), 6.0, Color(1.0, 0.75, 0.30, 0.50))
+			"copra_dryer":
+				draw_circle(Vector2(-16.0, -16.0), 16.0, Color(1.0, 0.50, 0.15, 0.25))
+				draw_circle(Vector2(-16.0, -16.0), 5.0, Color(1.0, 0.70, 0.25, 0.50))
+			"coffee_roastery":
+				draw_circle(Vector2(-8.0, -20.0), 16.0, Color(1.0, 0.55, 0.20, 0.25))
+				draw_circle(Vector2(-8.0, -20.0), 5.0, Color(1.0, 0.75, 0.30, 0.50))
 
 func _draw_bayanihan_center(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	var post_h: float = 44.0

@@ -139,7 +139,7 @@ offset_top = -1696.0
 offset_right = 3996.0
 offset_bottom = 2304.0
 mouse_filter = 2
-color = Color(0.12, 0.22, 0.13, 1)
+color = Color(0.06, 0.11, 0.07, 1)
 
 [node name="FarmBorderPath" type="ColorRect" parent="." unique_id=855186235]
 visible = false
@@ -441,30 +441,29 @@ mouse_filter = 2
 texture = ExtResource("Texture_disaster_box")
 expand_mode = 1
 
-[node name="TitleLabel" type="Label" parent="HUDLayer/Control/DisasterBox" unique_id=200300003]
+[node name="VBox" type="VBoxContainer" parent="HUDLayer/Control/DisasterBox" unique_id=200300005]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 24.0
-offset_top = 18.0
-offset_right = -24.0
-offset_bottom = 36.0
+offset_left = 22.0
+offset_top = 27.0
+offset_right = -22.0
+offset_bottom = 54.0
 grow_horizontal = 2
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 0
+
+[node name="TitleLabel" type="Label" parent="HUDLayer/Control/DisasterBox/VBox" unique_id=200300003]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.15, 0.15, 1)
 theme_override_font_sizes/font_size = 13
 text = "⚠️ INCOMING HAZARD!"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="SubLabel" type="Label" parent="HUDLayer/Control/DisasterBox" unique_id=200300004]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 24.0
-offset_top = 37.0
-offset_right = -24.0
-offset_bottom = 54.0
-grow_horizontal = 2
+[node name="SubLabel" type="Label" parent="HUDLayer/Control/DisasterBox/VBox" unique_id=200300004]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.25, 0.15, 0.08, 1)
 theme_override_font_sizes/font_size = 11
 text = "Salvage crops or prepare farm!"

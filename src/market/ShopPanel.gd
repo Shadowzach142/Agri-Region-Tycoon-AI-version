@@ -25,6 +25,23 @@ const TEX_BYAHERO: Texture2D         = preload("res://assets/sprites/buildings/b
 const TEX_TACURONG: Texture2D        = preload("res://assets/sprites/buildings/Tacurong-Grain-mill.png")
 const TEX_KORONADAL: Texture2D       = preload("res://assets/sprites/buildings/Koronadal-Wholesale.png")
 const TEX_GENSAN: Texture2D          = preload("res://assets/sprites/buildings/Gensan-seaport.png")
+const TEX_RICE_MILL: Texture2D       = preload("res://assets/sprites/buildings/Kiskisan_Rice_Mill.png")
+const TEX_SUGAR_MILL: Texture2D      = preload("res://assets/sprites/buildings/Trapiche_Sugar_Central.png")
+const TEX_COPRA_DRYER: Texture2D     = preload("res://assets/sprites/buildings/Tapahan_Copra_Dryer.png")
+const TEX_COFFEE_ROASTERY: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery.png")
+
+# Preloaded Arrow Textures for Category Navigation
+const TEX_ARROW_L_NORM: Texture2D    = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_left_normal.png")
+const TEX_ARROW_L_HOV: Texture2D     = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_left_hover.png")
+const TEX_ARROW_L_PRESS: Texture2D   = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_left_pressed.png")
+const TEX_ARROW_R_NORM: Texture2D    = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_right_normal.png")
+const TEX_ARROW_R_HOV: Texture2D     = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_right_hover.png")
+const TEX_ARROW_R_PRESS: Texture2D   = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_right_pressed.png")
+
+const TEX_TAB_ARROW_L_NORM: Texture2D = preload("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_normal.png")
+const TEX_TAB_ARROW_L_HOV: Texture2D  = preload("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_hover.png")
+const TEX_TAB_ARROW_R_NORM: Texture2D = preload("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_normal.png")
+const TEX_TAB_ARROW_R_HOV: Texture2D  = preload("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_hover.png")
 
 # Preloaded Button Styles
 const STYLE_GOLD_NORMAL  = preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres")
@@ -38,6 +55,12 @@ const STYLE_SQ_BROWN_PRESSED = preload("res://assets/sprites/hud/Buttons/Squareb
 @onready var close_btn: Button = $VBox/Header/CloseBtn
 @onready var cash_label: Label = $VBox/Header/CashLabel
 @onready var status_label: Label = $VBox/StatusLabel
+
+# Category Navigation Controls
+var category_nav_bar: HBoxContainer = null
+var prev_cat_btn: TextureButton = null
+var next_cat_btn: TextureButton = null
+var cat_title_label: Label = null
 
 # Containers for shop item grids across the 5 categories
 var labor_grid: GridContainer = null
@@ -70,6 +93,7 @@ class ShopSpritePreview extends Control:
 		tex = p_tex
 		mod_color = p_mod
 		custom_draw = p_draw
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		custom_minimum_size = Vector2(0, 94)
 		size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -144,6 +168,8 @@ func _ready() -> void:
 	trade_grid = _make_tab("Trade", "🚢 Trade Hubs & Ports")
 	land_grid = _make_tab("Land", "🗺️ Land (10×10 Parcels)")
 
+	_setup_category_navigation()
+
 	# React immediately to construction completions, worker changes, and placements
 	BuildingManager.worker_capacity_changed.connect(func(_cap, _act): _populate_labor())
 	BuildingManager.worker_hired.connect(func(_act): _populate_labor())
@@ -161,9 +187,157 @@ func _ready() -> void:
 	visibility_changed.connect(func():
 		if visible:
 			refresh()
+			_sync_category_nav()
 	)
 
 	_populate_shop()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_Q or event.keycode == KEY_LEFT:
+			_on_prev_category()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_E or event.keycode == KEY_RIGHT:
+			_on_next_category()
+			get_viewport().set_input_as_handled()
+
+func _setup_category_navigation() -> void:
+	var tabs: TabContainer = find_child("TabContainer", true, false)
+	if not tabs:
+		return
+
+	# 1. High-visibility theme icon overrides for TabContainer & internal TabBar
+	tabs.add_theme_icon_override("decrement", TEX_TAB_ARROW_L_NORM)
+	tabs.add_theme_icon_override("decrement_highlight", TEX_TAB_ARROW_L_HOV)
+	tabs.add_theme_icon_override("increment", TEX_TAB_ARROW_R_NORM)
+	tabs.add_theme_icon_override("increment_highlight", TEX_TAB_ARROW_R_HOV)
+
+	var tab_bar: TabBar = tabs.get_tab_bar()
+	if tab_bar:
+		tab_bar.add_theme_icon_override("decrement", TEX_TAB_ARROW_L_NORM)
+		tab_bar.add_theme_icon_override("decrement_highlight", TEX_TAB_ARROW_L_HOV)
+		tab_bar.add_theme_icon_override("increment", TEX_TAB_ARROW_R_NORM)
+		tab_bar.add_theme_icon_override("increment_highlight", TEX_TAB_ARROW_R_HOV)
+		if not tab_bar.tab_changed.is_connected(_on_tab_changed):
+			tab_bar.tab_changed.connect(_on_tab_changed)
+
+	if not tabs.tab_changed.is_connected(_on_tab_changed):
+		tabs.tab_changed.connect(_on_tab_changed)
+
+	# 2. Prominent Category Navigation Bar
+	if category_nav_bar and is_instance_valid(category_nav_bar):
+		category_nav_bar.queue_free()
+
+	category_nav_bar = HBoxContainer.new()
+	category_nav_bar.name = "CategoryNavBar"
+	category_nav_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	category_nav_bar.add_theme_constant_override("separation", 10)
+
+	# Previous Category Button (◄)
+	prev_cat_btn = TextureButton.new()
+	prev_cat_btn.name = "PrevCategoryBtn"
+	prev_cat_btn.custom_minimum_size = Vector2(36, 32)
+	prev_cat_btn.texture_normal = TEX_ARROW_L_NORM
+	prev_cat_btn.texture_hover = TEX_ARROW_L_HOV
+	prev_cat_btn.texture_pressed = TEX_ARROW_L_PRESS
+	prev_cat_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	prev_cat_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	prev_cat_btn.tooltip_text = "Previous Category [Q or Left Arrow]"
+	prev_cat_btn.pressed.connect(_on_prev_category)
+	prev_cat_btn.mouse_entered.connect(func(): AudioManager.play_ui("hover"))
+	category_nav_bar.add_child(prev_cat_btn)
+
+	# Category Title Breadcrumb Pill
+	var pill := PanelContainer.new()
+	pill.name = "CategoryPill"
+	pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pill.custom_minimum_size = Vector2(320, 32)
+
+	if ResourceLoader.exists("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"):
+		pill.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"))
+	else:
+		var pill_style := StyleBoxFlat.new()
+		pill_style.bg_color = Color(0.96, 0.93, 0.88, 0.95)
+		pill_style.border_color = Color(0.42, 0.28, 0.16, 0.9)
+		pill_style.border_width_left = 2; pill_style.border_width_top = 2
+		pill_style.border_width_right = 2; pill_style.border_width_bottom = 2
+		pill_style.corner_radius_top_left = 5; pill_style.corner_radius_top_right = 5
+		pill_style.corner_radius_bottom_left = 5; pill_style.corner_radius_bottom_right = 5
+		pill.add_theme_stylebox_override("panel", pill_style)
+	category_nav_bar.add_child(pill)
+
+	cat_title_label = Label.new()
+	cat_title_label.name = "CategoryTitleLabel"
+	cat_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cat_title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cat_title_label.add_theme_font_size_override("font_size", 15)
+	cat_title_label.add_theme_color_override("font_color", Color(0.24, 0.14, 0.08, 1.0))
+	cat_title_label.add_theme_color_override("font_shadow_color", Color(0.96, 0.90, 0.80, 0.8))
+	cat_title_label.add_theme_constant_override("shadow_offset_x", 1)
+	cat_title_label.add_theme_constant_override("shadow_offset_y", 1)
+	pill.add_child(cat_title_label)
+
+	# Next Category Button (►)
+	next_cat_btn = TextureButton.new()
+	next_cat_btn.name = "NextCategoryBtn"
+	next_cat_btn.custom_minimum_size = Vector2(36, 32)
+	next_cat_btn.texture_normal = TEX_ARROW_R_NORM
+	next_cat_btn.texture_hover = TEX_ARROW_R_HOV
+	next_cat_btn.texture_pressed = TEX_ARROW_R_PRESS
+	next_cat_btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	next_cat_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	next_cat_btn.tooltip_text = "Next Category [E or Right Arrow]"
+	next_cat_btn.pressed.connect(_on_next_category)
+	next_cat_btn.mouse_entered.connect(func(): AudioManager.play_ui("hover"))
+	category_nav_bar.add_child(next_cat_btn)
+
+	# Insert above TabContainer
+	var vbox: VBoxContainer = tabs.get_parent() as VBoxContainer
+	if vbox:
+		vbox.add_child(category_nav_bar)
+		vbox.move_child(category_nav_bar, tabs.get_index())
+
+	_sync_category_nav()
+
+func _on_prev_category() -> void:
+	var tabs: TabContainer = find_child("TabContainer", true, false)
+	if not tabs or tabs.get_tab_count() == 0:
+		return
+	var count: int = tabs.get_tab_count()
+	var cur: int = tabs.current_tab
+	tabs.current_tab = (cur - 1 + count) % count
+	AudioManager.play_ui("click")
+	_sync_category_nav()
+
+func _on_next_category() -> void:
+	var tabs: TabContainer = find_child("TabContainer", true, false)
+	if not tabs or tabs.get_tab_count() == 0:
+		return
+	var count: int = tabs.get_tab_count()
+	var cur: int = tabs.current_tab
+	tabs.current_tab = (cur + 1) % count
+	AudioManager.play_ui("click")
+	_sync_category_nav()
+
+func _on_tab_changed(_tab_idx: int) -> void:
+	_sync_category_nav()
+
+func _sync_category_nav() -> void:
+	var tabs: TabContainer = find_child("TabContainer", true, false)
+	if not tabs:
+		return
+	var count: int = tabs.get_tab_count()
+	if count == 0:
+		return
+	var cur: int = tabs.current_tab
+	var title: String = tabs.get_tab_title(cur)
+	if cat_title_label and is_instance_valid(cat_title_label):
+		cat_title_label.text = "Category %d of %d: %s" % [cur + 1, count, title]
+	var tab_bar: TabBar = tabs.get_tab_bar()
+	if tab_bar and is_instance_valid(tab_bar):
+		tab_bar.ensure_tab_visible(cur)
 
 func _process(delta: float) -> void:
 	if not visible:
@@ -184,6 +358,7 @@ func _process(delta: float) -> void:
 func refresh() -> void:
 	_on_cash_changed(EconomyManager.cash)
 	_populate_shop()
+	_sync_category_nav()
 
 func _on_cash_changed(amount: int) -> void:
 	if cash_label:
@@ -770,13 +945,13 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 		"sprinkler":
 			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_sprinkler_preview)
 		"rice_mill":
-			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_rice_mill_preview)
+			preview_node = ShopSpritePreview.new(b_key, TEX_RICE_MILL)
 		"sugar_mill":
-			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_sugar_mill_preview)
+			preview_node = ShopSpritePreview.new(b_key, TEX_SUGAR_MILL)
 		"copra_dryer":
-			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_copra_dryer_preview)
+			preview_node = ShopSpritePreview.new(b_key, TEX_COPRA_DRYER)
 		"coffee_roastery":
-			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_coffee_roastery_preview)
+			preview_node = ShopSpritePreview.new(b_key, TEX_COFFEE_ROASTERY)
 		_:
 			preview_node = ShopSpritePreview.new(b_key, TEX_KUBO)
 

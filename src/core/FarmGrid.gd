@@ -70,6 +70,8 @@ const DRAG_THRESHOLD: float   = 8.0
 var selected_tiles: Array[Vector2i] = []
 var drag_overlay:   Node2D          = null  # Drawn above all tiles (z_index 200)
 var heatmap_overlay: FarmHeatmapOverlay = null # Soil & Farm Diagnostic Heatmap (z_index 195)
+const OutOfBoundsForestScript: GDScript = preload("res://src/world/OutOfBoundsForest.gd")
+var forest_overlay: Node2D = null # Out-of-bounds forest perimeter (CoC style)
 
 # ---------------------------------------------------------------------------
 # Building Placement & Management State
@@ -151,6 +153,11 @@ func _ready() -> void:
 	var sea_water = SeaWater.new()
 	sea_water.name = "SeaWater"
 	add_child(sea_water)
+
+	# Out-of-Bounds Forest & Perimeter Trails (Clash of Clans style)
+	forest_overlay = OutOfBoundsForestScript.new()
+	forest_overlay.name = "OutOfBoundsForest"
+	add_child(forest_overlay)
 
 	# Soil & Farm Diagnostic Heatmap Overlay (z_index 195)
 	heatmap_overlay = FarmHeatmapOverlay.new()
@@ -928,6 +935,12 @@ func _update_parcel_boundaries() -> void:
 				ribbon.add_point(corner_pt + Vector2(3, -10))
 				parcel_boundaries_node.add_child(ribbon)
 		else:
+			# Atmospheric parcel fog of war overlay (soft wilderness mist veil over unbought land)
+			var parcel_fog := Polygon2D.new()
+			parcel_fog.polygon = poly
+			parcel_fog.color = Color(0.08, 0.14, 0.09, 0.18)
+			parcel_boundaries_node.add_child(parcel_fog)
+
 			# Locked parcel subtle dashed boundary line
 			var locked_border := Line2D.new()
 			locked_border.width = 1.5

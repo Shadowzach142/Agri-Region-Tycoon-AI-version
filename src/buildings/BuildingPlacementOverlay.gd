@@ -9,7 +9,7 @@ extends Node2D
 var farm_grid: Node2D = null
 
 func _init() -> void:
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _get_iso_pt(gx: float, gy: float) -> Vector2:
 	return Vector2(

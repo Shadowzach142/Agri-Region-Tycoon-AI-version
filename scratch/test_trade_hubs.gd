@@ -36,19 +36,16 @@ func _ready() -> void:
 
 	var fit_tacurong := Building.get_art_fit("tacurong_mill")
 	assert(not fit_tacurong.is_empty(), "tacurong_mill must have art fit")
-	# 384 / 224
-	assert(is_equal_approx(fit_tacurong["scale"], 384.0 / 224.0), "tacurong_mill scale must match 3x3 diamond ratio")
+	assert(is_equal_approx(fit_tacurong["scale"], 0.85), "tacurong_mill scale must match calibrated tile fit 0.85")
 
 	var fit_koronadal := Building.get_art_fit("koronadal_wholesale")
 	assert(not fit_koronadal.is_empty(), "koronadal_wholesale must have art fit")
-	# 512 / 295
-	assert(is_equal_approx(fit_koronadal["scale"], 512.0 / 295.0), "koronadal_wholesale scale must match 4x4 diamond ratio")
+	assert(is_equal_approx(fit_koronadal["scale"], 1.15), "koronadal_wholesale scale must match calibrated tile fit 1.15")
 
 	var fit_gensan := Building.get_art_fit("gensan_seaport")
 	assert(not fit_gensan.is_empty(), "gensan_seaport must have art fit")
-	# 512 / 304
-	assert(is_equal_approx(fit_gensan["scale"], 512.0 / 304.0), "gensan_seaport scale must match 4x4 virtual diamond ratio")
-	print("✔ Check 2 Passed: Building art fits match 1:1 footprint diamond ratios across all sizes.")
+	assert(is_equal_approx(fit_gensan["scale"], 1.00), "gensan_seaport scale must match calibrated tile fit 1.00")
+	print("✔ Check 2 Passed: Building art fits match calibrated tile proportions across all sizes.")
 
 	# 4. Verify Market Hub Unlocks and Initial Lock State
 	assert(Data.is_hub_available("local_biyahero") == true, "local_biyahero is always available")

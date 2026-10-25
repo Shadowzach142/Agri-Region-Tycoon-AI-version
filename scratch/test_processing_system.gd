@@ -68,11 +68,11 @@ func _ready() -> void:
 
 	# 6. Test Selling Processed Goods with Zero Transit Rot
 	var initial_cash = EconomyManager.cash
-	var preview = MarketManager.preview_crop_sale("milled_rice", "tacurong")
+	var preview = MarketManager.preview_crop_sale("milled_rice", "local_biyahero")
 	assert(preview.get("road_rot") == 0.0, "Processed goods must have 0% road rot risk in transit")
 	assert(preview.get("gross") > 0, "Gross sale value must be > 0")
 
-	var sell_result = MarketManager.sell_all_of_crop("milled_rice", "tacurong")
+	var sell_result = MarketManager.sell_all_of_crop("milled_rice", "local_biyahero")
 	assert(sell_result.get("success") == true, "Sale of milled rice must succeed")
 	assert(EconomyManager.cash > initial_cash, "Cash must increase after sale")
 	assert(MarketManager.get_stored_units_for_crop("milled_rice") == 0, "Storage must be cleared of sold milled rice")

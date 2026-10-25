@@ -659,7 +659,7 @@ const BUILDINGS = {
 		"shop_category": "processing",
 		"unique": false,
 		"icon": "🔥",
-		"grid_size": Vector2i(2, 2),
+		"grid_size": Vector2i(3, 2),
 		"cost": 2200,
 		"build_time": 40.0,
 		"max_level": 3,

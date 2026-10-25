@@ -21,14 +21,22 @@ extends Camera2D
 @export var drag_speed: float         = 1.0
 
 # Zoom settings
-@export var min_zoom: float           = 0.45
+@export var min_zoom: float           = 0.58
 @export var max_zoom: float           = 1.80
 @export var zoom_step: float          = 0.12
 @export var zoom_smoothness: float    = 14.0
 
-# World boundary limits (clamped camera center around 24x24 isometric island)
-@export var limit_min: Vector2        = Vector2(-700, -250)
-@export var limit_max: Vector2        = Vector2(2500, 1850)
+# World boundary limits (outer visible bounds that viewport edges must never cross)
+@export var world_bounds_min: Vector2 = Vector2(-950, -220)
+@export var world_bounds_max: Vector2 = Vector2(2500, 1880)
+
+# Backward compatibility aliases
+var limit_min: Vector2:
+	get: return world_bounds_min
+	set(v): world_bounds_min = v
+var limit_max: Vector2:
+	get: return world_bounds_max
+	set(v): world_bounds_max = v
 
 # ---------------------------------------------------------------------------
 # Internal state
@@ -51,12 +59,37 @@ func _ready() -> void:
 	else:
 		position = Vector2(768.0, 480.0)
 
-	target_position = position
 	target_zoom     = zoom
+	target_position = _clamp_to_world_bounds(position, target_zoom.x)
+	position        = target_position
+
+## Clamps camera position dynamically so viewport edges NEVER exceed world sprite bounds
+func _clamp_to_world_bounds(pos: Vector2, cur_zoom: float) -> Vector2:
+	var vp := get_viewport()
+	var vp_size: Vector2 = vp.get_visible_rect().size if vp else Vector2(1280, 720)
+	var z: float = max(0.1, cur_zoom)
+	var half_vp: Vector2 = (vp_size * 0.5) / z
+
+	var min_x: float = world_bounds_min.x + half_vp.x
+	var max_x: float = world_bounds_max.x - half_vp.x
+	var min_y: float = world_bounds_min.y + half_vp.y
+	var max_y: float = world_bounds_max.y - half_vp.y
+
+	var clamped := Vector2.ZERO
+	if min_x > max_x:
+		clamped.x = (world_bounds_min.x + world_bounds_max.x) * 0.5
+	else:
+		clamped.x = clampf(pos.x, min_x, max_x)
+
+	if min_y > max_y:
+		clamped.y = (world_bounds_min.y + world_bounds_max.y) * 0.5
+	else:
+		clamped.y = clampf(pos.y, min_y, max_y)
+
+	return clamped
 
 func pan_to(world_pos: Vector2) -> void:
-	target_position.x = clampf(world_pos.x, limit_min.x, limit_max.x)
-	target_position.y = clampf(world_pos.y, limit_min.y, limit_max.y)
+	target_position = _clamp_to_world_bounds(world_pos, target_zoom.x)
 
 func center_on_homestead() -> void:
 	var farm = get_parent().get_node_or_null("FarmGrid")
@@ -110,9 +143,8 @@ func _process(delta: float) -> void:
 		var speed: float = pan_speed / max(0.2, zoom.x)
 		target_position += move_dir.normalized() * speed * delta
 
-	# Clamp target position to world boundaries
-	target_position.x = clampf(target_position.x, limit_min.x, limit_max.x)
-	target_position.y = clampf(target_position.y, limit_min.y, limit_max.y)
+	# Clamp target position dynamically so viewport edges NEVER exceed world sprite bounds
+	target_position = _clamp_to_world_bounds(target_position, target_zoom.x)
 
 	# Smoothly interpolate position and zoom
 	position = position.lerp(target_position, 12.0 * delta)
@@ -145,14 +177,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and is_dragging:
 		var mm := event as InputEventMouseMotion
 		var delta_mouse: Vector2 = (mm.global_position - drag_start_mouse) / zoom.x
-		target_position = drag_start_cam - delta_mouse
-		target_position.x = clampf(target_position.x, limit_min.x, limit_max.x)
-		target_position.y = clampf(target_position.y, limit_min.y, limit_max.y)
+		target_position = _clamp_to_world_bounds(drag_start_cam - delta_mouse, target_zoom.x)
 		get_viewport().set_input_as_handled()
 
 func _adjust_zoom(factor: float) -> void:
 	var new_val: float = clampf(target_zoom.x * factor, min_zoom, max_zoom)
 	target_zoom = Vector2(new_val, new_val)
+	target_position = _clamp_to_world_bounds(target_position, target_zoom.x)
 
 func _is_typing_or_menu_open() -> bool:
 	if hud_layer:
