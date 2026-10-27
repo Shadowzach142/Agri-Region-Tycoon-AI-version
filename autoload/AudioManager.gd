@@ -6,6 +6,7 @@
 extends Node
 
 signal sfx_played(sound_name: String)
+signal soundtrack_changed(track_name: String)
 
 # ---------------------------------------------------------------------------
 # Sound Library Paths
@@ -57,8 +58,24 @@ const SOUND_PATHS: Dictionary = {
 	"tile_select": "res://sounds/UI-HUD/tile select.wav"
 }
 
+# ---------------------------------------------------------------------------
+# Retro Chiptune Soundtrack Library
+# ---------------------------------------------------------------------------
+const SOUNDTRACK_PATHS: Dictionary = {
+	"countryside_morning": "res://sounds/soundtracks/countryside_morning.wav",
+	"pastoral_breeze": "res://sounds/soundtracks/pastoral_breeze.wav",
+	"dusk_at_homestead": "res://sounds/soundtracks/dusk_at_homestead.wav"
+}
+
+const SOUNDTRACK_TITLES: Dictionary = {
+	"countryside_morning": "Awit ng Bukid (Countryside Morning)",
+	"pastoral_breeze": "Hanging Habagat (Pastoral Breeze)",
+	"dusk_at_homestead": "Takipsilim (Dusk at Homestead)"
+}
+
 # Preloaded AudioStream instances
 var _streams: Dictionary = {}
+var _soundtrack_streams: Dictionary = {}
 
 # Audio Player Pools
 const POOL_SIZE: int = 16
@@ -69,11 +86,27 @@ var _sfx_index: int = 0
 var _build_loop_player: AudioStreamPlayer = null
 var _active_construction_count: int = 0
 
-# Volume & settings
+# Dedicated Looping Background Music (BGM) Player & Soundtrack State
+var _bgm_player: AudioStreamPlayer = null
+var _current_soundtrack: String = ""
+var _soundtrack_playlist: Array[String] = [
+	"countryside_morning",
+	"pastoral_breeze",
+	"dusk_at_homestead"
+]
+var _soundtrack_index: int = 0
+var _bgm_tween: Tween = null
+
+# Volume & mixing calibration
+# BGM soundbed offset: sits comfortably -14 dB beneath foreground SFX so game actions always stand out
+const BGM_BED_OFFSET_DB: float = -14.0
+
 var master_volume: float = 1.0
 var sfx_volume: float = 1.0
 var ui_volume: float = 0.85
+var music_volume: float = 0.50
 var is_muted: bool = false
+var is_music_muted: bool = false
 
 # Throttle timers for rapid events (e.g. dragging across 20 tiles)
 var _last_play_time: Dictionary = {}
@@ -115,6 +148,24 @@ func _preload_streams() -> void:
 		else:
 			push_warning("[AudioManager] Missing sound file: %s" % path)
 
+	for key in SOUNDTRACK_PATHS:
+		var track_path: String = SOUNDTRACK_PATHS[key]
+		if ResourceLoader.exists(track_path):
+			var track_stream: AudioStream = load(track_path) as AudioStream
+			if track_stream:
+				_configure_wav_loop(track_stream)
+				_soundtrack_streams[key] = track_stream
+		else:
+			push_warning("[AudioManager] Missing soundtrack file: %s" % track_path)
+
+func _configure_wav_loop(stream: AudioStream) -> void:
+	if stream is AudioStreamWAV:
+		var wav := stream as AudioStreamWAV
+		var total_frames: int = int(wav.get_length() * wav.mix_rate)
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		wav.loop_begin = 0
+		wav.loop_end = total_frames
+
 func _create_player_pools() -> void:
 	# General SFX polyphonic pool
 	for i in range(POOL_SIZE):
@@ -133,6 +184,13 @@ func _create_player_pools() -> void:
 	if _streams.has("building_loop"):
 		_build_loop_player.stream = _streams["building_loop"]
 	add_child(_build_loop_player)
+
+	# Dedicated Background Music (BGM) Player (loops continuously, never paused by game pauses)
+	_bgm_player = AudioStreamPlayer.new()
+	_bgm_player.name = "BGMPlayer"
+	_bgm_player.bus = "Master"
+	_bgm_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_bgm_player)
 
 # ---------------------------------------------------------------------------
 # Core Playback Methods
@@ -317,6 +375,121 @@ func stop_build_loop() -> void:
 		_build_loop_player.stop()
 
 # ---------------------------------------------------------------------------
+# Background Music & Soundtracks API
+# ---------------------------------------------------------------------------
+func play_soundtrack(track_name: String = "", crossfade_duration: float = 1.2) -> void:
+	if track_name.is_empty():
+		track_name = _soundtrack_playlist[_soundtrack_index]
+
+	if not _soundtrack_streams.has(track_name):
+		if SOUNDTRACK_PATHS.has(track_name):
+			var stream = load(SOUNDTRACK_PATHS[track_name]) as AudioStream
+			if stream:
+				_configure_wav_loop(stream)
+				_soundtrack_streams[track_name] = stream
+		if not _soundtrack_streams.has(track_name):
+			push_warning("[AudioManager] Soundtrack not found: %s" % track_name)
+			return
+
+	if _current_soundtrack == track_name and _bgm_player and _bgm_player.playing:
+		return
+
+	_current_soundtrack = track_name
+	var target_stream: AudioStream = _soundtrack_streams[track_name]
+	var target_vol: float = _get_target_music_db()
+
+	var idx = _soundtrack_playlist.find(track_name)
+	if idx >= 0:
+		_soundtrack_index = idx
+
+	if _bgm_tween and _bgm_tween.is_valid():
+		_bgm_tween.kill()
+
+	if _bgm_player.playing and crossfade_duration > 0.0:
+		_bgm_tween = create_tween().set_parallel(false)
+		_bgm_tween.tween_property(_bgm_player, "volume_db", -80.0, crossfade_duration * 0.4)
+		_bgm_tween.tween_callback(func():
+			_bgm_player.stream = target_stream
+			_bgm_player.play()
+		)
+		_bgm_tween.tween_property(_bgm_player, "volume_db", target_vol, crossfade_duration * 0.6)
+	else:
+		_bgm_player.stream = target_stream
+		_bgm_player.volume_db = target_vol
+		_bgm_player.play()
+
+	soundtrack_changed.emit(track_name)
+
+func _get_target_music_db() -> float:
+	if is_music_muted or is_muted or music_volume <= 0.001:
+		return -80.0
+	# Calibrated background music soundbed: sits comfortably underneath all SFX
+	var linear_val: float = clampf(music_volume * master_volume, 0.0001, 1.0)
+	var db: float = linear_to_db(linear_val) + BGM_BED_OFFSET_DB
+	return clampf(db, -80.0, -10.0) # Hard ceiling ensures music is NEVER louder than SFX
+
+func stop_soundtrack(fade_duration: float = 1.0) -> void:
+	if not _bgm_player or not _bgm_player.playing:
+		return
+	if _bgm_tween and _bgm_tween.is_valid():
+		_bgm_tween.kill()
+
+	if fade_duration > 0.0:
+		_bgm_tween = create_tween()
+		_bgm_tween.tween_property(_bgm_player, "volume_db", -80.0, fade_duration)
+		_bgm_tween.tween_callback(func():
+			_bgm_player.stop()
+			_current_soundtrack = ""
+		)
+	else:
+		_bgm_player.stop()
+		_current_soundtrack = ""
+
+func next_soundtrack() -> void:
+	if _soundtrack_playlist.is_empty():
+		return
+	_soundtrack_index = (_soundtrack_index + 1) % _soundtrack_playlist.size()
+	play_soundtrack(_soundtrack_playlist[_soundtrack_index], 1.0)
+
+func prev_soundtrack() -> void:
+	if _soundtrack_playlist.is_empty():
+		return
+	_soundtrack_index = (_soundtrack_index - 1 + _soundtrack_playlist.size()) % _soundtrack_playlist.size()
+	play_soundtrack(_soundtrack_playlist[_soundtrack_index], 1.0)
+
+func set_music_volume(volume: float) -> void:
+	music_volume = clampf(volume, 0.0, 1.0)
+	if _bgm_player and _bgm_player.playing:
+		_bgm_player.volume_db = _get_target_music_db()
+
+func set_music_muted(muted: bool) -> void:
+	is_music_muted = muted
+	if _bgm_player and _bgm_player.playing:
+		_bgm_player.volume_db = _get_target_music_db()
+
+func get_current_soundtrack() -> String:
+	return _current_soundtrack
+
+func get_soundtrack_title(track_name: String = "") -> String:
+	if track_name.is_empty():
+		track_name = _current_soundtrack
+	return SOUNDTRACK_TITLES.get(track_name, track_name.capitalize())
+
+func _on_soundtrack_finished() -> void:
+	# If stream completes its run or advances, cycle naturally through the peaceful playlist
+	next_soundtrack()
+
+func _on_time_period_changed(period_name: String, is_night_time: bool) -> void:
+	# Context-aware soundtrack transitions: play Takipsilim (dusk lullaby) at night,
+	# and Countryside Morning or Pastoral Breeze during sunny day hours
+	if is_night_time or period_name in ["Dusk", "Night", "Late Night"]:
+		if _current_soundtrack != "dusk_at_homestead" and (_bgm_player and _bgm_player.playing):
+			play_soundtrack("dusk_at_homestead", 2.5)
+	elif period_name in ["Dawn", "Morning", "Midday", "Afternoon"]:
+		if _current_soundtrack == "dusk_at_homestead" and (_bgm_player and _bgm_player.playing):
+			play_soundtrack("countryside_morning", 2.5)
+
+# ---------------------------------------------------------------------------
 # Global Game Event Listeners
 # ---------------------------------------------------------------------------
 func _connect_game_signals() -> void:
@@ -339,11 +512,13 @@ func _connect_game_signals() -> void:
 					play_farmer("select")
 			)
 
-	# 3. Time Manager (Day changed -> new day chime)
+	# 3. Time Manager (Day changed -> new day chime; Period changed -> day/night music transitions)
 	var time_mgr = get_node_or_null("/root/TimeManager")
 	if time_mgr:
 		if time_mgr.has_signal("day_changed"):
 			time_mgr.day_changed.connect(func(_d): play_economy("new_day"))
+		if time_mgr.has_signal("period_changed"):
+			time_mgr.period_changed.connect(_on_time_period_changed)
 
 	# 4. Market Manager (Sale completed -> market sell cash register chime)
 	var m_mgr = get_node_or_null("/root/MarketManager")

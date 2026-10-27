@@ -11,6 +11,7 @@ extends Node2D
 signal tile_inspected(tile_pos: Vector2i, tile_data: FarmTile)
 signal selection_inspected(tiles_list: Array, tiles_grid: Array)
 signal task_queued(task: Dictionary)
+signal parcel_unlocked(parcel_id: String)
 
 # ---------------------------------------------------------------------------
 # Grid constants (24x24 world island with expandable 12x12 parcels)
@@ -42,6 +43,8 @@ var ground_layer:  Node2D = null  # Dedicated ground layer (Z=0) for terrain sla
 var renderer: TileRenderer = null  # Owns all visual update logic
 var drones: Array = []              # Autonomous precision farm drone fleet
 var is_drone_targeting: bool = false # Independent drone zone designation mode
+signal drone_selected(drone_index: int)
+var selected_drone_index: int = 0   # 0 = none selected, 1-based index when drone is selected
 var drone: FarmDrone:               # Backward-compatible accessor for drone #0
 	get:
 		for d in drones:
@@ -100,6 +103,22 @@ var _occluded_tiles: Dictionary = {}
 # _ready
 # ---------------------------------------------------------------------------
 func _ready() -> void:
+	if Data.game_mode == "sandbox" and not SaveManager.has_pending_save_data():
+		unlocked_parcels = ["homestead", "east_meadows", "south_plains", "highland_plateau"]
+		EconomyManager.cash = 999999
+		EconomyManager.cash_changed.emit(EconomyManager.cash)
+		for t_key in Data.TECH.keys():
+			if not BuildingManager.unlocked_techs.has(t_key):
+				BuildingManager.unlocked_techs.append(t_key)
+		for c_key in Data.CROPS.keys():
+			if not BuildingManager.unlocked_crops.has(c_key):
+				BuildingManager.unlocked_crops.append(c_key)
+		BuildingManager.total_storage_capacity = 25000
+		BuildingManager.worker_capacity = 20
+		BuildingManager.storage_updated.emit(BuildingManager.total_storage_capacity, BuildingManager.used_storage)
+		BuildingManager.worker_capacity_changed.emit(BuildingManager.worker_capacity, BuildingManager.active_workers)
+		LogManager.log_event("system", "✨ Creative Sandbox Mode active! ₱999,999 treasury, all 4 parcels, and all tech unlocked.", "✨", Color(1.0, 0.85, 0.20))
+
 	_create_grid()
 	if not SaveManager.has_pending_save_data():
 		_spawn_starting_homestead_buildings()
@@ -354,7 +373,7 @@ func _create_grid() -> void:
 			var tile := FarmTile.new()
 			tile.soil_moisture = default_moisture
 			var parcel: Dictionary = Data.get_parcel_for_tile(Vector2i(x, y))
-			if parcel.is_empty() or parcel.get("unlocked_by_default", false):
+			if Data.game_mode == "sandbox" or parcel.is_empty() or parcel.get("unlocked_by_default", false):
 				tile.state = FarmTile.TileState.EMPTY
 			else:
 				tile.state = FarmTile.TileState.LOCKED
@@ -453,7 +472,7 @@ func _create_grid() -> void:
 
 	if not SaveManager.has_pending_save_data():
 		_seed_natural_obstacles()
-	_create_parcel_signposts()
+		_create_parcel_signposts()
 
 func _seed_natural_obstacles() -> void:
 	# Starting 12x12 homestead: exactly 1 tree and 1 rock as requested
@@ -585,6 +604,26 @@ func _spawn_starter_building(start_pos: Vector2i, b_type: String) -> Building:
 	return building
 
 func _create_parcel_signposts() -> void:
+	# 1. Clean up any existing signposts across all parcels and clear tracking
+	for pid in parcel_sign_nodes.keys():
+		var sn = parcel_sign_nodes[pid]
+		if is_instance_valid(sn):
+			if sn.get_parent():
+				sn.get_parent().remove_child(sn)
+			sn.queue_free()
+	parcel_sign_nodes.clear()
+
+	# Also sweep all parcel sign tiles directly to remove any orphaned Signpost nodes
+	for p in Data.LAND_PARCELS:
+		var spos: Vector2i = p.get("sign_tile", Vector2i(-1, -1))
+		if _is_valid(spos):
+			var troot: Node2D = tile_roots[spos.x][spos.y]
+			for child in troot.get_children():
+				if child.name.begins_with("Signpost"):
+					troot.remove_child(child)
+					child.queue_free()
+
+	# 2. Only create signposts for locked expansion parcels
 	for p in Data.LAND_PARCELS:
 		var pid: String = p.get("id", "")
 		if pid == "homestead" or unlocked_parcels.has(pid):
@@ -665,18 +704,40 @@ func unlock_parcel(parcel_id: String) -> bool:
 	# Procedurally place a balanced, modest scattering of trees and rocks in newly unlocked land
 	_procedural_generate_obstacles_in_rect(rect, randi_range(5, 6), randi_range(3, 4))
 
-	# Remove signpost
+	# Remove signpost from tracking dictionary and scene tree
 	if parcel_sign_nodes.has(parcel_id):
 		var sn: Node2D = parcel_sign_nodes[parcel_id]
 		if is_instance_valid(sn):
+			if sn.get_parent():
+				sn.get_parent().remove_child(sn)
 			sn.queue_free()
 		parcel_sign_nodes.erase(parcel_id)
+
+	# Direct cleanup on parcel sign tile to eliminate any duplicate or orphaned sign node
+	var sign_pos: Vector2i = p.get("sign_tile", Vector2i(-1, -1))
+	if _is_valid(sign_pos):
+		var sroot: Node2D = tile_roots[sign_pos.x][sign_pos.y]
+		for child in sroot.get_children():
+			if child.name.begins_with("Signpost"):
+				sroot.remove_child(child)
+				child.queue_free()
+
+	# Also sweep all tiles in newly unlocked parcel to ensure zero stray signpost nodes
+	for x in range(rect.position.x, rect.end.x):
+		for y in range(rect.position.y, rect.end.y):
+			if _is_valid(Vector2i(x, y)):
+				var troot: Node2D = tile_roots[x][y]
+				for child in troot.get_children():
+					if child.name.begins_with("Signpost"):
+						troot.remove_child(child)
+						child.queue_free()
 
 	if land_modal and is_instance_valid(land_modal):
 		land_modal.close()
 
 	renderer.update_all(tiles, GRID_SIZE)
 	_update_parcel_boundaries()
+	parcel_unlocked.emit(parcel_id)
 
 	var num_plots: int = rect.size.x * rect.size.y
 	LogManager.log_event("buildings", "🗺️ Territory Expanded: Acquired %s (%d×%d - %d new plots)!" % [p.get("name"), rect.size.x, rect.size.y, num_plots], "🗺️", Color(0.35, 0.95, 0.45))
@@ -1148,6 +1209,34 @@ func _unhandled_input(event: InputEvent) -> void:
 				cancel_drone_zone_designation()
 				get_viewport().set_input_as_handled()
 				return
+
+			var world_mouse_rc: Vector2 = get_canvas_transform().affine_inverse() * mb.position if mb.position != Vector2.ZERO else get_global_mouse_position()
+			var clicked_tile_pos := FarmerMovement.pixel_to_grid(world_mouse_rc, self)
+			var cancelled_count: int = 0
+
+			# 1. If clicked on a tile with a task or assigned worker, cancel it immediately
+			if _is_valid(clicked_tile_pos):
+				var t_tile: FarmTile = tiles[clicked_tile_pos.x][clicked_tile_pos.y]
+				var eff_pos: Vector2i = clicked_tile_pos if not (t_tile.is_multi_tile_root or t_tile.multi_tile_root_pos != Vector2i(-1, -1)) else (clicked_tile_pos if t_tile.is_multi_tile_root else t_tile.multi_tile_root_pos)
+				cancelled_count = TaskManager.cancel_task_at(eff_pos)
+				if cancelled_count == 0 and eff_pos != clicked_tile_pos:
+					cancelled_count = TaskManager.cancel_task_at(clicked_tile_pos)
+
+			# 2. If workers were selected, also halt their tasks
+			var selected_workers := TaskManager.get_selected_farmers()
+			if not selected_workers.is_empty():
+				var halted := TaskManager.cancel_active_or_selected_tasks()
+				if cancelled_count == 0:
+					cancelled_count = halted
+
+			if cancelled_count > 0:
+				AudioManager.play_ui("click")
+				if _is_valid(clicked_tile_pos):
+					show_floating_text(clicked_tile_pos, "🛑 Action Cancelled", Color(1.0, 0.4, 0.4))
+				else:
+					spawn_floating_text_at_world(to_local(world_mouse_rc), "🛑 Action Cancelled")
+				LogManager.log_event("task", "Cancelled %d task(s) on right-click" % cancelled_count, "🛑", Color(1.0, 0.5, 0.5))
+
 			# Right-click cancels selections, clears active highlights, and deselects workers (right click menu removed)
 			if action_popup and action_popup.visible:
 				action_popup.hide()
@@ -1158,6 +1247,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if selection_indicator:
 				selection_indicator.visible = false
 			TaskManager.deselect_all_farmers()
+			Input.set_custom_mouse_cursor(null)
 			get_viewport().set_input_as_handled()
 			return
 
@@ -1168,16 +1258,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 		# Left-click on worker: select/toggle worker (supports Ctrl+click for multi-selection)
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			# Left-click on active drone in world: open Drone Command Deck directly
+			# Left-click on active drone in world: select drone directly (like a worker!)
 			for d in drones:
 				if is_instance_valid(d) and d.visible:
 					if d.global_position.distance_to(world_mouse) < 32.0:
-						_open_drone_command_deck()
+						TaskManager.deselect_all_farmers()
+						select_drone(d)
 						get_viewport().set_input_as_handled()
 						return
 
 			var clicked_worker = _find_farmer_at(world_mouse)
 			if clicked_worker != null:
+				deselect_all_drones()
 				var is_multi: bool = mb.is_command_or_control_pressed() or mb.shift_pressed
 				if not is_multi and TaskManager.get_selected_farmers().size() == 1 and TaskManager.get_selected_farmers()[0] == clicked_worker:
 					TaskManager.deselect_all_farmers()
@@ -1216,25 +1308,18 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 		active_tool = plant_hotbar.get_selected_tool()
 
 	var has_selected_farmers: bool = (TaskManager.get_selected_farmers().size() > 0)
-	if not is_drone_targeting and active_tool != "drone_zone" and not has_selected_farmers and not active_tool.is_empty():
+	if not is_drone_targeting and active_tool != "drone_zone" and active_tool != "inspect" and active_tool != "cancel_task" and not has_selected_farmers and not active_tool.is_empty():
 		var workers := get_tree().get_nodes_in_group("farmers")
 		if not workers.is_empty() and is_instance_valid(workers[0]):
 			TaskManager.select_farmer(workers[0])
 			has_selected_farmers = true
 
-	# ── Drone Remote Control (Independent from Farmer) ────────────────
-	if (is_drone_targeting or active_tool == "drone_zone") and mb.button_index == MOUSE_BUTTON_LEFT:
+	# ── Drone Remote Control (Like a Farmer with Hotbar!) ────────────────
+	var sel_drone: FarmDrone = get_selected_drone()
+	if (is_drone_targeting or active_tool == "drone_zone" or (sel_drone != null and drag_dist > DRAG_THRESHOLD)) and mb.button_index == MOUSE_BUTTON_LEFT:
 		is_drone_targeting = false
-		if not BuildingManager.has_drone_station():
-			LogManager.log_event("general", "⚠️ Build a Drone Command Hangar in the Shop (Machinery & Drones tab) first!", "🛸", Color(1.0, 0.4, 0.4))
-			AudioManager.play_ui("error")
-			return
-		if BuildingManager.get_drone_level() <= 0:
-			LogManager.log_event("general", "⚠️ Drone Command Hangar is still under construction!", "🛸", Color(1.0, 0.4, 0.4))
-			AudioManager.play_ui("error")
-			return
 		if BuildingManager.active_drones <= 0:
-			LogManager.log_event("general", "⚠️ Commission a Farm Drone in Agri-Shop (Labor) first! (Requires 1 Farmer Pilot per Drone)", "🛸", Color(1.0, 0.4, 0.4))
+			LogManager.log_event("general", "⚠️ Build a Drone Landing Pad in the Shop (Machinery tab) first!", "🛸", Color(1.0, 0.4, 0.4))
 			AudioManager.play_ui("error")
 			return
 		var zone_tiles: Array = []
@@ -1244,25 +1329,28 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			var tpos := FarmerMovement.pixel_to_grid(to_global(drag_start_pos), self)
 			if _is_valid(tpos) and is_tile_unlocked(tpos):
 				zone_tiles = [tpos]
-		if not zone_tiles.is_empty() and not drones.is_empty():
-			var target_drone: FarmDrone = null
-			for d in drones:
-				if is_instance_valid(d) and not d.has_zone():
-					target_drone = d
-					break
-			if target_drone == null:
-				target_drone = drone
+		if not zone_tiles.is_empty():
+			if drones.is_empty():
+				_sync_drones()
+			var target_drone: FarmDrone = sel_drone
+			if target_drone == null and not drones.is_empty():
+				target_drone = drones[0]
 			if target_drone:
-				target_drone.deploy(zone_tiles, target_drone.crop_type)
-				var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
-				if deck and deck.has_method("refresh_all"):
-					deck.refresh_all()
+				var chosen_crop: String = target_drone.crop_type if not target_drone.crop_type.is_empty() else "palay"
+				target_drone.deploy(zone_tiles, chosen_crop)
+				var c_disp: String = str(Data.get_crop(chosen_crop).get("display_name", chosen_crop))
+				show_floating_text(zone_tiles[0], "🎯 %s Field Assigned (%d Plots - %s)" % [target_drone.get_drone_name(), zone_tiles.size(), c_disp], Color(0.4, 0.9, 1.0))
+				AudioManager.play_ui("click")
 		selected_tiles.clear()
 		if drag_overlay:
 			drag_overlay.queue_redraw()
 		return
 	elif active_tool == "drone_recall" and mb.button_index == MOUSE_BUTTON_LEFT:
-		recall_all_drones()
+		var target_d: FarmDrone = get_selected_drone()
+		if target_d:
+			target_d.recall()
+		else:
+			recall_all_drones()
 		selected_tiles.clear()
 		if drag_overlay:
 			drag_overlay.queue_redraw()
@@ -1281,16 +1369,27 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 			var root_s: Vector2i = single_pos if not is_multi_s else (single_pos if t_single.is_multi_tile_root else t_single.multi_tile_root_pos)
 			select_tile(root_s)
 			if mb.button_index == MOUSE_BUTTON_LEFT:
-				selected_tiles.clear()
-				if has_selected_farmers:
-					_auto_apply_hotbar_action([root_s], active_tool)
+				if active_tool == "inspect":
+					show_floating_text(root_s, "🔍 Inspected", Color(0.4, 0.9, 1.0))
+				else:
+					selected_tiles.clear()
+					if has_selected_farmers or active_tool == "cancel_task":
+						_auto_apply_hotbar_action([root_s], active_tool)
 		elif new_tiles.size() > 1:
 			if mb.button_index == MOUSE_BUTTON_LEFT:
-				selected_tiles.clear()
-				if drag_overlay:
-					drag_overlay.queue_redraw()
-				if has_selected_farmers:
-					_auto_apply_hotbar_action(new_tiles, active_tool)
+				if active_tool == "inspect":
+					selected_tiles = new_tiles
+					selection_inspected.emit(new_tiles, tiles)
+					AudioManager.play_ui("tile_select")
+					show_floating_text(new_tiles[0], "🔍 Inspected %d Plots" % new_tiles.size(), Color(0.4, 0.9, 1.0))
+					if drag_overlay:
+						drag_overlay.queue_redraw()
+				else:
+					selected_tiles.clear()
+					if drag_overlay:
+						drag_overlay.queue_redraw()
+					if has_selected_farmers or active_tool == "cancel_task":
+						_auto_apply_hotbar_action(new_tiles, active_tool)
 	else:
 		# ── Single tile click ─────────────────────────────────────────
 		var tile_pos := FarmerMovement.pixel_to_grid(to_global(drag_start_pos), self)
@@ -1303,18 +1402,39 @@ func _finish_drag(mb: InputEventMouseButton) -> void:
 		var is_multi: bool = (clicked_tile.is_multi_tile_root or clicked_tile.multi_tile_root_pos != Vector2i(-1, -1))
 		var root_pos: Vector2i = tile_pos if not is_multi else (tile_pos if clicked_tile.is_multi_tile_root else clicked_tile.multi_tile_root_pos)
 
+		# Check if clicked directly on a flying drone in the world
+		var m_global := get_global_mouse_position()
+		for d in drones:
+			if is_instance_valid(d) and d.global_position.distance_to(m_global) <= 36.0:
+				select_drone(d)
+				selected_tiles.clear()
+				if drag_overlay:
+					drag_overlay.queue_redraw()
+				return
+
+		# Check if clicked on a Drone Command Hangar or Landing Pad
+		var b_clicked := BuildingManager.get_building_at_tile(root_pos)
+		if b_clicked and (b_clicked.building_type == "drone_station" or b_clicked.building_type == "drone_pad"):
+			for d in drones:
+				if is_instance_valid(d) and d.hangar_ref == b_clicked:
+					select_drone(d)
+					break
+
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			selected_tiles.clear()
 			if drag_overlay:
 				drag_overlay.queue_redraw()
 			select_tile(root_pos)
-			if has_selected_farmers:
-				_auto_apply_hotbar_action([root_pos], active_tool)
-			selected_tiles.clear()
+			if active_tool == "inspect":
+				show_floating_text(root_pos, "🔍 Inspected", Color(0.4, 0.9, 1.0))
+			else:
+				if has_selected_farmers or active_tool == "cancel_task":
+					_auto_apply_hotbar_action([root_pos], active_tool)
+				selected_tiles.clear()
 
 ## Automatically applies the active hotbar tool (Plow, Water, Harvest, Clear, Spray, or Seed) when left-clicking or drag-selecting
 func _auto_apply_hotbar_action(target_list: Array, tool_id: String) -> void:
-	if tool_id.is_empty():
+	if tool_id.is_empty() or tool_id == "inspect":
 		return
 
 	match tool_id:
@@ -1391,6 +1511,28 @@ func _auto_apply_hotbar_action(target_list: Array, tool_id: String) -> void:
 				_on_action_popup_selected("spray_pest", spray_targets[0], {"method": "biological", "cost": 45})
 			elif spray_targets.size() > 1:
 				_on_batch_action_selected("spray_pest", spray_targets, {"method": "biological", "cost": 45})
+
+		"cancel_task":
+			var cancel_count: int = 0
+			for p in target_list:
+				var t: FarmTile = tiles[p.x][p.y]
+				var eff_p: Vector2i = p if not (t.is_multi_tile_root or t.multi_tile_root_pos != Vector2i(-1, -1)) else (p if t.is_multi_tile_root else t.multi_tile_root_pos)
+				var c := TaskManager.cancel_task_at(eff_p)
+				if c == 0 and eff_p != p:
+					c = TaskManager.cancel_task_at(p)
+				cancel_count += c
+			if cancel_count > 0:
+				var display_p: Vector2i = target_list[0] if not target_list.is_empty() else hovered_grid_pos
+				show_floating_text(display_p, "🛑 %d Task(s) Cancelled" % cancel_count, Color(1.0, 0.4, 0.4))
+				AudioManager.play_ui("click")
+				LogManager.log_event("task", "Cancelled %d task(s) via Stop Tool" % cancel_count, "🛑", Color(1.0, 0.5, 0.5))
+			else:
+				var halted := TaskManager.cancel_active_or_selected_tasks()
+				if halted > 0:
+					var display_p: Vector2i = target_list[0] if not target_list.is_empty() else hovered_grid_pos
+					show_floating_text(display_p, "🛑 Worker Halted", Color(1.0, 0.4, 0.4))
+					AudioManager.play_ui("click")
+					LogManager.log_event("task", "Halted %d worker(s) via Stop Tool" % halted, "🛑", Color(1.0, 0.5, 0.5))
 
 		_:
 			# Tool is a crop seed (e.g. palay, yellow_corn, sugarcane, pineapple, arabica_coffee, banana, coconut)
@@ -1578,6 +1720,11 @@ func _on_action_popup_selected(action_type: String, tile_pos: Vector2i, extra: D
 				return
 	elif action_type == "plant":
 		var crop_name: String = extra.get("crop_type", "")
+		if not BuildingManager.is_crop_unlocked(crop_name):
+			show_floating_text(tile_pos, "Seed Locked (Agri-Shop)")
+			AudioManager.play_ui("error")
+			LogManager.log_event("license", "Cannot plant %s: Variety license not yet acquired in Agri-Shop!" % crop_name.capitalize(), "🔒", Color(1.0, 0.4, 0.4))
+			return
 		var c_data: Dictionary = Data.get_crop(crop_name)
 		var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
 		var seed_cost: int = int(c_data.get("seed_cost", 25))
@@ -1640,6 +1787,11 @@ func _on_batch_action_selected(action_type: String, target_tiles: Array, extra: 
 				break
 		elif action_type == "plant":
 			var crop_name: String = extra.get("crop_type", "")
+			if not BuildingManager.is_crop_unlocked(crop_name):
+				show_floating_text(pos, "Seed Locked (Agri-Shop)")
+				AudioManager.play_ui("error")
+				LogManager.log_event("license", "Cannot plant %s: Variety license not yet acquired in Agri-Shop!" % crop_name.capitalize(), "🔒", Color(1.0, 0.4, 0.4))
+				break
 			var c_data: Dictionary = Data.get_crop(crop_name)
 			var seed_cost: int = int(c_data.get("seed_cost", 25))
 			var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
@@ -1713,7 +1865,7 @@ func is_tile_plowable(pos: Vector2i) -> bool:
 
 ## Returns the footprint Vector2i for a tool or crop
 func get_tool_footprint(tool_id: String) -> Vector2i:
-	if tool_id in ["plow", "water", "harvest", "clear", "spray_chemical", "spray_biological", "drone_zone", "drone_recall"] or tool_id.is_empty():
+	if tool_id in ["plow", "water", "harvest", "clear", "cancel_task", "spray_chemical", "spray_biological", "drone_zone", "drone_recall", "inspect"] or tool_id.is_empty():
 		return Vector2i(1, 1)
 	var crop_data: Dictionary = Data.get_crop(tool_id)
 	return crop_data.get("footprint", Vector2i(1, 1))
@@ -1732,8 +1884,12 @@ func is_valid_tool_target(pos: Vector2i, tool_id: String) -> bool:
 	var root_t: FarmTile = tiles[check_pos.x][check_pos.y]
 
 	match tool_id:
+		"inspect":
+			return true
 		"drone_zone", "drone_recall":
 			return true
+		"cancel_task":
+			return TaskManager.has_task_at(pos) or TaskManager.has_task_at(check_pos)
 		"plow":
 			return is_tile_plowable(pos)
 		"water":
@@ -2017,7 +2173,7 @@ func clear_obstacle(pos: Vector2i) -> void:
 	if tile.state != FarmTile.TileState.OBSTACLE:
 		return
 	var is_rock: bool = (tile.obstacle_type == "rock")
-	var obs_name: String = "granite boulder" if is_rock else "ancient tree"
+	var obs_name: String = "granite boulder" if is_rock else "old tree stump"
 	var obs_icon: String = "⛏️" if is_rock else "🪓"
 	tile.reset()
 	if is_tile_unlocked(pos):
@@ -2299,7 +2455,8 @@ func is_valid_building_placement(start_pos: Vector2i, fp: Vector2i) -> bool:
 			if tile.state == FarmTile.TileState.OBSTACLE \
 				or tile.state == FarmTile.TileState.BUILDING \
 				or tile.state == FarmTile.TileState.FLOODED \
-				or tile.state == FarmTile.TileState.LOCKED:
+				or tile.state == FarmTile.TileState.LOCKED \
+				or tile.crop_type != "":
 				return false
 	return true
 
@@ -2375,8 +2532,10 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 	building.building_type = b_type
 	building.grid_pos      = start_pos
 	building.footprint     = fp
-	building.duration      = float(b_data.get("build_time", 20.0))
+	building.duration      = 0.0 if (Data.game_mode == "sandbox" or b_data.get("is_decoration", false)) else float(b_data.get("build_time", 20.0))
 	building.is_flipped    = placing_is_flipped
+	if Data.game_mode == "sandbox" or b_data.get("is_decoration", false):
+		building.state     = Building.BuildingState.ACTIVE
 
 	add_child(building)
 
@@ -2447,7 +2606,7 @@ func _is_valid(pos: Vector2i) -> bool:
 # Precision Drone Fleet Management
 # ---------------------------------------------------------------------------
 func _sync_drones() -> void:
-	var target_count: int = BuildingManager.active_drones
+	var target_count: int = BuildingManager.get_drone_capacity()
 	var valid_drones: Array = []
 	for d in drones:
 		if is_instance_valid(d):
@@ -2457,7 +2616,6 @@ func _sync_drones() -> void:
 	while drones.size() < target_count:
 		var d := FarmDrone.new()
 		d.farm_grid = self
-		d.name = "FarmDrone_%d" % (drones.size() + 1)
 		add_child(d)
 		drones.append(d)
 
@@ -2466,8 +2624,89 @@ func _sync_drones() -> void:
 		if is_instance_valid(d):
 			d.queue_free()
 
+	# Build home docking berths from active Drone Landing Pads and Hangar
+	var pads: Array = BuildingManager.get_drone_pads()
+	var station: Node = BuildingManager.get_drone_station()
+	var berths: Array = []
+
+	for p in pads:
+		var p_lvl: int = clampi(p.level, 1, 3)
+		if p_lvl == 1:
+			berths.append({"node": p, "offset": Vector2(0.0, -14.0)})
+		elif p_lvl == 2:
+			berths.append({"node": p, "offset": Vector2(-12.0, -10.0)})
+			berths.append({"node": p, "offset": Vector2(12.0, -10.0)})
+		else:
+			berths.append({"node": p, "offset": Vector2(0.0, -18.0)})
+			berths.append({"node": p, "offset": Vector2(-14.0, -8.0)})
+			berths.append({"node": p, "offset": Vector2(14.0, -8.0)})
+
+	# Fallback to station for any remaining drones (e.g. starter drone before pads built)
+	while berths.size() < drones.size() and station != null:
+		var extra_idx: int = berths.size()
+		var offset := Vector2(0.0, -14.0) if extra_idx == 0 else Vector2(-12.0 + (extra_idx * 8.0), -10.0)
+		berths.append({"node": station, "offset": offset})
+
+	for i in range(drones.size()):
+		var d: FarmDrone = drones[i]
+		if i < berths.size():
+			d.hangar_ref = berths[i].node
+			d.berth_offset = berths[i].offset
+		elif station:
+			d.hangar_ref = station
+			d.berth_offset = Vector2(0.0, -14.0)
+		d.drone_index = i + 1
+		d.name = "FarmDrone_%d" % (i + 1)
+		d.is_selected = (d.drone_index == selected_drone_index)
+
+	if selected_drone_index > 0 and selected_drone_index > drones.size():
+		selected_drone_index = drones.size()
+
 func _on_drone_commissioned(_total: int) -> void:
 	_sync_drones()
+
+func get_selected_drone() -> FarmDrone:
+	if selected_drone_index <= 0:
+		return null
+	for d in drones:
+		if is_instance_valid(d) and d.drone_index == selected_drone_index:
+			return d
+	return null
+
+func deselect_all_drones() -> void:
+	selected_drone_index = 0
+	for d in drones:
+		if is_instance_valid(d):
+			d.is_selected = false
+			if is_instance_valid(d._zone_layer):
+				d._zone_layer.queue_redraw()
+	drone_selected.emit(0)
+
+func select_drone_by_index(idx: int) -> void:
+	selected_drone_index = idx
+	for d in drones:
+		if is_instance_valid(d):
+			d.is_selected = (d.drone_index == selected_drone_index)
+			if is_instance_valid(d._zone_layer):
+				d._zone_layer.queue_redraw()
+	drone_selected.emit(selected_drone_index)
+	var sel_d := get_selected_drone()
+	if sel_d:
+		TaskManager.deselect_all_farmers()
+		AudioManager.play_ui("click")
+		var crop_disp: String = str(Data.get_crop(sel_d.crop_type).get("display_name", sel_d.crop_type))
+		show_floating_text(FarmerMovement.pixel_to_grid(sel_d.global_position, self) if _is_valid(FarmerMovement.pixel_to_grid(sel_d.global_position, self)) else Vector2i(0, 0), "🛸 %s Selected (%s)" % [sel_d.get_drone_name(), crop_disp], Color(0.4, 0.9, 1.0))
+		LogManager.log_event("general", "🛸 Selected %s (Lv.%d, Crop: %s)." % [sel_d.get_drone_name(), sel_d.get_level(), crop_disp], "🛸", Color(0.4, 0.85, 1.0))
+
+func select_drone(d: FarmDrone) -> void:
+	if is_instance_valid(d):
+		select_drone_by_index(d.drone_index)
+
+func recall_drone(idx: int) -> void:
+	for d in drones:
+		if is_instance_valid(d) and d.drone_index == idx:
+			d.recall()
+			break
 
 func recall_all_drones() -> void:
 	for d in drones:
@@ -2482,13 +2721,20 @@ func is_tile_targeted_by_other_drone(pos: Vector2i, asking_drone: FarmDrone) -> 
 			return true
 	return false
 
-func start_drone_zone_designation(crop_name: String = "", _drone_idx: int = 0) -> void:
+func start_drone_zone_designation(crop_name: String = "", drone_idx: int = 0) -> void:
+	if drone_idx > 0:
+		select_drone_by_index(drone_idx)
+	var d := get_selected_drone()
+	if d and not crop_name.is_empty() and Data.CROPS.has(crop_name):
+		d.set_crop(crop_name)
 	is_drone_targeting = true
 	TaskManager.deselect_all_farmers()
 	selected_tiles.clear()
 	if drag_overlay:
 		drag_overlay.queue_redraw()
-	LogManager.log_event("crops", "🎯 Drone Targeting Mode: Click & drag a rectangular box on your farm to set the automation zone. (Right-click to cancel)", "🛸", Color(0.40, 0.88, 1.0))
+	var d_name: String = d.get_drone_name() if d else "Drone"
+	var c_name: String = d.crop_type.capitalize() if d else "Palay"
+	LogManager.log_event("crops", "🎯 %s Targeting: Drag a box on your farm to set automation zone for %s." % [d_name, c_name], "🛸", Color(0.40, 0.88, 1.0))
 	AudioManager.play_ui("click")
 
 func cancel_drone_zone_designation() -> void:
@@ -2510,7 +2756,7 @@ func get_all_unlocked_tiles() -> Array[Vector2i]:
 func deploy_drone_whole_farm(crop: String = "") -> void:
 	if drones.is_empty():
 		return
-	var target_drone: FarmDrone = drone
+	var target_drone: FarmDrone = get_selected_drone()
 	if target_drone:
 		target_drone.deploy_whole_farm(crop)
 

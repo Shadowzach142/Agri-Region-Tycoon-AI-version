@@ -83,6 +83,23 @@ const TEX_COPRA_DRYER_FLIPPED: Texture2D = preload("res://assets/sprites/buildin
 const TEX_COFFEE_ROASTERY: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery.png")
 const TEX_COFFEE_ROASTERY_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery_FLIPPED.png")
 
+const TEX_SPRINKLERS: Texture2D      = preload("res://assets/sprites/Machine/Sprinklers.png")
+const SPRINKLER_FRAMES: Array[Dictionary] = [
+	{"region": Rect2(11, 20, 46, 44), "stem": Vector2(12.0, 43.0)}, # Frame 0: Idle tripod & brass nozzle
+	{"region": Rect2(70, 12, 67, 53), "stem": Vector2(28.5, 51.0)}, # Frame 1: Active rotary spray angle 1
+	{"region": Rect2(137, 3, 81, 74), "stem": Vector2(38.0, 60.0)}, # Frame 2: Active rotary spray angle 2
+	{"region": Rect2(225, 3, 88, 74), "stem": Vector2(44.0, 60.0)}, # Frame 3: Active rotary spray angle 3
+	{"region": Rect2(325, 3, 83, 74), "stem": Vector2(40.0, 60.0)}, # Frame 4: Active rotary spray angle 4
+]
+
+const TEX_FLOWER_SANTAN: Texture2D            = preload("res://assets/sprites/Decorations/Flowers/flower_santan.png")
+const TEX_FLOWER_GUMAMELA: Texture2D          = preload("res://assets/sprites/Decorations/Flowers/flower_gumamela.png")
+const TEX_FLOWER_GARDEN_HEDGE: Texture2D      = preload("res://assets/sprites/Decorations/Flowers/flower_garden_hedge.png")
+const TEX_FLOWER_BOUGAINVILLEA: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_bougainvillea.png")
+const TEX_FLOWER_TOPIARY_SHRUB: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_topiary_shrub.png")
+const TEX_FLOWER_WILDFLOWER_BED: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_wildflower_bed.png")
+const TEX_FLOWER_BLOSSOM_CLUSTER: Texture2D   = preload("res://assets/sprites/Decorations/Flowers/flower_blossom_cluster.png")
+
 var art_sprite: Sprite2D = null
 var is_flipped: bool = false:
 	set(val):
@@ -104,6 +121,8 @@ func _update_flipped_visuals() -> void:
 		art_sprite.scale = Vector2(sc, sc)
 		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
 		art_sprite.position = -coff * sc
+		if Data.get_building(building_type).get("is_decoration", false):
+			art_sprite.flip_h = is_flipped
 	_update_art_sprite_state()
 	queue_redraw()
 
@@ -121,47 +140,47 @@ static func get_art_fit(b_type: String, flipped: bool = false) -> Dictionary:
 		"tacurong_mill":
 			return {
 				"texture": TEX_TACURONG_FLIPPED if flipped else TEX_TACURONG,
-				"scale": 2.0,
-				"center_offset": Vector2(86.0 if flipped else 74.0, 56.0),
+				"scale": 2.7,
+				"center_offset": Vector2(88.0 if flipped else 76.0, 64.0),
 				"has_slab": true,
-				"roof_apex_y": -115.0,
-				"scaffold_h": 90.0
+				"roof_apex_y": -174.0,
+				"scaffold_h": 125.0
 			}
 		"koronadal_wholesale":
 			return {
 				"texture": TEX_KORONADAL_FLIPPED if flipped else TEX_KORONADAL,
-				"scale": 2.0,
-				"center_offset": Vector2(88.0, 60.0),
+				"scale": 2.5,
+				"center_offset": Vector2(88.0, 66.0),
 				"has_slab": true,
-				"roof_apex_y": -120.0,
-				"scaffold_h": 95.0
+				"roof_apex_y": -166.0,
+				"scaffold_h": 120.0
 			}
 		"gensan_seaport":
 			return {
 				"texture": TEX_GENSAN_FLIPPED if flipped else TEX_GENSAN,
-				"scale": 2.0,
-				"center_offset": Vector2(92.0 if flipped else 84.0, 80.0),
+				"scale": 2.4,
+				"center_offset": Vector2(92.0 if flipped else 84.0, 82.0),
 				"has_slab": true,
-				"roof_apex_y": -160.0,
-				"scaffold_h": 110.0
+				"roof_apex_y": -198.0,
+				"scaffold_h": 135.0
 			}
 		"rice_mill":
 			return {
 				"texture": TEX_RICE_MILL_FLIPPED if flipped else TEX_RICE_MILL,
-				"scale": 2.0,
-				"center_offset": Vector2(48.0, 50.0),
+				"scale": 3.4,
+				"center_offset": Vector2(46.0, 54.0),
 				"has_slab": true,
-				"roof_apex_y": -100.0,
-				"scaffold_h": 70.0
+				"roof_apex_y": -184.0,
+				"scaffold_h": 130.0
 			}
 		"sugar_mill":
 			return {
 				"texture": TEX_SUGAR_MILL_FLIPPED if flipped else TEX_SUGAR_MILL,
-				"scale": 2.0,
-				"center_offset": Vector2(56.0, 50.0),
+				"scale": 3.5,
+				"center_offset": Vector2(55.0, 53.0),
 				"has_slab": true,
-				"roof_apex_y": -100.0,
-				"scaffold_h": 70.0
+				"roof_apex_y": -186.0,
+				"scaffold_h": 135.0
 			}
 		"copra_dryer":
 			return {
@@ -175,11 +194,74 @@ static func get_art_fit(b_type: String, flipped: bool = false) -> Dictionary:
 		"coffee_roastery":
 			return {
 				"texture": TEX_COFFEE_ROASTERY_FLIPPED if flipped else TEX_COFFEE_ROASTERY,
-				"scale": 2.0,
-				"center_offset": Vector2(56.0, 50.0),
+				"scale": 3.3,
+				"center_offset": Vector2(53.0, 53.5),
 				"has_slab": true,
-				"roof_apex_y": -100.0,
-				"scaffold_h": 70.0
+				"roof_apex_y": -178.0,
+				"scaffold_h": 125.0
+			}
+		"flower_santan":
+			return {
+				"texture": TEX_FLOWER_SANTAN,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_gumamela":
+			return {
+				"texture": TEX_FLOWER_GUMAMELA,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_garden_hedge":
+			return {
+				"texture": TEX_FLOWER_GARDEN_HEDGE,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_bougainvillea":
+			return {
+				"texture": TEX_FLOWER_BOUGAINVILLEA,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_topiary_shrub":
+			return {
+				"texture": TEX_FLOWER_TOPIARY_SHRUB,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_wildflower_bed":
+			return {
+				"texture": TEX_FLOWER_WILDFLOWER_BED,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
+			}
+		"flower_blossom_cluster":
+			return {
+				"texture": TEX_FLOWER_BLOSSOM_CLUSTER,
+				"scale": 2.0,
+				"center_offset": Vector2(16.0, 22.0),
+				"has_slab": false,
+				"roof_apex_y": -36.0,
+				"scaffold_h": 28.0
 			}
 	return {}
 
@@ -199,13 +281,13 @@ static func get_placement_preview(b_type: String, flipped: bool = false) -> Dict
 			return {
 				"texture": TEX_DRYER_FLIPPED if flipped else TEX_DRYER,
 				"scale": 2.0,
-				"center_offset": Vector2(97.0 if flipped else 79.0, 52.0)
+				"center_offset": Vector2(88.0, 56.0)
 			}
 		"cold_storage":
 			return {
 				"texture": TEX_COLD_STORAGE_FLIPPED if flipped else TEX_COLD_STORAGE,
-				"scale": 2.0,
-				"center_offset": Vector2(64.0, 68.0)
+				"scale": 2.5,
+				"center_offset": Vector2(64.0, 67.2)
 			}
 		"drone_station":
 			return {
@@ -228,8 +310,8 @@ static func get_placement_preview(b_type: String, flipped: bool = false) -> Dict
 		"bodega", "climate_silo":
 			return {
 				"texture": TEX_SILO_100_FLIPPED if flipped else TEX_SILO_100,
-				"scale": 2.0,
-				"center_offset": Vector2(24.0, 47.0)
+				"scale": 2.5,
+				"center_offset": Vector2(24.0, 47.2)
 			}
 	return {}
 
@@ -282,7 +364,7 @@ func _get_silo_texture() -> Texture2D:
 			return TEX_SILO_100
 
 func _ready() -> void:
-	z_index = 14  # Standing structure layer; renders above crops (Z=10) and workers (Z=12) when workers walk behind them
+	z_index = 10  # Match tile root layer (Z=10) so Godot y_sort_enabled sorts crops, workers, and buildings by Y position
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 	var b_data: Dictionary = Data.get_building(building_type)
@@ -307,6 +389,9 @@ func _ready() -> void:
 		art_sprite.centered = false
 		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
 		art_sprite.position = -coff * sc
+		if Data.get_building(building_type).get("is_decoration", false):
+			art_sprite.flip_h = is_flipped
+			state = BuildingState.ACTIVE
 		art_sprite.show_behind_parent = true
 		add_child(art_sprite)
 
@@ -324,13 +409,15 @@ func _get_footprint_diamond_pts() -> Array[Vector2]:
 	return [pts[0] - center, pts[1] - center, pts[2] - center, pts[3] - center]
 
 func _setup_ui() -> void:
+	if Data.get_building(building_type).get("is_decoration", false):
+		return
 	var d_pts := _get_footprint_diamond_pts()
 	var roof_apex_y: float = -92.0
 	var fit: Dictionary = get_art_fit(building_type)
 	if not fit.is_empty():
 		roof_apex_y = float(fit.get("roof_apex_y", -92.0))
 	elif building_type == "bodega":
-		roof_apex_y = -96.0
+		roof_apex_y = -120.0
 	elif building_type == "drone_station":
 		roof_apex_y = -210.0
 	elif building_type == "weather_station":
@@ -340,19 +427,19 @@ func _setup_ui() -> void:
 	elif building_type == "machine_garage":
 		roof_apex_y = -72.0
 	elif building_type == "cold_storage":
-		roof_apex_y = -98.0
+		roof_apex_y = -170.0
 	elif building_type == "climate_silo":
 		roof_apex_y = -120.0
 	elif building_type == "sprinkler":
 		roof_apex_y = -28.0
 	elif building_type == "rice_mill":
-		roof_apex_y = -115.0
+		roof_apex_y = -184.0
 	elif building_type == "sugar_mill":
-		roof_apex_y = -125.0
+		roof_apex_y = -186.0
 	elif building_type == "copra_dryer":
-		roof_apex_y = -105.0
+		roof_apex_y = -100.0
 	elif building_type == "coffee_roastery":
-		roof_apex_y = -110.0
+		roof_apex_y = -178.0
 
 	# Level indicator badge centered above building roof
 	level_label = Label.new()
@@ -581,6 +668,10 @@ func start_upgrade(up_cost: int, up_duration: float) -> bool:
 	if not EconomyManager.deduct_cash(up_cost):
 		return false
 
+	if up_duration <= 0.0:
+		complete_upgrade()
+		return true
+
 	state          = BuildingState.UPGRADING
 	duration       = up_duration
 	progress_timer = 0.0
@@ -631,7 +722,7 @@ func _draw() -> void:
 	# 1. Foundation Platform (Isometric Base Slab)
 	# Only drawn for heavy industrial facilities without built-in pixel-art bases; Bahay Kubo, Silo, Bilaran dryer, Cold Storage, Drone Station, Water Tower, Weather Station, and new trade hubs have authentic pixel-art terrain bases!
 	var fit: Dictionary = get_art_fit(building_type)
-	if fit.is_empty() and building_type != "bodega" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
+	if fit.is_empty() and building_type != "bodega" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "drone_pad" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
 		draw_colored_polygon(PackedVector2Array(d_pts), Color(0.25, 0.21, 0.17, 0.95))
 		var slab_depth: float = 8.0
 		draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, slab_depth), left + Vector2(0, slab_depth)]), Color(0.18, 0.14, 0.10, 0.95))
@@ -654,6 +745,8 @@ func _draw() -> void:
 			_draw_silo(top, right, bottom, left)
 		"drone_station":
 			_draw_drone_station(top, right, bottom, left)
+		"drone_pad":
+			_draw_drone_pad(top, right, bottom, left)
 		"weather_station":
 			_draw_weather_station(top, right, bottom, left)
 		"water_tower":
@@ -674,20 +767,6 @@ func _draw_bahay_kubo(top: Vector2, right: Vector2, bottom: Vector2, left: Vecto
 	var tex := TEX_KUBO_FLIPPED if is_flipped else TEX_KUBO
 	if tex != null:
 		var fs: float = -1.0 if is_flipped else 1.0
-		# Soft natural ground shadow on the soil under the stilt hut
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 46.0, sin(rad) * 23.0 + 6.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.30))
-
-		# Darker contact shadows under the 4 stilt footings and ladder on the soil
-		draw_circle(Vector2(-1.0 * fs, 26.0), 5.5, Color(0.05, 0.08, 0.03, 0.50))   # Front center stilt
-		draw_circle(Vector2(-46.0 * fs, 14.0), 4.5, Color(0.05, 0.08, 0.03, 0.45))  # Ladder base
-		draw_circle(Vector2(-58.0 * fs, 10.0), 5.0, Color(0.05, 0.08, 0.03, 0.45))  # Left stilt
-		draw_circle(Vector2(48.0 * fs, 4.0), 5.0, Color(0.05, 0.08, 0.03, 0.45))   # Right stilt
-		draw_circle(Vector2(-2.0 * fs, -14.0), 5.0, Color(0.05, 0.08, 0.03, 0.40))  # Back stilt
-
 		# Pixel-art Bahay Kubo sprite (64x96 at 2x scale = 128x192)
 		var kubo_w: float = float(tex.get_width()) * 2.0
 		var kubo_h: float = float(tex.get_height()) * 2.0
@@ -790,22 +869,15 @@ func _draw_bahay_kubo(top: Vector2, right: Vector2, bottom: Vector2, left: Vecto
 func _draw_bodega(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	var tex := _get_silo_texture()
 	if tex != null:
-		# Soft ground shadow under Silo base
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 38.0, sin(rad) * 19.0 + 8.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.30))
-
-		# Pixel-art Silo sprite (48x64 at 2x scale = 96x128)
-		var silo_w: float = float(tex.get_width()) * 2.0
-		var silo_h: float = float(tex.get_height()) * 2.0
-		var silo_rect := Rect2(-silo_w * 0.5, -94.0, silo_w, silo_h)
+		# Pixel-art Silo sprite (48x64 at 2.5x scale = 120x160)
+		var silo_w: float = float(tex.get_width()) * 2.5
+		var silo_h: float = float(tex.get_height()) * 2.5
+		var silo_rect := Rect2(-silo_w * 0.5, -118.0, silo_w, silo_h)
 		draw_texture_rect(tex, silo_rect, false)
 
 		# Night work light on intake / base
 		if TimeManager.is_night():
-			var lamp_p := Vector2(0.0, -50.0)
+			var lamp_p := Vector2(0.0, -62.0)
 			draw_circle(lamp_p, 14.0, Color(1.0, 0.80, 0.30, 0.22))
 			draw_circle(lamp_p, 5.0, Color(1.0, 0.90, 0.50, 0.50))
 			draw_circle(lamp_p, 1.5, Color(1.0, 0.98, 0.80, 0.95))
@@ -813,9 +885,9 @@ func _draw_bodega(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) 
 		# Level indicators
 		var fs: float = -1.0 if is_flipped else 1.0
 		if level >= 2:
-			draw_circle(Vector2(18.0 * fs, -82.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
+			draw_circle(Vector2(22.0 * fs, -102.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
 		if level >= 3:
-			draw_circle(Vector2(-18.0 * fs, -82.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
+			draw_circle(Vector2(-22.0 * fs, -102.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
 		return
 
 	# 1. Compact Agricultural Gravel Pad & Concrete Curbing (2x2 Footprint)
@@ -1036,31 +1108,24 @@ func _draw_cold_storage(top: Vector2, right: Vector2, bottom: Vector2, left: Vec
 	var tex := TEX_COLD_STORAGE_FLIPPED if is_flipped else TEX_COLD_STORAGE
 	if tex != null:
 		var fs: float = -1.0 if is_flipped else 1.0
-		# Soft ground shadow under cold storage base (3x3 footprint)
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 74.0, sin(rad) * 37.0 + 8.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.32))
-
-		# Pixel-art Cold Storage sprite (128x96 at 2x scale = 256x192)
-		var cs_w: float = float(tex.get_width()) * 2.0
-		var cs_h: float = float(tex.get_height()) * 2.0
-		var cs_rect := Rect2(-cs_w * 0.5, -136.0, cs_w, cs_h)
+		# Pixel-art Cold Storage sprite (128x96 at 2.5x scale = 320x240)
+		var cs_w: float = float(tex.get_width()) * 2.5
+		var cs_h: float = float(tex.get_height()) * 2.5
+		var cs_rect := Rect2(-cs_w * 0.5, -168.0, cs_w, cs_h)
 		draw_texture_rect(tex, cs_rect, false)
 
 		# Night AC & entrance security lights
 		if TimeManager.is_night():
-			var lamp_p := Vector2(-22.0 * fs, -32.0)
+			var lamp_p := Vector2(-28.0 * fs, -40.0)
 			draw_circle(lamp_p, 16.0, Color(0.40, 0.85, 1.0, 0.25))
 			draw_circle(lamp_p, 6.0, Color(0.60, 0.92, 1.0, 0.50))
 			draw_circle(lamp_p, 2.0, Color(0.95, 0.98, 1.0, 0.95))
 
 		# Level indicators
 		if level >= 2:
-			draw_circle(Vector2(32.0 * fs, -78.0), 3.0, Color(0.95, 0.85, 0.3, 0.9))
+			draw_circle(Vector2(40.0 * fs, -98.0), 3.0, Color(0.95, 0.85, 0.3, 0.9))
 		if level >= 3:
-			draw_circle(Vector2(-32.0 * fs, -78.0), 3.0, Color(0.95, 0.85, 0.3, 0.9))
+			draw_circle(Vector2(-40.0 * fs, -98.0), 3.0, Color(0.95, 0.85, 0.3, 0.9))
 		return
 
 	var wall_h: float = 46.0
@@ -1109,7 +1174,9 @@ func _draw_solar_dryer(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 		var dryer_w: float = float(tex.get_width()) * 2.0
 		var dryer_h: float = float(tex.get_height()) * 2.0
 		var dryer_rect: Rect2
-		if footprint.y == 3 or footprint.x == 3:
+		if footprint.y == 3 and footprint.x == 3:
+			dryer_rect = Rect2(-176.0, -112.0, dryer_w, dryer_h)
+		elif footprint.y == 3 or footprint.x == 3:
 			dryer_rect = Rect2(-194.0 if is_flipped else -158.0, -104.0, dryer_w, dryer_h)
 		else:
 			var s_w := (right.x - left.x)
@@ -1145,39 +1212,7 @@ func _draw_solar_dryer(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 	draw_colored_polygon(mat2, Color(0.92, 0.80, 0.25, 0.95))
 
 func _draw_art_building(_top: Vector2, _right: Vector2, _bottom: Vector2, _left: Vector2) -> void:
-	# 1. Soft grounded ambient contact shadow beneath the base
-	var shadow_poly := PackedVector2Array()
-	var shadow_rx: float = 0.0
-	var shadow_ry: float = 0.0
-	var shadow_cy: float = 0.0
-
-	match building_type:
-		"bayanihan_center":
-			shadow_rx = 50.0; shadow_ry = 25.0; shadow_cy = 14.0
-		"tacurong_mill":
-			shadow_rx = 110.0; shadow_ry = 55.0; shadow_cy = 16.0
-		"koronadal_wholesale":
-			shadow_rx = 125.0; shadow_ry = 62.0; shadow_cy = 20.0
-		"gensan_seaport":
-			shadow_rx = 130.0; shadow_ry = 65.0; shadow_cy = 22.0
-		"rice_mill":
-			shadow_rx = 68.0; shadow_ry = 34.0; shadow_cy = 16.0
-		"sugar_mill":
-			shadow_rx = 78.0; shadow_ry = 39.0; shadow_cy = 14.0
-		"copra_dryer":
-			shadow_rx = 85.0; shadow_ry = 42.0; shadow_cy = 14.0
-		"coffee_roastery":
-			shadow_rx = 68.0; shadow_ry = 34.0; shadow_cy = 16.0
-		_:
-			shadow_rx = 50.0; shadow_ry = 25.0; shadow_cy = 10.0
-
-	if shadow_rx > 0.0:
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * shadow_rx, sin(rad) * shadow_ry + shadow_cy))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.32))
-
-	# 2. Nighttime lighting
+	# 1. Nighttime lighting
 	if TimeManager.is_night():
 		var fs: float = -1.0 if is_flipped else 1.0
 		match building_type:
@@ -1185,29 +1220,29 @@ func _draw_art_building(_top: Vector2, _right: Vector2, _bottom: Vector2, _left:
 				draw_circle(Vector2(0.0, -18.0), 16.0, Color(1.0, 0.85, 0.40, 0.25))
 				draw_circle(Vector2(0.0, -18.0), 6.0, Color(1.0, 0.92, 0.55, 0.50))
 			"tacurong_mill":
-				draw_circle(Vector2(-24.0 * fs, -32.0), 18.0, Color(1.0, 0.85, 0.35, 0.22))
-				draw_circle(Vector2(-24.0 * fs, -32.0), 6.0, Color(1.0, 0.90, 0.50, 0.50))
-				draw_circle(Vector2(48.0 * fs, -24.0), 14.0, Color(1.0, 0.85, 0.35, 0.20))
+				draw_circle(Vector2(-32.0 * fs, -42.0), 24.0, Color(1.0, 0.85, 0.35, 0.22))
+				draw_circle(Vector2(-32.0 * fs, -42.0), 8.0, Color(1.0, 0.90, 0.50, 0.50))
+				draw_circle(Vector2(64.0 * fs, -32.0), 18.0, Color(1.0, 0.85, 0.35, 0.20))
 			"koronadal_wholesale":
-				draw_circle(Vector2(-16.0 * fs, -32.0), 20.0, Color(1.0, 0.85, 0.35, 0.22))
-				draw_circle(Vector2(-16.0 * fs, -32.0), 6.0, Color(1.0, 0.90, 0.50, 0.50))
-				draw_circle(Vector2(68.0 * fs, -24.0), 16.0, Color(1.0, 0.85, 0.35, 0.20))
+				draw_circle(Vector2(-20.0 * fs, -40.0), 24.0, Color(1.0, 0.85, 0.35, 0.22))
+				draw_circle(Vector2(-20.0 * fs, -40.0), 8.0, Color(1.0, 0.90, 0.50, 0.50))
+				draw_circle(Vector2(85.0 * fs, -30.0), 20.0, Color(1.0, 0.85, 0.35, 0.20))
 			"gensan_seaport":
-				draw_circle(Vector2(58.0 * fs, -18.0), 18.0, Color(1.0, 0.90, 0.40, 0.25))
-				draw_circle(Vector2(58.0 * fs, -18.0), 6.0, Color(1.0, 0.95, 0.60, 0.55))
-				draw_circle(Vector2(-48.0 * fs, -38.0), 14.0, Color(0.40, 0.80, 1.0, 0.22))
+				draw_circle(Vector2(70.0 * fs, -22.0), 22.0, Color(1.0, 0.90, 0.40, 0.25))
+				draw_circle(Vector2(70.0 * fs, -22.0), 8.0, Color(1.0, 0.95, 0.60, 0.55))
+				draw_circle(Vector2(-58.0 * fs, -46.0), 18.0, Color(0.40, 0.80, 1.0, 0.22))
 			"rice_mill":
-				draw_circle(Vector2(0.0, -24.0), 16.0, Color(1.0, 0.85, 0.35, 0.22))
-				draw_circle(Vector2(0.0, -24.0), 5.0, Color(1.0, 0.90, 0.50, 0.50))
+				draw_circle(Vector2(0.0, -36.0), 22.0, Color(1.0, 0.85, 0.35, 0.25))
+				draw_circle(Vector2(0.0, -36.0), 8.0, Color(1.0, 0.90, 0.50, 0.55))
 			"sugar_mill":
-				draw_circle(Vector2(-10.0 * fs, -28.0), 18.0, Color(1.0, 0.60, 0.20, 0.25))
-				draw_circle(Vector2(-10.0 * fs, -28.0), 6.0, Color(1.0, 0.75, 0.30, 0.50))
+				draw_circle(Vector2(-16.0 * fs, -42.0), 24.0, Color(1.0, 0.60, 0.20, 0.25))
+				draw_circle(Vector2(-16.0 * fs, -42.0), 9.0, Color(1.0, 0.75, 0.30, 0.55))
 			"copra_dryer":
-				draw_circle(Vector2(-20.0 * fs, -18.0), 16.0, Color(1.0, 0.50, 0.15, 0.25))
-				draw_circle(Vector2(-20.0 * fs, -18.0), 5.0, Color(1.0, 0.70, 0.25, 0.50))
+				draw_circle(Vector2(-20.0 * fs, -18.0), 18.0, Color(1.0, 0.50, 0.15, 0.25))
+				draw_circle(Vector2(-20.0 * fs, -18.0), 6.0, Color(1.0, 0.70, 0.25, 0.55))
 			"coffee_roastery":
-				draw_circle(Vector2(-10.0 * fs, -24.0), 16.0, Color(1.0, 0.55, 0.20, 0.25))
-				draw_circle(Vector2(-10.0 * fs, -24.0), 5.0, Color(1.0, 0.75, 0.30, 0.50))
+				draw_circle(Vector2(-15.0 * fs, -36.0), 22.0, Color(1.0, 0.55, 0.20, 0.25))
+				draw_circle(Vector2(-15.0 * fs, -36.0), 8.0, Color(1.0, 0.75, 0.30, 0.55))
 
 func _draw_bayanihan_center(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	var post_h: float = 44.0
@@ -1420,13 +1455,6 @@ func _draw_water_tower(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 	var tex := TEX_WATER_STATION_FLIPPED if is_flipped else TEX_WATER_STATION
 	if tex != null:
 		var fs: float = -1.0 if is_flipped else 1.0
-		# Soft ground shadow under water tower footings (2x2 footprint)
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 44.0, sin(rad) * 22.0 + 6.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.30))
-
 		# Pixel-art Water Station sprite (80x112 at 2x scale = 160x224)
 		var ws_w: float = float(tex.get_width()) * 2.0
 		var ws_h: float = float(tex.get_height()) * 2.0
@@ -1739,13 +1767,6 @@ func _draw_drone_station(top: Vector2, right: Vector2, bottom: Vector2, left: Ve
 	var tex := TEX_DRONE_STATION_FLIPPED if is_flipped else TEX_DRONE_STATION
 	if tex != null:
 		var fs: float = -1.0 if is_flipped else 1.0
-		# Soft ground shadow under drone hangar base (2x2 footprint)
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 54.0, sin(rad) * 27.0 + 6.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.30))
-
 		# Pixel-art Drone Station sprite (81x128 at 2x scale = 162x256)
 		var ds_w: float = float(tex.get_width()) * 2.0
 		var ds_h: float = float(tex.get_height()) * 2.0
@@ -1870,17 +1891,127 @@ func _draw_drone_station(top: Vector2, right: Vector2, bottom: Vector2, left: Ve
 		draw_line(mast_tip + Vector2(2, 6), dish_center, Color(0.50, 0.55, 0.62), 1.5)
 		draw_circle(dish_center, 2.5, Color(0.35, 0.85, 1.0)) # Telemetry uplink light
 
+func _draw_drone_pad(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var s: float = 0.94
+	var p_top := top * s
+	var p_right := right * s
+	var p_bottom := bottom * s
+	var p_left := left * s
+
+	# 1. Reinforced concrete foundation curb with bevel depth
+	var curb_h: float = 5.0
+	var curb_left := PackedVector2Array([
+		p_left, p_bottom, p_bottom + Vector2(0, curb_h), p_left + Vector2(0, curb_h)
+	])
+	draw_colored_polygon(curb_left, Color(0.22, 0.24, 0.28))
+
+	var curb_right := PackedVector2Array([
+		p_bottom, p_right, p_right + Vector2(0, curb_h), p_bottom + Vector2(0, curb_h)
+	])
+	draw_colored_polygon(curb_right, Color(0.30, 0.33, 0.38))
+
+	# 2. Modern brushed dark tarmac landing surface
+	var pad := PackedVector2Array([p_top, p_right, p_bottom, p_left])
+	draw_colored_polygon(pad, Color(0.16, 0.18, 0.22))
+	draw_polyline(PackedVector2Array([p_top, p_right, p_bottom, p_left, p_top]), Color(0.08, 0.10, 0.12), 1.5)
+
+	# 3. Perimeter yellow/black hazard safety chevrons
+	var caution_gold := Color(0.95, 0.78, 0.20, 0.85)
+	var caution_dark := Color(0.12, 0.12, 0.15, 0.85)
+	for i in range(8):
+		var t1: float = float(i) / 8.0
+		var t2: float = float(i + 0.5) / 8.0
+		var col: Color = caution_gold if (i % 2 == 0) else caution_dark
+		draw_line(p_left.lerp(p_bottom, t1), p_left.lerp(p_bottom, t2), col, 2.0)
+		draw_line(p_bottom.lerp(p_right, t1), p_bottom.lerp(p_right, t2), col, 2.0)
+
+	# 4. Docking bays and helipad targets based on Level (1..3 drones capacity)
+	var center := (p_top + p_bottom) * 0.5
+	var fs: float = -1.0 if is_flipped else 1.0
+
+	if level == 1:
+		# Single central landing circle with target crosshair & recharge node
+		draw_set_transform(center, 0.0, Vector2(1.0, 0.5))
+		draw_circle(Vector2.ZERO, 18.0, Color(0.10, 0.13, 0.17, 0.95))
+		draw_arc(Vector2.ZERO, 16.0, 0, TAU, 24, Color(0.30, 0.85, 1.0, 0.90), 2.0)
+		draw_arc(Vector2.ZERO, 8.0, 0, TAU, 16, Color(0.30, 0.85, 1.0, 0.40), 1.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+		# Central letter 'H'
+		var h_col := Color(0.92, 0.96, 1.0, 0.95)
+		draw_line(center + Vector2(-5, -5), center + Vector2(-5, 5), h_col, 2.0)
+		draw_line(center + Vector2(5, -5), center + Vector2(5, 5), h_col, 2.0)
+		draw_line(center + Vector2(-5, 0), center + Vector2(5, 0), h_col, 2.0)
+
+		# Solar induction charge node at top corner
+		var charger_pos := p_top.lerp(center, 0.4)
+		draw_circle(charger_pos, 3.5, Color(0.25, 0.75, 0.35))
+		draw_circle(charger_pos, 1.8, Color(0.60, 1.0, 0.65))
+
+	elif level == 2:
+		# Dual landing bays (Bay 1 & Bay 2)
+		var b1 := center + Vector2(-16.0 * fs, 0.0)
+		var b2 := center + Vector2(16.0 * fs, 0.0)
+
+		for bp in [b1, b2]:
+			draw_set_transform(bp, 0.0, Vector2(1.0, 0.5))
+			draw_circle(Vector2.ZERO, 13.0, Color(0.10, 0.13, 0.17, 0.95))
+			draw_arc(Vector2.ZERO, 11.5, 0, TAU, 20, Color(0.95, 0.80, 0.25, 0.90), 1.8)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+			# Mini 'H'
+			var h_col := Color(0.95, 0.90, 0.70, 0.95)
+			draw_line(bp + Vector2(-4, -4), bp + Vector2(-4, 4), h_col, 1.5)
+			draw_line(bp + Vector2(4, -4), bp + Vector2(4, 4), h_col, 1.5)
+			draw_line(bp + Vector2(-4, 0), bp + Vector2(4, 0), h_col, 1.5)
+
+		# Center divider stripe
+		draw_line(p_top.lerp(center, 0.2), p_bottom.lerp(center, 0.2), Color(0.95, 0.80, 0.25, 0.7), 1.5)
+
+		# Dual charging status LEDs
+		draw_circle(b1 + Vector2(0, -10), 2.5, Color(0.3, 0.9, 0.4))
+		draw_circle(b2 + Vector2(0, -10), 2.5, Color(0.3, 0.9, 0.4))
+
+	else:
+		# Triple landing bays (Bay 1, Bay 2, Bay 3) for Lv.3
+		var b1 := center + Vector2(0.0, -9.0)
+		var b2 := center + Vector2(-18.0 * fs, 3.0)
+		var b3 := center + Vector2(18.0 * fs, 3.0)
+
+		for bp in [b1, b2, b3]:
+			draw_set_transform(bp, 0.0, Vector2(1.0, 0.5))
+			draw_circle(Vector2.ZERO, 11.0, Color(0.08, 0.11, 0.15, 0.95))
+			draw_arc(Vector2.ZERO, 9.5, 0, TAU, 18, Color(0.35, 0.90, 1.0, 0.95), 1.8)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+			var h_col := Color(0.90, 0.96, 1.0, 0.95)
+			draw_line(bp + Vector2(-3, -3), bp + Vector2(-3, 3), h_col, 1.4)
+			draw_line(bp + Vector2(3, -3), bp + Vector2(3, 3), h_col, 1.4)
+			draw_line(bp + Vector2(-3, 0), bp + Vector2(3, 0), h_col, 1.4)
+
+		# High-tech runway guide lines
+		draw_line(p_left.lerp(center, 0.3), b2, Color(0.35, 0.85, 1.0, 0.6), 1.2)
+		draw_line(p_right.lerp(center, 0.3), b3, Color(0.35, 0.85, 1.0, 0.6), 1.2)
+
+		# Solar recharge panel along back curb
+		var sp_l := p_left.lerp(p_top, 0.4) + Vector2(0, -4)
+		var sp_r := p_top.lerp(p_right, 0.6) + Vector2(0, -4)
+		draw_line(sp_l, sp_r, Color(0.15, 0.35, 0.65), 3.0)
+		draw_line(sp_l, sp_r, Color(0.40, 0.70, 0.95), 1.0)
+
+	# 5. Night runway edge beacon lights
+	if TimeManager.is_night():
+		var t: float = float(Time.get_ticks_msec()) / 1000.0
+		var pulse: float = 0.6 + 0.4 * sin(t * 3.5)
+		var corner_lights := [p_top, p_right, p_bottom, p_left]
+		for cl in corner_lights:
+			draw_circle(cl, 4.5, Color(0.20, 0.90, 0.40, 0.35 * pulse))
+			draw_circle(cl, 2.0, Color(0.70, 1.0, 0.80, 0.95))
+
 func _draw_weather_station(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
 	var tex := TEX_WEATHER_STATION_FLIPPED if is_flipped else TEX_WEATHER_STATION
 	if tex != null:
 		var fs: float = -1.0 if is_flipped else 1.0
-		# Soft ground shadow under weather station platform (2x2 footprint)
-		var shadow_poly := PackedVector2Array()
-		for a in range(16):
-			var rad: float = float(a) * TAU / 16.0
-			shadow_poly.append(Vector2(cos(rad) * 50.0, sin(rad) * 25.0 + 6.0))
-		draw_colored_polygon(shadow_poly, Color(0.06, 0.10, 0.04, 0.30))
-
 		# Pixel-art Weather Station sprite (112x112 at 2x scale = 224x224)
 		var wea_w: float = float(tex.get_width()) * 2.0
 		var wea_h: float = float(tex.get_height()) * 2.0
@@ -2116,10 +2247,20 @@ func _draw_weather_station(top: Vector2, right: Vector2, bottom: Vector2, left: 
 func _draw_sprinkler(_top: Vector2, _right: Vector2, _bottom: Vector2, _left: Vector2) -> void:
 	var t: float = float(Time.get_ticks_msec()) * 0.001
 
-	# 1. Subtle wet ground patch around the sprinkler base
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.5))
-	draw_circle(Vector2.ZERO, 16.0, Color(0.12, 0.22, 0.28, 0.35))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if TEX_SPRINKLERS != null and not SPRINKLER_FRAMES.is_empty():
+		# Determine frame: Frame 0 = idle tripod, Frames 1..4 = active rotating spray
+		var frame_idx: int = 0
+		if state == BuildingState.ACTIVE:
+			var anim: int = int(t * 7.5) % 4
+			frame_idx = 1 + anim
+
+		# Draw the sprinkler sprite rock-solid at ground center (tripod base at Y=4)
+		var f_info: Dictionary = SPRINKLER_FRAMES[frame_idx]
+		var src_rect: Rect2 = f_info.region
+		var stem: Vector2 = f_info.stem
+		var dest_pos: Vector2 = Vector2(0, 4) - stem
+		draw_texture_rect_region(TEX_SPRINKLERS, Rect2(dest_pos, src_rect.size), src_rect)
+		return
 
 	# 2. Black HDPE high-pressure feeder hose with brass compression fitting
 	var hose_start := Vector2(-20, 10)

@@ -135,9 +135,9 @@ func _increment_day() -> void:
 	if not is_freeplay_mode and current_day > Data.selected_season_days:
 		set_speed_scale(0.0)
 		season_ended.emit(Data.selected_season_days, LeaderboardManager.current_points)
-	elif Data.game_mode == "career" or is_freeplay_mode:
-		# Career / Endless Mode midnight autosave
-		SaveManager.save_game(SaveManager.AUTOSAVE_SLOT, "Autosave - Day %d" % current_day)
+	elif Data.game_mode == "career" or Data.game_mode == "sandbox" or is_freeplay_mode:
+		# Career / Endless / Sandbox Mode midnight autosave
+		SaveManager.save_game(SaveManager.AUTOSAVE_SLOT, "Autosave - Day %d (%s)" % [current_day, Data.game_mode.capitalize()])
 
 func enable_freeplay() -> void:
 	is_freeplay_mode = true

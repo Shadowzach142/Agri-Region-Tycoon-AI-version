@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bibro7diwddcw"]
+
+[ext_resource type="Script" path="res://scratch/test_hierarchical_ysort.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

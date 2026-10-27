@@ -62,29 +62,45 @@ func _draw() -> void:
 	# 1. Base deep ocean water fill (tropical Philippine bay)
 	draw_colored_polygon(_ocean_polygon, Color(0.06, 0.28, 0.44, 0.95))
 
-	# 2. Deep ocean water body shading
+	# 2. Coastal shallow shelf (clear tropical turquoise water over beach sand)
+	var shelf_polygon := PackedVector2Array([
+		_get_iso_pt(COAST_X, 0.0),
+		_get_iso_pt(COAST_X + 2.2, 0.0),
+		_get_iso_pt(COAST_X + 2.2, GRID_HEIGHT),
+		_get_iso_pt(COAST_X, GRID_HEIGHT)
+	])
+	draw_colored_polygon(shelf_polygon, Color(0.10, 0.62, 0.70, 0.60))
+
+	# 3. Deep ocean water body shading (further out)
 	var deep_polygon := PackedVector2Array([
-		_get_iso_pt(COAST_X + 4.0, 0.0),
+		_get_iso_pt(COAST_X + 4.5, 0.0),
 		_get_iso_pt(COAST_X + OCEAN_WIDTH, 0.0),
 		_get_iso_pt(COAST_X + OCEAN_WIDTH, GRID_HEIGHT),
-		_get_iso_pt(COAST_X + 4.0, GRID_HEIGHT)
+		_get_iso_pt(COAST_X + 4.5, GRID_HEIGHT)
 	])
-	draw_colored_polygon(deep_polygon, Color(0.04, 0.18, 0.32, 0.70))
+	draw_colored_polygon(deep_polygon, Color(0.04, 0.16, 0.30, 0.75))
 
-	# 3. Ambient animated gentle wave ripples
-	for w in range(8):
-		var y_phase: float = float(w) * 3.0 + fmod(t * 0.8 + float(w) * 1.5, 3.0)
-		var offset_x: float = 1.5 + float(w) * 1.4
-		var p1 := _get_iso_pt(COAST_X + offset_x, y_phase)
-		var p2 := _get_iso_pt(COAST_X + offset_x + 3.0, y_phase + 1.8)
-		var alpha: float = 0.25 + 0.15 * sin(t * 2.0 + float(w))
-		draw_line(p1, p2, Color(0.40, 0.75, 0.95, alpha), 2.0)
-
-	# 4. Shore foam and breaking surf against the eastern farmland
+	# 4. Shore foam and breaking surf washing dynamically against the golden beach sand
 	if _coast_line.size() >= 2:
-		var foam_alpha: float = 0.60 + 0.25 * sin(t * 3.0)
-		draw_polyline(_coast_line, Color(0.85, 0.96, 1.0, foam_alpha), 5.0)
-		draw_polyline(_coast_line, Color(0.35, 0.85, 0.95, 0.80), 2.5)
+		var tide_wash: float = sin(t * 1.8) * 3.5
+		var washed_coast := PackedVector2Array()
+		for pt in _coast_line:
+			washed_coast.append(pt + Vector2(-tide_wash * 0.7, tide_wash * 0.35))
+		# Translucent water sheet washing up on beach sand
+		draw_polyline(washed_coast, Color(0.20, 0.75, 0.85, 0.40), 7.0)
+		var foam_alpha: float = 0.65 + 0.25 * sin(t * 3.0)
+		draw_polyline(washed_coast, Color(0.92, 0.98, 1.0, foam_alpha), 4.0)
+		draw_polyline(_coast_line, Color(0.35, 0.85, 0.95, 0.75), 2.0)
+
+	# 5. Ambient animated gentle wave ripples
+	for w in range(10):
+		var y_phase: float = float(w) * 2.4 + fmod(t * 0.85 + float(w) * 1.4, 3.0)
+		var offset_x: float = 1.0 + float(w) * 1.3
+		var p1 := _get_iso_pt(COAST_X + offset_x, y_phase)
+		var p2 := _get_iso_pt(COAST_X + offset_x + 2.8, y_phase + 1.6)
+		var is_shallow: bool = offset_x < 2.5
+		var col: Color = Color(0.55, 0.92, 1.0, 0.40 + 0.20 * sin(t * 2.2 + float(w))) if is_shallow else Color(0.35, 0.70, 0.90, 0.25 + 0.15 * sin(t * 2.0 + float(w)))
+		draw_line(p1, p2, col, 2.0)
 
 	# 5. Navigational marker buoys floating in Sarangani bay
 	var buoy_positions := [Vector2(25.5, 6.0), Vector2(26.0, 14.0), Vector2(25.0, 20.0)]

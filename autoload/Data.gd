@@ -23,6 +23,13 @@ const GAME_MODES = {
 		"subtitle": "Persistent Farm Builder",
 		"badge": "🌾 SAVE & LOAD",
 		"desc": "Build and expand your agricultural empire at your own pace with no time limits. Full support for saving your farm progress and loading it anytime to resume right where you left off!"
+	},
+	"sandbox": {
+		"id": "sandbox",
+		"title": "CREATIVE / SANDBOX MODE",
+		"subtitle": "Unlimited Freedom & Full Unlock",
+		"badge": "✨ ALL UNLOCKED",
+		"desc": "Build without limits! Start with ₱999,999 treasury, all 4 island territory parcels unlocked, all technologies & buildings researched, all trade hubs available, and endless time."
 	}
 }
 
@@ -177,6 +184,8 @@ const CROPS = {
 		"base_price": 100,
 		"pests": ["kuhol", "rice_black_bug"],
 		"seed_cost": 25,
+		"unlocked_by_default": true,
+		"license_cost": 0,
 		"description": "Thrives in wetland paddies (70-90% moisture). Halts growth if <30%. Severe waterlogging (>95%) rots roots.",
 	},
 	"yellow_corn": {
@@ -195,6 +204,8 @@ const CROPS = {
 		"base_price": 120,
 		"pests": ["armyworm"],
 		"seed_cost": 30,
+		"unlocked_by_default": true,
+		"license_cost": 0,
 		"description": "Hardy cereal crop (30-60% moisture). Highly resilient against heat up to 45°C. Vulnerable to armyworms.",
 	},
 	"sugarcane": {
@@ -213,6 +224,8 @@ const CROPS = {
 		"base_price": 95,
 		"pests": ["armyworm", "fusarium_wilt"],
 		"seed_cost": 30,
+		"unlocked_by_default": false,
+		"license_cost": 200,
 		"description": "Vigorous river crop (50-80% moisture). Thrives in full sun; yields high raw biomass (120 units).",
 	},
 	"pineapple": {
@@ -231,6 +244,8 @@ const CROPS = {
 		"base_price": 160,
 		"pests": ["fusarium_wilt", "armyworm"],
 		"seed_cost": 40,
+		"unlocked_by_default": false,
+		"license_cost": 350,
 		"description": "High-value export fruit (35-65% moisture). Thrives in volcanic soils; sensitive to standing flood rot.",
 	},
 	"arabica_coffee": {
@@ -249,6 +264,8 @@ const CROPS = {
 		"base_price": 200,
 		"pests": ["kuhol", "fusarium_wilt"],
 		"seed_cost": 50,
+		"unlocked_by_default": false,
+		"license_cost": 500,
 		"description": "High-margin perennial shrub (35-70% moisture). Regrows cherries indefinitely without replanting.",
 	},
 	"banana": {
@@ -267,6 +284,8 @@ const CROPS = {
 		"base_price": 90,
 		"pests": ["fusarium_wilt"],
 		"seed_cost": 140,
+		"unlocked_by_default": false,
+		"license_cost": 750,
 		"description": "2×2 plantation grove (55-85% moisture). Yields 400 units every 18d indefinitely without replanting.",
 	},
 	"coconut": {
@@ -285,6 +304,8 @@ const CROPS = {
 		"base_price": 85,
 		"seed_cost": 160,
 		"pests": ["armyworm"],
+		"unlocked_by_default": false,
+		"license_cost": 950,
 		"description": "Durable 2×2 coastal palm (40-75% moisture). Bears buko nuts indefinitely (16d cycle) without replanting.",
 	},
 }
@@ -477,7 +498,7 @@ const BUILDINGS = {
 		"shop_category": "storage",
 		"unique": false,
 		"icon": "☀️",
-		"grid_size": Vector2i(2, 3),
+		"grid_size": Vector2i(3, 3),
 		"cost": 300,
 		"build_time": 20.0,
 		"max_level": 3,
@@ -503,7 +524,7 @@ const BUILDINGS = {
 		"shop_category": "trade",
 		"unique": true,
 		"icon": "🏭",
-		"grid_size": Vector2i(3, 3),
+		"grid_size": Vector2i(4, 4),
 		"cost": 1500,
 		"build_time": 30.0,
 		"max_level": 1,
@@ -562,7 +583,7 @@ const BUILDINGS = {
 	},
 	"drone_station": {
 		"display_name": "Drone Command Hangar",
-		"shop_category": "machinery",
+		"shop_category": "", # Retired in favor of repeatable Drone Landing Pads
 		"unique": true,
 		"icon": "🛸",
 		"grid_size": Vector2i(2, 2),
@@ -571,7 +592,20 @@ const BUILDINGS = {
 		"max_level": 3,
 		"storage_limit": 0,
 		"unlocks_drones": true,
-		"description": "Automated drone hangar with telemetry antenna and solar charging pads. Unlocks drone labor in the Labor shop. Upgrading the hangar enhances drone automation (Lv.1 Plow, Lv.2 Seeder, Lv.3 Harvester). Each active drone requires 1 farmer to operate the remote control.",
+		"description": "Legacy drone hangar.",
+	},
+	"drone_pad": {
+		"display_name": "Drone Landing Pad",
+		"shop_category": "machinery",
+		"unique": false,
+		"icon": "🛸",
+		"grid_size": Vector2i(2, 2),
+		"cost": 350,
+		"build_time": 10.0,
+		"max_level": 3,
+		"storage_limit": 0,
+		"drone_capacity": 1,
+		"description": "Landing dock and solar recharge berth for autonomous farm drones. Like the Bahay Kubo for drones: houses 1 drone at Lv.1, 2 at Lv.2, and 3 at Lv.3. Upgrades advance fleet avionics (Lv.1 Plow & Water, Lv.2 Seeder & IPM, Lv.3 Harvester). Buy additional landing pads to commission more drones and control them from the hotbar!",
 	},
 	"weather_station": {
 		"display_name": "PAGASA Telemetry Station",
@@ -617,7 +651,7 @@ const BUILDINGS = {
 		"shop_category": "processing",
 		"unique": false,
 		"icon": "🏭",
-		"grid_size": Vector2i(2, 2),
+		"grid_size": Vector2i(3, 3),
 		"cost": 1400,
 		"build_time": 30.0,
 		"max_level": 3,
@@ -638,7 +672,7 @@ const BUILDINGS = {
 		"shop_category": "processing",
 		"unique": false,
 		"icon": "⚙️",
-		"grid_size": Vector2i(3, 2),
+		"grid_size": Vector2i(4, 4),
 		"cost": 1800,
 		"build_time": 35.0,
 		"max_level": 3,
@@ -659,7 +693,7 @@ const BUILDINGS = {
 		"shop_category": "processing",
 		"unique": false,
 		"icon": "🔥",
-		"grid_size": Vector2i(3, 2),
+		"grid_size": Vector2i(3, 3),
 		"cost": 2200,
 		"build_time": 40.0,
 		"max_level": 3,
@@ -680,7 +714,7 @@ const BUILDINGS = {
 		"shop_category": "processing",
 		"unique": false,
 		"icon": "☕",
-		"grid_size": Vector2i(2, 2),
+		"grid_size": Vector2i(3, 3),
 		"cost": 2600,
 		"build_time": 45.0,
 		"max_level": 3,
@@ -694,6 +728,97 @@ const BUILDINGS = {
 			]
 		},
 		"description": "Batch drum roaster with bean grader. Processes 100 raw Arabica Coffee beans into 75 Premium Barako Roast packs (₱480/ea) every 4 hours. Unlocks immense export profits.",
+	},
+	"flower_santan": {
+		"display_name": "Red Santan Bush",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🌺",
+		"grid_size": Vector2i(1, 1),
+		"cost": 35,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Vibrant red Santan (Ixora) blossoms nestled in lush foliage. A staple ornamental flower bush across Philippine farmyards and garden borders.",
+	},
+	"flower_gumamela": {
+		"display_name": "Gumamela Flower Patch",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🌸",
+		"grid_size": Vector2i(1, 1),
+		"cost": 30,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Delicate Gumamela (Hibiscus) and cream blossoms spreading low across the soil. Adds cheerful tropical charm to walkways and courtyard edges.",
+	},
+	"flower_garden_hedge": {
+		"display_name": "Ornamental Garden Hedge",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🌿",
+		"grid_size": Vector2i(1, 1),
+		"cost": 25,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Neatly trimmed evergreen tropical hedge. Perfect for defining garden borders, walkway lanes, and bodega facility perimeters.",
+	},
+	"flower_bougainvillea": {
+		"display_name": "Purple Bougainvillea Bush",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🪻",
+		"grid_size": Vector2i(1, 1),
+		"cost": 45,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Stunning purple-magenta Bougainvillea in full vibrant bloom. A beloved tropical ornamental bringing brilliant color and elegance to the farmstead.",
+	},
+	"flower_topiary_shrub": {
+		"display_name": "Tropical Foliage Shrub",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🪴",
+		"grid_size": Vector2i(1, 1),
+		"cost": 25,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Sculpted upright tropical shrub with deep green leaf patterns. Excellent for windbreaks, patio framing, and architectural greenery.",
+	},
+	"flower_wildflower_bed": {
+		"display_name": "Wildflower Garden Bed",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "🌻",
+		"grid_size": Vector2i(1, 1),
+		"cost": 40,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "A cheerful mix of colorful native Mindanao wildflowers. Attracts friendly pollinators to your farm plots and enlivens the homestead.",
+	},
+	"flower_blossom_cluster": {
+		"display_name": "Golden Blossom Cluster",
+		"shop_category": "decorations",
+		"unique": false,
+		"icon": "💐",
+		"grid_size": Vector2i(1, 1),
+		"cost": 20,
+		"build_time": 0.0,
+		"max_level": 1,
+		"storage_limit": 0,
+		"is_decoration": true,
+		"description": "Radiant multi-colored flower blossoms in full bloom. A compact, brilliant accent for courtyard corners, plazas, and fence lines.",
 	},
 }
 
@@ -779,6 +904,12 @@ func get_commodity(name: String) -> Dictionary:
 func is_processed_good(name: String) -> bool:
 	return PROCESSED_GOODS.has(name)
 
+func get_crop_license_cost(crop_key: String) -> int:
+	return int(CROPS.get(crop_key, {}).get("license_cost", 0))
+
+func is_crop_unlocked_by_default(crop_key: String) -> bool:
+	return bool(CROPS.get(crop_key, {}).get("unlocked_by_default", false))
+
 func get_pest(name: String) -> Dictionary:
 	return PESTS.get(name, {})
 
@@ -812,6 +943,8 @@ func get_market_hub(name: String) -> Dictionary:
 
 ## False when a sell hub needs a building the player has not built yet.
 func is_hub_available(name: String) -> bool:
+	if game_mode == "sandbox":
+		return true
 	var req: String = str(MARKET_HUBS.get(name, {}).get("requires_building", ""))
 	if req == "":
 		return true

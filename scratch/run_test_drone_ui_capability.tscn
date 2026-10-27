@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b2dr0ne_u1_cap4b1l1ty"]
+
+[ext_resource type="Script" path="res://scratch/test_drone_ui_capability.gd" id="1_test"]
+
+[node name="TestDroneUICapability" type="Node"]
+script = ExtResource("1_test")

@@ -34,6 +34,8 @@ var _log_btn: Button
 var _debug_btn: Button
 var _menu_btn: Button
 var _quit_btn: Button
+var _music_track_label: Label = null
+var _music_mute_btn: Button = null
 
 # -- Setup ---------------------------------------------------------------------
 func _ready() -> void:
@@ -55,15 +57,18 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_panel.offset_left   = -215.0
-	_panel.offset_top    = -275.0
+	_panel.offset_top    = -285.0
 	_panel.offset_right  =  215.0
-	_panel.offset_bottom =  275.0
-	_panel.custom_minimum_size = Vector2(430, 550)
+	_panel.offset_bottom =  285.0
+	_panel.custom_minimum_size = Vector2(430, 570)
 
 	var ps = preload("res://assets/sprites/StartMenu/BigRectangleLogs.tres")
 	_panel.add_theme_stylebox_override("panel", ps)
-	_panel.pivot_offset = Vector2(215.0, 275.0)
+	_panel.pivot_offset = Vector2(215.0, 285.0)
 	add_child(_panel)
+
+	if AudioManager.has_signal("soundtrack_changed"):
+		AudioManager.soundtrack_changed.connect(func(_t): _update_music_ui())
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left",   42)
@@ -130,6 +135,36 @@ func _ready() -> void:
 	_quit_btn.pressed.connect(_on_quit)
 	vbox.add_child(_quit_btn)
 
+	# Cozy Soundtrack Controller Row
+	var music_box := HBoxContainer.new()
+	music_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	music_box.add_theme_constant_override("separation", 6)
+	vbox.add_child(music_box)
+
+	_music_track_label = Label.new()
+	_music_track_label.text = "🎵 " + AudioManager.get_soundtrack_title()
+	_music_track_label.add_theme_font_size_override("font_size", 11)
+	_music_track_label.add_theme_color_override("font_color", Color(0.35, 0.25, 0.15, 0.95))
+	music_box.add_child(_music_track_label)
+
+	var next_track_btn := Button.new()
+	next_track_btn.text = "⏭️ Next"
+	next_track_btn.custom_minimum_size = Vector2(58, 22)
+	next_track_btn.pressed.connect(func():
+		AudioManager.next_soundtrack()
+		_update_music_ui()
+	)
+	music_box.add_child(next_track_btn)
+
+	_music_mute_btn = Button.new()
+	_music_mute_btn.text = "🔇" if AudioManager.is_music_muted else "🔊"
+	_music_mute_btn.custom_minimum_size = Vector2(32, 22)
+	_music_mute_btn.pressed.connect(func():
+		AudioManager.set_music_muted(not AudioManager.is_music_muted)
+		_update_music_ui()
+	)
+	music_box.add_child(_music_mute_btn)
+
 	var hint := Label.new()
 	hint.text = "Press ESC to resume"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -162,8 +197,9 @@ func _show_menu() -> void:
 	visible  = true
 	get_tree().paused = true
 	AudioManager.play_ui("pause")
+	_update_music_ui()
 
-	_panel.pivot_offset = Vector2(215.0, 275.0)
+	_panel.pivot_offset = Vector2(215.0, 285.0)
 	_panel.scale    = Vector2(0.90, 0.90)
 	_panel.modulate = Color(1, 1, 1, 0)
 	_dim.color      = Color(0, 0, 0, 0)
@@ -173,6 +209,12 @@ func _show_menu() -> void:
 	tw.tween_property(_panel, "scale",    Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(_panel, "modulate", Color.WHITE, 0.18)
 	tw.tween_property(_dim,   "color",    BG_COLOR, 0.18)
+
+func _update_music_ui() -> void:
+	if _music_track_label and is_instance_valid(_music_track_label):
+		_music_track_label.text = "🎵 " + AudioManager.get_soundtrack_title()
+	if _music_mute_btn and is_instance_valid(_music_mute_btn):
+		_music_mute_btn.text = "🔇" if AudioManager.is_music_muted else "🔊"
 
 func _hide_menu() -> void:
 	_visible = false

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ci84md7182mf"]
+
+[ext_resource type="Script" path="res://scratch/test_all_loops.gd" id="1_loops"]
+
+[node name="TestAllLoops" type="Node"]
+script = ExtResource("1_loops")

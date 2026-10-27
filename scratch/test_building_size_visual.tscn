@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cnwmyxpcbxrd4"]
+
+[ext_resource type="Script" path="res://scratch/test_building_size_visual.gd" id="1_test"]
+
+[node name="TestRunner" type="Node2D"]
+script = ExtResource("1_test")

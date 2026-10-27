@@ -1,30 +1,36 @@
-@tool
 extends SceneTree
 
-func _init():
-	# Test if Godot 4 y-sort sorts grandchildren across siblings
-	var root_2d = Node2D.new()
-	root_2d.y_sort_enabled = true
-	root.add_child(root_2d)
+func _init() -> void:
+	print("--- TESTING GODOT 4 NESTED Y-SORT DRAW ORDER ---")
+	var root_node = Node2D.new()
+	root_node.y_sort_enabled = true
 
-	var container = Node2D.new()
-	container.name = "Container"
-	container.position = Vector2(0, 0)
-	container.y_sort_enabled = true
-	root_2d.add_child(container)
+	var grid = Node2D.new()
+	grid.name = "FarmGrid"
+	grid.y_sort_enabled = true
+	root_node.add_child(grid)
 
-	var child_in_container = Sprite2D.new()
-	child_in_container.name = "ChildInContainer"
-	child_in_container.position = Vector2(0, 500) # Deep south
-	container.add_child(child_in_container)
+	var tile_1 = Node2D.new()
+	tile_1.name = "TileBehind"
+	tile_1.position = Vector2(100, 100)
+	grid.add_child(tile_1)
 
-	var sibling = Sprite2D.new()
-	sibling.name = "Sibling"
-	sibling.position = Vector2(0, 200) # Between Container(0) and ChildInContainer(500)
-	root_2d.add_child(sibling)
+	var tile_2 = Node2D.new()
+	tile_2.name = "TileFront"
+	tile_2.position = Vector2(100, 500)
+	grid.add_child(tile_2)
 
-	print("Testing y-sort hierarchy...")
-	# Let's check RenderingServer canvas item sort
-	var rs = RenderingServer
-	print("CanvasItem rendering test created successfully")
+	var farmer = CharacterBody2D.new()
+	farmer.name = "Farmer"
+	farmer.position = Vector2(100, 300)
+	root_node.add_child(farmer)
+
+	# In Godot 4, RenderingServer canvas item sort:
+	# grid has position (0, 0).
+	# farmer has position (100, 300).
+	# Because root_node sorts `grid` (Y=0) vs `farmer` (Y=300):
+	# Does `grid` render all its children before `farmer`?
+	# Let's inspect canvas item RIDs or draw order:
+	print("Root y_sort: ", root_node.y_sort_enabled)
+	print("Grid y_sort: ", grid.y_sort_enabled)
 	quit(0)

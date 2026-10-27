@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://test_obs_vis_001"]
+
+[ext_resource type="Script" path="res://scratch/test_obstacle_visual.gd" id="1_test"]
+
+[node name="TestObstacleVisual" type="Node2D"]
+script = ExtResource("1_test")

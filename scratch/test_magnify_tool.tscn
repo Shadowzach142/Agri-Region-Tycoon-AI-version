@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b6mfesci0xg1u"]
+
+[ext_resource type="Script" path="res://scratch/test_magnify_tool.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

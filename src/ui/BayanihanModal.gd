@@ -46,6 +46,11 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 	_build_ui()
+	if BuildingManager.has_signal("crop_unlocked"):
+		BuildingManager.crop_unlocked.connect(func(_c):
+			if visible:
+				_refresh_display()
+		)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
@@ -266,6 +271,9 @@ func _select_mode(mode_id: String) -> void:
 	AudioManager.play_ui("click")
 
 func _select_crop(crop_id: String) -> void:
+	if not BuildingManager.is_crop_unlocked(crop_id):
+		AudioManager.play_ui("error")
+		return
 	selected_crop = crop_id
 	_refresh_display()
 	AudioManager.play_ui("click")
@@ -335,10 +343,22 @@ func _refresh_display() -> void:
 	# Update crop buttons style
 	for c_id in _crop_buttons.keys():
 		var btn: Button = _crop_buttons[c_id]
-		if c_id == selected_crop:
-			btn.add_theme_color_override("font_color", Color(1.0, 0.90, 0.35))
+		var is_unlocked: bool = BuildingManager.is_crop_unlocked(c_id)
+		btn.disabled = not is_unlocked
+		if not is_unlocked:
+			btn.text = "🔒\nLocked"
+			btn.tooltip_text = "Unlock %s variety license in Agri-Shop!" % c_id.capitalize()
+			btn.add_theme_color_override("font_disabled_color", Color(0.60, 0.55, 0.50))
 		else:
-			btn.remove_theme_color_override("font_color")
+			var c_data: Dictionary = Data.get_crop(c_id)
+			var c_name: String = c_data.get("name", c_id.capitalize())
+			var icon_str: String = CROP_ICONS.get(c_id, "🌱")
+			btn.text = "%s\n%s" % [icon_str, c_name.split(" ")[0]]
+			btn.tooltip_text = "Set %s for communal auto-cycle." % c_id.capitalize()
+			if c_id == selected_crop:
+				btn.add_theme_color_override("font_color", Color(1.0, 0.90, 0.35))
+			else:
+				btn.remove_theme_color_override("font_color")
 
 	# Update summary text
 	match selected_mode:

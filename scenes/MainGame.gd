@@ -21,6 +21,12 @@ func _ready() -> void:
 	_spawn_pause_menu()
 	_spawn_backlog_panel()
 	_spawn_leaderboard_panel()
+	_start_background_soundtrack()
+
+func _start_background_soundtrack() -> void:
+	var audio_mgr = get_node_or_null("/root/AudioManager")
+	if audio_mgr and audio_mgr.has_method("play_soundtrack"):
+		audio_mgr.play_soundtrack("countryside_morning")
 
 # ---------------------------------------------------------------------------
 # Backlog Panel

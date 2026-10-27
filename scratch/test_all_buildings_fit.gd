@@ -37,7 +37,7 @@ func _ready() -> void:
 		assert(not fit.is_empty(), "New building %s MUST be in get_art_fit()" % b_type)
 		assert(fit.has("texture") and fit["texture"] != null, "New building %s missing texture" % b_type)
 		var sc: float = float(fit.get("scale", 1.0))
-		assert(sc == 2.0, "Scale for %s must be 2.0 to match original buildings! Got: %f" % [b_type, sc])
+		assert(sc >= 2.0, "Scale for %s must be >= 2.0! Got: %f" % [b_type, sc])
 		
 		var b = Building.new()
 		b.building_type = b_type
@@ -53,9 +53,17 @@ func _ready() -> void:
 		var diamond_w: float = float(fp.x + fp.y) * 64.0
 		var tex_w: float = float(fit["texture"].get_width()) * sc
 		var ratio: float = tex_w / diamond_w
-		print("  [PASS] %s (%d×%d): texture width %.1fpx on diamond %.1fpx (ratio: %.1f%%) — perfectly fits within tiles!" % [
-			b_type, fp.x, fp.y, tex_w, diamond_w, ratio * 100.0
+		print("  [PASS] %s (%d×%d, scale %.1fx): texture width %.1fpx on diamond %.1fpx (ratio: %.1f%%) — fits properly!" % [
+			b_type, fp.x, fp.y, sc, tex_w, diamond_w, ratio * 100.0
 		])
+		
+		# For tall industrial factories, verify they are taller than Bahay Kubo (192px)
+		if b_type in ["rice_mill", "sugar_mill", "coffee_roastery", "tacurong_mill"]:
+			var tex_h: float = float(fit["texture"].get_height()) * sc
+			assert(tex_h > 192.0, "Factory %s (%.1fpx) MUST be taller than Bahay Kubo (192px)!" % [b_type, tex_h])
+		elif b_type == "copra_dryer":
+			assert(fp == Vector2i(3, 3), "copra_dryer footprint must be 3x3!")
+			assert(sc == 2.0, "copra_dryer sprite scale must stay at 2.0x!")
 		
 		b.queue_redraw()
 		b.state = Building.BuildingState.ACTIVE

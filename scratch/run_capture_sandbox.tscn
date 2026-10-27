@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://e4x7b8wak0m1"]
+
+[ext_resource type="Script" path="res://scratch/capture_sandbox.gd" id="1_capture"]
+
+[node name="CaptureSandbox" type="Node2D"]
+script = ExtResource("1_capture")

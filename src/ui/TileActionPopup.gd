@@ -160,10 +160,10 @@ func open_for_tile(global_mouse_pos: Vector2, tile_pos: Vector2i, tile: FarmTile
 				add_separator()
 				add_item("⛏️ Quarry & Break Rock (₱40 - Worker required)", ActionId.CLEAR_OBSTACLE)
 			else:
-				add_item("🚫 Ancient Tree Obstacle", ActionId.TITLE_HEADER)
+				add_item("🚫 Old Tree Stump Obstacle", ActionId.TITLE_HEADER)
 				set_item_disabled(item_count - 1, true)
 				add_separator()
-				add_item("🪓 Chop & Clear Tree (₱50 - Worker required)", ActionId.CLEAR_OBSTACLE)
+				add_item("🪓 Chop & Clear Stump (₱50 - Worker required)", ActionId.CLEAR_OBSTACLE)
 
 		FarmTile.TileState.BUILDING:
 			var b_ref: Node = tile.building_ref

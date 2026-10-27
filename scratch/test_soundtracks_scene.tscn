@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cih847kdn43q8"]
+
+[ext_resource type="Script" path="res://scratch/test_soundtracks_scene.gd" id="1_test"]
+
+[node name="TestSoundtracksScene" type="Node"]
+script = ExtResource("1_test")

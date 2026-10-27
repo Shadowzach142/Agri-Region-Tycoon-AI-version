@@ -18,6 +18,7 @@ const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/C
 const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone_Station.png")
 const TEX_WEATHER_STATION: Texture2D = preload("res://assets/sprites/buildings/Weather_Station.png")
 const TEX_WATER_STATION: Texture2D   = preload("res://assets/sprites/buildings/Water_Station.png")
+const TEX_SPRINKLERS: Texture2D      = preload("res://assets/sprites/Machine/Sprinklers.png")
 const TEX_FARMER: Texture2D          = preload("res://assets/icons/Topright/Farmer icon.png")
 const TEX_GRASS: Texture2D           = preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
 const TEX_HEATMAP: Texture2D         = preload("res://assets/icons/HUD/Heatmap.png")
@@ -29,6 +30,15 @@ const TEX_RICE_MILL: Texture2D       = preload("res://assets/sprites/buildings/K
 const TEX_SUGAR_MILL: Texture2D      = preload("res://assets/sprites/buildings/Trapiche_Sugar_Central.png")
 const TEX_COPRA_DRYER: Texture2D     = preload("res://assets/sprites/buildings/Tapahan_Copra_Dryer.png")
 const TEX_COFFEE_ROASTERY: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery.png")
+
+# Preloaded Flower Decoration Textures
+const TEX_FLOWER_SANTAN: Texture2D           = preload("res://assets/sprites/Decorations/Flowers/flower_santan.png")
+const TEX_FLOWER_GUMAMELA: Texture2D         = preload("res://assets/sprites/Decorations/Flowers/flower_gumamela.png")
+const TEX_FLOWER_GARDEN_HEDGE: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_garden_hedge.png")
+const TEX_FLOWER_BOUGAINVILLEA: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_bougainvillea.png")
+const TEX_FLOWER_TOPIARY_SHRUB: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_topiary_shrub.png")
+const TEX_FLOWER_WILDFLOWER_BED: Texture2D   = preload("res://assets/sprites/Decorations/Flowers/flower_wildflower_bed.png")
+const TEX_FLOWER_BLOSSOM_CLUSTER: Texture2D  = preload("res://assets/sprites/Decorations/Flowers/flower_blossom_cluster.png")
 
 # Preloaded Arrow Textures for Category Navigation
 const TEX_ARROW_L_NORM: Texture2D    = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_left_normal.png")
@@ -62,13 +72,15 @@ var prev_cat_btn: TextureButton = null
 var next_cat_btn: TextureButton = null
 var cat_title_label: Label = null
 
-# Containers for shop item grids across the 5 categories
+# Containers for shop item grids across the categories
+var seeds_grid: GridContainer = null
 var labor_grid: GridContainer = null
 var storage_grid: GridContainer = null
 var weather_grid: GridContainer = null
 var machinery_grid: GridContainer = null
 var processing_grid: GridContainer = null
 var trade_grid: GridContainer = null
+var decorations_grid: GridContainer = null
 var land_grid: GridContainer = null
 
 var _refresh_timer: float = 0.0
@@ -123,6 +135,8 @@ class ShopSpritePreview extends Control:
 			var max_w: float = 88.0
 			var max_h: float = 72.0
 			var sc: float = minf(max_w / tsz.x, max_h / tsz.y)
+			if tsz.x <= 32.0 and tsz.y <= 32.0:
+				sc = 2.0
 			var dsz: Vector2 = (tsz * sc).floor()
 			var dpos := Vector2(center.x - dsz.x * 0.5, center.y - dsz.y * 0.5 - 2.0)
 			draw_texture_rect(tex, Rect2(dpos, dsz), false, mod_color)
@@ -161,16 +175,23 @@ func _ready() -> void:
 					vbox.queue_free()
 
 	# Build remaining function-based tabs with GridContainers
+	seeds_grid = _make_tab("Seeds", "🌱 Seeds & Crops")
+	if tabs and seeds_grid:
+		var seeds_scroll: Node = seeds_grid.get_parent().get_parent()
+		tabs.move_child(seeds_scroll, 0)
+
 	storage_grid = _make_tab("Storage", "📦 Storage & Bodega")
 	weather_grid = _make_tab("Weather", "🌦️ Weather & Irrigation")
 	machinery_grid = _make_tab("Machinery", "🚜 Machinery & Fleet")
 	processing_grid = _make_tab("Processing", "🏭 Milling & Refining")
 	trade_grid = _make_tab("Trade", "🚢 Trade Hubs & Ports")
+	decorations_grid = _make_tab("Decorations", "🌸 Decorations")
 	land_grid = _make_tab("Land", "🗺️ Land (10×10 Parcels)")
 
 	_setup_category_navigation()
 
-	# React immediately to construction completions, worker changes, and placements
+	# React immediately to construction completions, worker changes, seed unlocks, and placements
+	BuildingManager.crop_unlocked.connect(func(_c): _populate_seeds())
 	BuildingManager.worker_capacity_changed.connect(func(_cap, _act): _populate_labor())
 	BuildingManager.worker_hired.connect(func(_act): _populate_labor())
 	BuildingManager.drone_commissioned.connect(func(_d): _populate_labor())
@@ -182,6 +203,10 @@ func _ready() -> void:
 	BuildingManager.machinery_updated.connect(func(_l): _populate_buildings())
 	if BuildingManager.has_signal("batch_processed"):
 		BuildingManager.batch_processed.connect(func(_f, _i, _iq, _o): _populate_buildings())
+
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if farm_grid and farm_grid.has_signal("parcel_unlocked"):
+		farm_grid.parcel_unlocked.connect(func(_pid): _populate_land())
 
 	# Always refresh data when panel becomes visible
 	visibility_changed.connect(func():
@@ -374,6 +399,8 @@ func refresh() -> void:
 func _on_cash_changed(amount: int) -> void:
 	if cash_label:
 		cash_label.text = "Funds: ₱%s" % Utils.format_number(amount)
+	if visible:
+		_populate_shop()
 
 # ---------------------------------------------------------------------------
 # Tab Creation
@@ -606,17 +633,28 @@ func _draw_bayanihan_preview(ci: CanvasItem, c: Vector2) -> void:
 		ci.draw_colored_polygon(tri, flag_cols[i % flag_cols.size()])
 
 func _draw_sprinkler_preview(ci: CanvasItem, c: Vector2) -> void:
-	# Concrete anchor pad
-	var pad := PackedVector2Array([c + Vector2(-18, 14), c + Vector2(0, 22), c + Vector2(18, 14), c + Vector2(0, 6)])
+	# Concrete anchor pad / ground pedestal
+	var pad := PackedVector2Array([c + Vector2(-22, 14), c + Vector2(0, 24), c + Vector2(22, 14), c + Vector2(0, 4)])
 	ci.draw_colored_polygon(pad, Color(0.65, 0.62, 0.58))
 	ci.draw_polyline(pad, Color(0.38, 0.35, 0.30), 1.2)
-	# Galvanized steel riser pipe
+
+	if TEX_SPRINKLERS != null and not Building.SPRINKLER_FRAMES.is_empty():
+		# Dynamic animated rotary spray preview in shop
+		var t: float = float(Time.get_ticks_msec()) * 0.001
+		var anim: int = int(t * 6.0) % 4
+		var f_idx: int = 1 + anim
+		var f_info: Dictionary = Building.SPRINKLER_FRAMES[f_idx]
+		var src_rect: Rect2 = f_info.region
+		var stem: Vector2 = f_info.stem
+		var dest_pos: Vector2 = c + Vector2(0, 16) - stem
+		ci.draw_texture_rect_region(TEX_SPRINKLERS, Rect2(dest_pos, src_rect.size), src_rect)
+		return
+
+	# Fallback procedural
 	ci.draw_line(c + Vector2(0, 12), c + Vector2(0, -12), Color(0.42, 0.46, 0.50), 4.5)
 	ci.draw_line(c + Vector2(-1, 12), c + Vector2(-1, -12), Color(0.68, 0.72, 0.76), 1.5)
-	# Rotating brass impact head & hammer arm
 	ci.draw_circle(c + Vector2(0, -12), 5.0, Color(0.85, 0.68, 0.25))
 	ci.draw_line(c + Vector2(0, -12), c + Vector2(12, -18), Color(0.92, 0.75, 0.30), 2.5)
-	# Dynamic water spray stream
 	var stream := PackedVector2Array([
 		c + Vector2(12, -18), c + Vector2(22, -22), c + Vector2(32, -20), c + Vector2(38, -14)
 	])
@@ -627,6 +665,18 @@ func _draw_sprinkler_preview(ci: CanvasItem, c: Vector2) -> void:
 
 func _draw_drone_preview(ci: CanvasItem, c: Vector2) -> void:
 	FarmDrone.draw_drone_art(ci, c + Vector2(0, -2), 2.6, 2, 0.0, 0.0)
+
+func _draw_drone_pad_preview(ci: CanvasItem, c: Vector2) -> void:
+	var pts := PackedVector2Array([
+		c + Vector2(0, -16), c + Vector2(28, 0), c + Vector2(0, 16), c + Vector2(-28, 0)
+	])
+	ci.draw_colored_polygon(pts, Color(0.18, 0.20, 0.24))
+	ci.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.95, 0.78, 0.20), 1.8)
+	ci.draw_circle(c, 8.0, Color(0.10, 0.12, 0.16))
+	ci.draw_arc(c, 7.0, 0, TAU, 18, Color(0.35, 0.85, 1.0), 1.4)
+	ci.draw_line(c + Vector2(-3, -3), c + Vector2(-3, 3), Color.WHITE, 1.4)
+	ci.draw_line(c + Vector2(3, -3), c + Vector2(3, 3), Color.WHITE, 1.4)
+	ci.draw_line(c + Vector2(-3, 0), c + Vector2(3, 0), Color.WHITE, 1.4)
 
 func _draw_rice_mill_preview(ci: CanvasItem, c: Vector2) -> void:
 	# Concrete base pad
@@ -710,6 +760,7 @@ func _draw_coffee_roastery_preview(ci: CanvasItem, c: Vector2) -> void:
 # Populating Tabs
 # ---------------------------------------------------------------------------
 func _populate_shop() -> void:
+	_populate_seeds()
 	_populate_labor()
 	_populate_buildings()
 	_populate_land()
@@ -781,39 +832,26 @@ func _populate_labor() -> void:
 	)
 	labor_grid.add_child(worker_card)
 
-	# ── 3. Farm Drone Card ─────────────────────────────────────────────
+	# ── 3. Autonomous Drone Fleet Info Card ───────────────────────────
 	var d_act: int = BuildingManager.active_drones
 	var d_cap: int = BuildingManager.get_drone_capacity()
-	var has_hangar: bool = BuildingManager.has_drone_station()
-	var is_building_hangar: bool = BuildingManager.has_constructing_building("drone_station")
-	var drone_cost: int = 350
-	var drone_btn_text: String = "₱350 Commission"
-	var drone_disabled: bool = false
-
-	if not has_hangar and not is_building_hangar:
-		drone_btn_text = "No Hangar"
-		drone_disabled = true
-	elif is_building_hangar:
-		var rem_d: float = BuildingManager.get_building_construction_time_remaining("drone_station")
-		drone_btn_text = "Building (%.0fs)" % rem_d
-		drone_disabled = true
-	elif d_act >= d_cap:
-		drone_btn_text = "No Pilots (%d/%d)" % [d_act, d_cap]
-		drone_disabled = true
-	elif cash < drone_cost:
-		drone_btn_text = "Need ₱350"
-		drone_disabled = true
-
+	var d_lvl: int = BuildingManager.get_drone_level()
 	var drone_card = _create_coc_card(
-		"Precision Drone",
+		"Autonomous Drones",
 		ShopSpritePreview.new("drone", null, Color.WHITE, _draw_drone_preview),
-		"⏱ Instant",
-		"Active: %d/%d Pilots" % [d_act, d_cap],
-		drone_disabled,
-		drone_btn_text,
-		"Autonomous Precision Drone",
-		"Automated farm drone. Automatically plows, plants, and harvests in assigned zones. Requires Drone Hangar & pilot capacity.",
-		_commission_drone
+		"🛸 %d/%d Active" % [d_act, d_cap],
+		"Avionics Lv.%d" % d_lvl if d_cap > 0 else "Needs Pad",
+		false,
+		"Build Pad ➜",
+		"Autonomous Precision Drone Fleet",
+		"Drones operate 100% autonomously. Build Drone Landing Pads in Machinery to house 1..3 drones per pad (Lv.1 Plow & Water, Lv.2 Plant & IPM, Lv.3 Harvest).",
+		func():
+			var tab_container: TabContainer = find_child("TabContainer", true, false)
+			if tab_container:
+				for i in range(tab_container.get_tab_count()):
+					if "Machinery" in tab_container.get_tab_title(i):
+						tab_container.current_tab = i
+						break
 	)
 	labor_grid.add_child(drone_card)
 
@@ -825,6 +863,7 @@ func _populate_buildings() -> void:
 	_fill_category_grid(machinery_grid, "machinery")
 	_fill_category_grid(processing_grid, "processing")
 	_fill_category_grid(trade_grid, "trade")
+	_fill_category_grid(decorations_grid, "decorations")
 
 func _fill_category_grid(grid: GridContainer, category: String) -> void:
 	if grid == null:
@@ -851,14 +890,19 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	var meta_left: String = "⏱ %.0fs • %d×%d" % [build_sec, fp.x, fp.y]
 	var meta_right: String = ""
 
-	if b_data.get("halts_spoilage", false):
+	if b_data.get("is_decoration", false):
+		meta_left = "🌸 1×1 Plot"
+		meta_right = "Instant Decor"
+	elif b_data.get("halts_spoilage", false):
 		meta_right = "Halts Rot • 100%"
 	elif b_data.get("storage_limit", 0) > 0:
 		meta_right = "+%d Cap" % b_data.get("storage_limit", 0)
 	elif b_data.get("worker_capacity", 0) > 0:
 		meta_right = "+%d Worker" % b_data.get("worker_capacity", 0)
 	elif b_data.get("unlocks_drones", false):
-		meta_right = "★ One-time • Drones"
+		meta_right = "★ Fleet Avionics"
+	elif b_data.get("drone_capacity", 0) > 0:
+		meta_right = "🛸 +1..3 Drone Berths"
 	elif b_data.get("forecast_equipment", false):
 		meta_right = "★ One-time • Radar"
 	elif b_data.get("irrigation_equipment", false):
@@ -896,6 +940,10 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 		else:
 			btn_text = "Built ✔ (Lv.%d/%d)" % [existing.level, max_lvl]
 		is_disabled = true
+	elif b_key == "drone_pad":
+		if cash < cost:
+			btn_text = "Need ₱%d" % cost
+			is_disabled = true
 	elif b_key == "sprinkler":
 		meta_left = "⏱ 4s Deploy"
 		var has_pump: bool = BuildingManager.has_irrigation()
@@ -943,6 +991,8 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 			preview_node = ShopSpritePreview.new(b_key, TEX_WATER_STATION)
 		"drone_station":
 			preview_node = ShopSpritePreview.new(b_key, TEX_DRONE_STATION)
+		"drone_pad":
+			preview_node = ShopSpritePreview.new(b_key, null, Color.WHITE, _draw_drone_pad_preview)
 		"bayanihan_center":
 			preview_node = ShopSpritePreview.new(b_key, TEX_BYAHERO)
 		"tacurong_mill":
@@ -963,6 +1013,20 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 			preview_node = ShopSpritePreview.new(b_key, TEX_COPRA_DRYER)
 		"coffee_roastery":
 			preview_node = ShopSpritePreview.new(b_key, TEX_COFFEE_ROASTERY)
+		"flower_santan":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_SANTAN)
+		"flower_gumamela":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_GUMAMELA)
+		"flower_garden_hedge":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_GARDEN_HEDGE)
+		"flower_bougainvillea":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_BOUGAINVILLEA)
+		"flower_topiary_shrub":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_TOPIARY_SHRUB)
+		"flower_wildflower_bed":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_WILDFLOWER_BED)
+		"flower_blossom_cluster":
+			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_BLOSSOM_CLUSTER)
 		_:
 			preview_node = ShopSpritePreview.new(b_key, TEX_KUBO)
 
@@ -1088,14 +1152,9 @@ func _hire_worker() -> void:
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 
 func _commission_drone() -> void:
-	if not BuildingManager.has_drone_station():
-		if BuildingManager.has_constructing_building("drone_station"):
-			var rem: float = BuildingManager.get_building_construction_time_remaining("drone_station")
-			status_label.text = "Drone Command Hangar is under construction (%.0fs left)! Please wait for it to complete." % rem
-			status_label.modulate = Color(1.0, 0.75, 0.2)
-		else:
-			status_label.text = "Cannot commission drone! Construct a Drone Command Hangar in Machinery first."
-			status_label.modulate = Color(1.0, 0.3, 0.3)
+	if BuildingManager.get_drone_capacity() <= 0:
+		status_label.text = "Cannot commission drone! Construct a Drone Landing Pad in Machinery first."
+		status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
 	if BuildingManager.active_drones >= BuildingManager.get_drone_capacity():
@@ -1160,6 +1219,135 @@ func _create_heatmap_tech_card() -> PanelContainer:
 		"Unlocks the live Soil & Farm Diagnostic Heatmap overlay (hotkey F). View live soil moisture gradients, plant health, ripe harvests, pest blights, and sprinkler coverage across your whole farm.",
 		on_buy
 	)
+
+# ---------------------------------------------------------------------------
+# Seed Variety Licenses & Crop Progression Cards
+# ---------------------------------------------------------------------------
+func _populate_seeds() -> void:
+	if seeds_grid == null:
+		return
+	for child in seeds_grid.get_children():
+		seeds_grid.remove_child(child)
+		child.queue_free()
+
+	for c_key in Data.CROPS.keys():
+		var card := _create_seed_coc_card(c_key)
+		if card:
+			seeds_grid.add_child(card)
+
+func _create_seed_coc_card(c_key: String) -> PanelContainer:
+	var c_data: Dictionary = Data.get_crop(c_key)
+	if c_data.is_empty():
+		return null
+
+	var disp_name: String = str(c_data.get("display_name", c_key.capitalize()))
+	var short_name: String = disp_name.split("(")[0].strip_edges()
+	var icon_emoji: String = str(c_data.get("icon", "🌱"))
+
+	# Dedicated square plant texture preview
+	var tex: Texture2D = null
+	var icon_path: String = ""
+	match c_key:
+		"palay": icon_path = "res://assets/icons/Plants/Rice.png"
+		"yellow_corn": icon_path = "res://assets/icons/Plants/Corn.png"
+		"sugarcane": icon_path = "res://assets/icons/Plants/Sugarcane.png"
+		"pineapple": icon_path = "res://assets/icons/Plants/Pineapple.png"
+		"arabica_coffee": icon_path = "res://assets/icons/Plants/coffee.png"
+		"banana": icon_path = "res://assets/icons/Plants/Banana.png"
+		"coconut": icon_path = "res://assets/icons/Plants/Coconut.png"
+	if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
+		tex = load(icon_path) as Texture2D
+
+	var preview := ShopSpritePreview.new(c_key, tex)
+
+	# Metadata
+	var g_days: int = int(c_data.get("growth_days", 15))
+	var rg_days: int = int(c_data.get("regrowth_days", 0))
+	var is_perennial: bool = bool(c_data.get("is_perennial", false))
+	var meta_l: String = "⏱ %dd Grow" % g_days
+	if is_perennial and rg_days > 0:
+		meta_l = "⏱ %dd (%dd regrow)" % [g_days, rg_days]
+
+	var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
+	var fp_str: String = "%d×%d %s" % [fp.x, fp.y, "Grove" if fp.x > 1 else "Plot"]
+	var meta_r: String = fp_str + " • " + ("Perennial" if is_perennial else "Annual")
+
+	# Cost & Status
+	var is_unlocked: bool = BuildingManager.is_crop_unlocked(c_key)
+	var is_default: bool = Data.is_crop_unlocked_by_default(c_key)
+	var cost: int = Data.get_crop_license_cost(c_key)
+	var cash: int = EconomyManager.cash
+	var is_disabled: bool = false
+	var btn_text: String = ""
+
+	if is_default:
+		btn_text = "Starter ✔"
+		is_disabled = true
+	elif is_unlocked:
+		btn_text = "Owned ✔"
+		is_disabled = true
+	elif cash < cost:
+		btn_text = "Need ₱%s" % Utils.format_number(cost)
+		is_disabled = true
+	else:
+		btn_text = "₱%s Unlock" % Utils.format_number(cost)
+		is_disabled = false
+
+	# Dossier for Info button (i)
+	var pests_arr: Array = c_data.get("pests", [])
+	var pests_str: String = ", ".join(pests_arr) if not pests_arr.is_empty() else "None"
+	var info_title: String = "%s %s Variety" % [icon_emoji, disp_name]
+	var info_desc: String = "Footprint: %s | Type: %s | Base Value: ₱%d/unit\nGrowth: %d days%s | Yield: %d units | Seed Cost: ₱%d\nMoisture: %d%%–%d%% | Heat: %d°C–%d°C\nTarget Pests: %s\n%s" % [
+		fp_str,
+		"Perennial Regrowth" if is_perennial else "Annual Harvest",
+		int(c_data.get("base_price", 100)),
+		g_days,
+		(" (%d-day regrowth cycle)" % rg_days) if (is_perennial and rg_days > 0) else "",
+		int(c_data.get("yield_quantity", 100)),
+		int(c_data.get("seed_cost", 25)),
+		int(c_data.get("water_min", 30)),
+		int(c_data.get("water_max", 70)),
+		int(c_data.get("heat_min", 20)),
+		int(c_data.get("heat_max", 35)),
+		pests_str,
+		str(c_data.get("description", ""))
+	]
+
+	var on_buy := func(): _buy_seed_license(c_key, cost)
+
+	return _create_coc_card(
+		short_name,
+		preview,
+		meta_l,
+		meta_r,
+		is_disabled,
+		btn_text,
+		info_title,
+		info_desc,
+		on_buy
+	)
+
+func _buy_seed_license(crop_key: String, cost: int) -> void:
+	if BuildingManager.unlock_crop(crop_key):
+		AudioManager.play_ui("click")
+		status_label.text = "🌱 Successfully unlocked %s seed variety license!" % crop_key.capitalize()
+		status_label.modulate = Color(0.4, 1.0, 0.4)
+		_populate_seeds()
+		_on_cash_changed(EconomyManager.cash)
+		item_purchased.emit(crop_key, cost)
+
+func open_to_tab(tab_name: String) -> void:
+	visible = true
+	var tabs: TabContainer = find_child("TabContainer", true, false)
+	if not tabs:
+		return
+	for i in range(tabs.get_tab_count()):
+		var child = tabs.get_tab_control(i)
+		var title: String = tabs.get_tab_title(i)
+		if (child and child.name.to_lower() == tab_name.to_lower()) or title.to_lower().contains(tab_name.to_lower()):
+			tabs.current_tab = i
+			_sync_category_nav()
+			break
 
 func _on_close_pressed() -> void:
 	if item_info_card:

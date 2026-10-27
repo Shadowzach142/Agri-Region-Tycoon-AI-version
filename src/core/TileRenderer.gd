@@ -46,6 +46,87 @@ var ground_sprites: GroundTileSprites = null
 var _crop_texture_cache: Dictionary = {}
 var _crop_stage_cache: Dictionary = {}
 
+# Obstacle Sprites
+const ROCK_OBSTACLE_TEXTURES: Array[String] = [
+	"res://assets/sprites/obstacles/OBSTACLE_Boulder-kinda-round..png",
+	"res://assets/sprites/obstacles/OBSTACLE_Boulder-Oval.png",
+	"res://assets/sprites/obstacles/OBSTACLE_Boulder-Trio.png"
+]
+const TREE_OBSTACLE_TEXTURE: String = "res://assets/sprites/obstacles/OBSTACLE_Old-Tree-Stump..png"
+
+# Tile Overlay Sprites (Pests & Infestations)
+const PEST_OVERLAY_TEXTURES: Dictionary = {
+	"kuhol": "res://assets/sprites/TILE OVERLAYS/TO-KUHOL-SNAIL.png",
+	"armyworm": "res://assets/sprites/TILE OVERLAYS/TO-ARMY-WORM.png",
+	"rice_black_bug": "res://assets/sprites/TILE OVERLAYS/TO-RICE-BLACKBUG.png",
+	"fusarium_wilt": "res://assets/sprites/TILE OVERLAYS/TO-Wilt-Spores.png"
+}
+
+var _rock_textures: Array[Texture2D] = []
+var _tree_stump_texture: Texture2D = null
+var _pest_overlay_cache: Dictionary = {}
+
+func _preload_obstacle_and_overlay_textures() -> void:
+	if _rock_textures.is_empty():
+		for path in ROCK_OBSTACLE_TEXTURES:
+			if ResourceLoader.exists(path):
+				var tex := load(path) as Texture2D
+				if tex:
+					_rock_textures.append(tex)
+	if _tree_stump_texture == null and ResourceLoader.exists(TREE_OBSTACLE_TEXTURE):
+		_tree_stump_texture = load(TREE_OBSTACLE_TEXTURE) as Texture2D
+
+	for k in PEST_OVERLAY_TEXTURES.keys():
+		var path: String = PEST_OVERLAY_TEXTURES[k]
+		if ResourceLoader.exists(path):
+			var tex := load(path) as Texture2D
+			if tex:
+				_pest_overlay_cache[k] = tex
+
+func get_rock_texture(pos: Vector2i = Vector2i.ZERO) -> Texture2D:
+	if _rock_textures.is_empty():
+		_preload_obstacle_and_overlay_textures()
+	if _rock_textures.is_empty():
+		return null
+	var idx: int = abs(pos.x * 7 + pos.y * 13 + pos.x * pos.y) % _rock_textures.size()
+	return _rock_textures[idx]
+
+func get_tree_obstacle_texture() -> Texture2D:
+	if _tree_stump_texture == null:
+		_preload_obstacle_and_overlay_textures()
+	return _tree_stump_texture
+
+func get_pest_overlay_texture(pest_type: String, crop_type: String = "") -> Texture2D:
+	if _pest_overlay_cache.is_empty():
+		_preload_obstacle_and_overlay_textures()
+	var key := pest_type.to_lower().strip_edges()
+	if key.is_empty():
+		if not crop_type.is_empty() and Engine.has_singleton("Data"):
+			var c_pests = Engine.get_singleton("Data").get_crop(crop_type).get("pests", [])
+			if c_pests.size() > 0:
+				key = c_pests[0]
+		elif not crop_type.is_empty() and ResourceLoader.exists("res://autoload/Data.gd"):
+			var d_script = load("res://autoload/Data.gd")
+			if "CROPS" in d_script and d_script.CROPS.has(crop_type):
+				var c_pests = d_script.CROPS[crop_type].get("pests", [])
+				if c_pests.size() > 0:
+					key = c_pests[0]
+		if key.is_empty():
+			key = "kuhol"
+
+	if _pest_overlay_cache.has(key):
+		return _pest_overlay_cache[key]
+
+	if PEST_OVERLAY_TEXTURES.has(key):
+		var path: String = PEST_OVERLAY_TEXTURES[key]
+		if ResourceLoader.exists(path):
+			var tex := load(path) as Texture2D
+			if tex:
+				_pest_overlay_cache[key] = tex
+				return tex
+
+	return null
+
 const CROP_STAGE_CONFIG: Dictionary = {
 	"palay":          {"folder": "Rice",      "prefix": "RICE-P",      "max_growth": 3, "max_stage": 5},
 	"yellow_corn":    {"folder": "Corn",      "prefix": "CORN-P",      "max_growth": 3, "max_stage": 5},
@@ -225,6 +306,7 @@ func setup(fills: Array, overlays: Array, dots: Array, labels: Array, sprites: A
 	const SPRITE_RES := "res://assets/sprites/ground/ground_tile_sprites.tres"
 	if ResourceLoader.exists(SPRITE_RES):
 		ground_sprites = load(SPRITE_RES) as GroundTileSprites
+	_preload_obstacle_and_overlay_textures()
 
 # ---------------------------------------------------------------------------
 # Batch update
@@ -389,11 +471,9 @@ func _apply_fill_color(pos: Vector2i, tile: FarmTile, fill: Polygon2D, lbl: Labe
 			lbl.text = "🌊"
 
 		FarmTile.TileState.INFECTED:
-			if sprite:
-				sprite.texture = null
-				sprite.visible = false
-			_apply_sprite_or_color(fill, COLOR_INFECTED, tile, null, pos)
-			lbl.text = "🐛"
+			var has_overlay: bool = (get_pest_overlay_texture(tile.pest_type, tile.crop_type) != null)
+			_apply_sprite_or_color(fill, COLOR_INFECTED, tile, sprite, pos)
+			lbl.text = "" if has_overlay else "🐛"
 
 		FarmTile.TileState.OBSTACLE:
 			_apply_sprite_or_color(fill, Color(0.22, 0.38, 0.18, 1.0), tile, sprite, pos)
@@ -453,6 +533,10 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 	# Child plots of a multi-tile crop (e.g. 2×2 Coconut Palm) skip individual plant rendering
 	# (The root plot renders the grand combined 2×2 tree spanning the grove)
 	if tile.multi_tile_root_pos != Vector2i(-1, -1) and not tile.is_multi_tile_root:
+		if tile.pest_type != "" or tile.state == FarmTile.TileState.INFECTED:
+			var pest_tex := get_pest_overlay_texture(tile.pest_type, tile.crop_type)
+			if pest_tex != null:
+				_draw_pest_overlay_sprite(overlay, pest_tex)
 		return
 
 	var has_sprite: bool = false
@@ -628,16 +712,16 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 							overlay.add_child(stalk)
 
 		FarmTile.TileState.OBSTACLE:
-			if tile.obstacle_type == "rock":
-				_draw_rock_obstacle(overlay)
+			if tile.obstacle_type == "rock" or "boulder" in tile.obstacle_type:
+				_draw_rock_obstacle(overlay, pos, false)
 			else:
-				_draw_tree_obstacle(overlay)
+				_draw_tree_obstacle(overlay, pos, false)
 
 		FarmTile.TileState.LOCKED:
-			if tile.obstacle_type == "rock":
-				_draw_rock_obstacle(overlay)
-			elif tile.obstacle_type == "tree":
-				_draw_tree_obstacle(overlay)
+			if tile.obstacle_type == "rock" or "boulder" in tile.obstacle_type:
+				_draw_rock_obstacle(overlay, pos, true)
+			elif tile.obstacle_type != "":
+				_draw_tree_obstacle(overlay, pos, true)
 			elif not has_sprite:
 				# Wild dense uncultivated wilderness weeds (procedural fallback only)
 				var pts: Array[Vector2] = [Vector2(-16, -6), Vector2(14, 8), Vector2(0, -2)]
@@ -648,6 +732,12 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 					weed.add_point(p)
 					weed.add_point(p + Vector2(-2, -6))
 					overlay.add_child(weed)
+
+	# Draw pest overlay sprite on any infested tile (renders on top of crops and soil)
+	if tile.pest_type != "" or tile.state == FarmTile.TileState.INFECTED:
+		var pest_tex := get_pest_overlay_texture(tile.pest_type, tile.crop_type)
+		if pest_tex != null:
+			_draw_pest_overlay_sprite(overlay, pest_tex)
 
 func _draw_drip_irrigation_lines(overlay: Node2D, tile: FarmTile) -> void:
 	var bm = null
@@ -737,7 +827,76 @@ func _draw_custom_crop_sprite(overlay: Node2D, crop_tex: Texture2D, tile: FarmTi
 
 	overlay.add_child(spr)
 
-func _draw_tree_obstacle(overlay: Node2D) -> void:
+func _draw_tree_obstacle(overlay: Node2D, _pos: Vector2i = Vector2i.ZERO, is_locked: bool = false) -> void:
+	var tex := get_tree_obstacle_texture()
+	if tex == null:
+		_draw_procedural_tree_fallback(overlay)
+		return
+
+	# Soft ground contact shadow under stump (scaled to fit within 128x64 diamond)
+	var shadow := Polygon2D.new()
+	var s_pts: PackedVector2Array = []
+	for a in range(16):
+		var rad: float = float(a) * TAU / 16.0
+		s_pts.append(Vector2(cos(rad) * 18.0, 5.0 + sin(rad) * 7.0))
+	shadow.polygon = s_pts
+	shadow.color = Color(0.06, 0.10, 0.05, 0.45)
+	overlay.add_child(shadow)
+
+	var spr := Sprite2D.new()
+	spr.name = "TreeObstacleSprite"
+	spr.texture = tex
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.scale = Vector2(2.0, 2.0)
+	spr.position = Vector2(0.0, -6.0)
+	if is_locked:
+		spr.modulate = Color(0.58, 0.66, 0.54, 1.0)
+	else:
+		spr.modulate = Color.WHITE
+	overlay.add_child(spr)
+
+func _draw_rock_obstacle(overlay: Node2D, pos: Vector2i = Vector2i.ZERO, is_locked: bool = false) -> void:
+	var tex := get_rock_texture(pos)
+	if tex == null:
+		_draw_procedural_rock_fallback(overlay)
+		return
+
+	# Soft ground contact shadow under boulder (scaled to fit within 128x64 diamond)
+	var shadow := Polygon2D.new()
+	var s_pts: PackedVector2Array = []
+	for a in range(16):
+		var rad: float = float(a) * TAU / 16.0
+		s_pts.append(Vector2(cos(rad) * 22.0, 4.0 + sin(rad) * 8.0))
+	shadow.polygon = s_pts
+	shadow.color = Color(0.04, 0.08, 0.04, 0.40)
+	overlay.add_child(shadow)
+
+	var spr := Sprite2D.new()
+	spr.name = "RockObstacleSprite"
+	spr.texture = tex
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.scale = Vector2(2.0, 2.0)
+	spr.position = Vector2(0.0, -6.0)
+	if is_locked:
+		spr.modulate = Color(0.58, 0.66, 0.54, 1.0)
+	else:
+		spr.modulate = Color.WHITE
+	overlay.add_child(spr)
+
+func _draw_pest_overlay_sprite(overlay: Node2D, pest_tex: Texture2D) -> void:
+	if pest_tex == null:
+		return
+	var spr := Sprite2D.new()
+	spr.name = "PestOverlaySprite"
+	spr.texture = pest_tex
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.scale = Vector2(3.5, 3.5)
+	var tex_h: float = float(pest_tex.get_height())
+	spr.position = Vector2(0.0, 28.0 - tex_h * 3.5 / 2.0)
+	spr.z_index = 1
+	overlay.add_child(spr)
+
+func _draw_procedural_tree_fallback(overlay: Node2D) -> void:
 	# 1. Dark oval ground shadow
 	var shadow := Polygon2D.new()
 	var s_pts: PackedVector2Array = []
@@ -796,7 +955,7 @@ func _draw_tree_obstacle(overlay: Node2D) -> void:
 	h1.color = Color(0.48, 0.82, 0.32, 0.9)
 	overlay.add_child(h1)
 
-func _draw_rock_obstacle(overlay: Node2D) -> void:
+func _draw_procedural_rock_fallback(overlay: Node2D) -> void:
 	# 2.5D Isometric River Boulder / Granite Rock
 	# 1. Dark ground shadow
 	var shadow := Polygon2D.new()

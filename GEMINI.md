@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-25 (Session 118 — Pixel Art Building Rescaling to 2.0x & Diamond Tile-Grid Alignment)
+> **Last Updated**: 2026-10-28 (Session 135 — 8-Bit Peaceful Retro Chiptune Soundtracks & Background Music System)
 
 ---
 
@@ -51,7 +51,7 @@ agri-region-ai-version/
 │   │   └── Utils.gd                       ← Autoload singleton: format_number(), Grade enum
 │   ├── world/                             ← World/environment systems
 │   │   ├── WeatherEffects.gd              ← Rain/drought/night particle effects + CanvasModulate
-│   │   ├── GameCamera.gd                  ← WASD + drag camera
+│   │   ├── GameCamera.gd                  ← WASD keyboard pan & zoom (no mouse edge pan)
 │   │   ├── DragSelectOverlay.gd           ← Marquee box draw
 │   │   ├── FarmHeatmapOverlay.gd          ← class_name FarmHeatmapOverlay (z=195, Soil & Farm Diagnostic Heatmap & Sprinkler Blueprint)
 │   │   ├── SeaWater.gd                    ← class_name SeaWater (z=-40, animated eastern tropical ocean, surf & navigation buoys)
@@ -72,6 +72,8 @@ agri-region-ai-version/
 │   ├── ui/                                ← HUD and all overlay panels
 │   │   ├── HUD.gd                         ← Dynamic node-discovery HUD (see §5)
 │   │   ├── PlantHotbar.gd                 ← Minecraft-style minimalist square hotbar & snappy hover tooltips (no background, square boxes, flyout selector)
+│   │   ├── DroneQuickBar.gd               ← class_name DroneQuickBar (individual drone unit cycler, crop pills, fast field designation)
+│   │   ├── DroneCommandDeck.gd            ← class_name DroneCommandDeck (full workstation panel, multi-drone tabs, 6 automation directives)
 │   │   ├── TileInfoPanel.gd               ← Bottom-left tile inspector (2×2 grove & perennial indicators)
 │   │   ├── TileActionPopup.gd             ← Right-click context menu (decluttered active seed + hotbar opener)
 │   │   ├── EarlyHarvestModal.gd           ← Tactical early harvest confirmation popup (explaining premature yield penalties vs disaster rescue)
@@ -340,6 +342,7 @@ Pixel-art sprite sequences for all 7 crops rendered in 2.5D isometric perspectiv
 ### Game Modes (Data.GAME_MODES)
 - `campaign`: "TIMED PVE CAMPAIGN" — Competitive 30d/60d/90d score attack with RTS season countdown, leaderboard rankings, and prestige tiers.
 - `career`: "CAREER / ENDLESS TYCOON" — Persistent sandbox builder with unlimited days, midnight autosaves, and full in-game save/load across 5 slots.
+- `sandbox`: "CREATIVE / SANDBOX MODE" — Unlimited treasury (₱999,999 starting funds), all 4 island territory parcels unlocked from Day 1 on the 24×24 grid, all technologies and trade hubs immediately available, instant construction and upgrades, 25,000 storage, 20 workers, and endless time.
 
 ### Campaign Duration Modes (Data.SEASON_MODES)
 - `30`: 30 Days (Quick Sprint / 1 Month)
@@ -1107,5 +1110,597 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
   - `scratch/run_test_building_flip.tscn`: All 5 flip test suites passed 100%.
   - Visual verification artifact: `file:///C:/Users/ADMIN/.gemini/antigravity-ide/brain/21406458-c30b-4286-8be8-288c1533c852/all_8_new_buildings_2x_perfect.png` generated and verified.
 
+---
 
+### Session 119 Summary (Mouse Camera Removal, Pure WASD Camera Navigation)
+- **User Request Addressed**:
+  - *"Remove the mouse move cam just use the WASD"*
+- **Camera System Refactoring (`src/world/GameCamera.gd`)**:
+  - Removed side-of-screen edge scrolling (`edge_margin`, edge collision pan logic in `_process`). Moving the mouse to the screen border or near HUD buttons no longer pans the camera.
+  - Removed middle-mouse and mouse motion drag panning in `_unhandled_input`.
+  - Panning is now strictly driven by WASD (and Arrow Keys) with dynamic viewport boundary clamping (`_clamp_to_world_bounds`).
+  - Preserved smooth mouse-wheel zoom (`0.58x` to `1.8x`) and QoL hotkeys (`H`/`Home` to center on homestead, `Tab` to cycle idle workers).
+- **Testing & Verification**:
+  - Ran `scratch/run_test_qol.tscn` passing 100% across all camera and QoL checks.
+  - Ran `scenes/MainGame.tscn` in headless mode verifying 0 runtime errors.
 
+---
+
+### Session 120 Summary (Creative Sandbox Mode: Unlimited Treasury, All Land & Tech Unlocked, Instant Building)
+- **User Request Addressed**:
+  - *"Make a sandbox mode where everything is unlocked, a lot of money etc."*
+- **Creative Sandbox Architecture**:
+  1. **Game Mode Registry (`autoload/Data.gd`)**:
+     - Registered `"sandbox"` in `Data.GAME_MODES`: `["campaign", "career", "sandbox"]`.
+     - In `Data.is_hub_available()`, all provincial and international export hubs (`middleman`, `tacurong`, `koronadal`, `gensan`) are immediately unlocked when `Data.game_mode == "sandbox"` with no building prerequisites.
+  2. **Unlimited Treasury (`autoload/EconomyManager.gd` & `src/core/FarmGrid.gd`)**:
+     - Starting balance initialized to **₱999,999** on Day 1 (`EconomyManager.cash = 999999`).
+     - In `EconomyManager.deduct_cash()`, transactions never fail due to insufficient funds in sandbox mode.
+  3. **Full 24×24 Island Unlocked From Day 1 (`src/core/FarmGrid.gd`)**:
+     - In `_create_grid()`, all 576 tiles on the 24×24 grid initialize to `FarmTile.TileState.EMPTY` (0 locked tiles).
+     - All 4 territory deed parcels (`homestead`, `east_meadows`, `south_plains`, `highland_plateau`) are marked unlocked at game start with zero territory fees.
+  4. **All Technologies & Diagnostics Researched (`autoload/BuildingManager.gd`)**:
+     - All tech items (`radio_tower`, `aws_station`, `iot_soil_sensor`, `bayanihan_spirit`, `bayanihan_coordination`, `kuliglig`, `combine_harvester`, `drip_irrigation`, `field_survey_kit`) automatically granted.
+     - Diagnostic Soil Heatmap (`F` key) immediately enabled (`BuildingManager.has_heatmap() == true`).
+     - Processing facility prerequisites (`bioethanol_plant`, `feed_mill`, `tuna_cannery`, `chocolate_factory`) allowed without prerequisites.
+     - Drones and sprinklers unconstrained: `can_commission_drone()` returns `true`, `can_place_sprinkler()` returns `true`, and `get_sprinkler_capacity()` returns 999.
+  5. **Instant Construction & Instant Upgrades (`src/core/FarmGrid.gd` & `src/buildings/Building.gd`)**:
+     - In `FarmGrid.place_building()`, `building.duration = 0.0` and `building.state = BuildingState.ACTIVE` in sandbox mode so buildings are usable immediately upon placement.
+     - In `BuildingCardPopup.gd` and `Building.start_upgrade()`, upgrade duration is `0.0`, triggering instant upgrade completion.
+  6. **Generous Capacity & Endless Time (`autoload/TimeManager.gd` & `autoload/BuildingManager.gd`)**:
+     - Crop storage capacity initialized and recalculated to minimum 25,000 units (`total_storage_capacity >= 25000`).
+     - Worker housing capacity initialized and recalculated to minimum 20 workers (`worker_capacity >= 20`).
+     - `TimeManager.is_freeplay_mode = true`: No countdown timer or season end; play indefinitely.
+     - Daily midnight autosaves preserved and 5 manual save/load slots fully supported with `[Creative Sandbox]` badges.
+  7. **Main Menu Integration (`scenes/MainMenu.tscn` & `scenes/MainMenu.gd`)**:
+     - Added `SideSandboxBtn` to mode selector left menu.
+     - Updated mode carousel to 3 modes (`GAME MODE 3 OF 3`): Displays `✨ CREATIVE / SANDBOX MODE`, `[ UNLIMITED FUNDS • ALL UNLOCKED • INSTANT FREEDOM ]`, 3 custom pillars (₱999k Treasury, Full 24×24 Island, All Tech & Hubs), and sandbox perk badges.
+     - Region selection screen displays `[ ✨ CREATIVE SANDBOX: ALL UNLOCKED ]` and start button reads `START SANDBOX IN <REGION> >`.
+     - In-game HUD displays `Day: %d (Sandbox)` with informative tooltip.
+- **Testing & Verification**:
+  - `scratch/run_test_sandbox_mode.tscn`: Comprehensive automated test suite verified 6 test phases:
+    1. `Data.GAME_MODES` and all 4 trade hubs unlocked immediately.
+    2. `BuildingManager` permissions (heatmap, drones, sprinklers, tech, processing plants).
+    3. `MainMenu` 3-mode carousel, side navigation buttons, badges, and button text.
+    4. `FarmGrid` all 576 tiles unlocked (0 locked), ₱999,999 starting cash, 25k storage, 20 worker slots.
+    5. Instant building placement (`state == ACTIVE`, `duration == 0.0`) and instant building upgrades.
+    6. Save & load in sandbox mode with `[Creative Sandbox]` metadata serialization.
+  - Regression test: `MainMenu.tscn --test-menu` passed 100%.
+  - Regression test: `MainMenu.tscn --test-ui-boxes` passed 100%.
+
+---
+
+### Session 121 Summary (Seed Variety Progression & Shop Licensing System)
+- **User Request Addressed**:
+  - *"Make the seeds/plants available to buy in the shop so it wont be overwhelming in the start but at the same time has more progression"*
+- **System Architecture & Design**:
+  1. **Progression Rebalancing & Seed License Matrix (`autoload/Data.gd`)**:
+     - Players start the campaign / career with staple starter grains: `palay` (Rice) and `yellow_corn` (Corn).
+     - Advanced cash crops and perennials are locked initially, requiring variety licenses purchasable in the Agri-Shop:
+       - `palay`: Starter staple (₱0 license, `unlocked_by_default: true`)
+       - `yellow_corn`: Starter staple (₱0 license, `unlocked_by_default: true`)
+       - `sugarcane`: River biomass crop (₱200 license, `unlocked_by_default: false`)
+       - `pineapple`: Volcanic export fruit (₱350 license, `unlocked_by_default: false`)
+       - `arabica_coffee`: Perennial shrub 1×1 (₱500 license, `unlocked_by_default: false`)
+       - `banana`: Perennial plantation grove 2×2 (₱750 license, `unlocked_by_default: false`)
+       - `coconut`: Coastal buko palm 2×2 (₱950 license, `unlocked_by_default: false`)
+     - Added helper methods `Data.get_crop_license_cost(crop_key: String) -> int` and `Data.is_crop_unlocked_by_default(crop_key: String) -> bool`.
+  2. **Crop Licensing Core Registry (`autoload/BuildingManager.gd`)**:
+     - Added `signal crop_unlocked(crop_key: String)`.
+     - Added `var unlocked_crops: Array = ["palay", "yellow_corn"]`.
+     - Added API `BuildingManager.is_crop_unlocked(crop_key: String) -> bool`, `BuildingManager.get_unlocked_crops() -> Array`, and `BuildingManager.unlock_crop(crop_key: String) -> bool`.
+     - Purchasing a license verifies funds, deducts cash, appends to `unlocked_crops`, plays tech SFX, writes an entry to the Farm Chronicle log, and emits `crop_unlocked`.
+     - In Creative / Sandbox mode (`Data.game_mode == "sandbox"`), `is_crop_unlocked()` always returns `true` and all 7 crops start unlocked from Day 1.
+  3. **Dedicated Agri-Shop Seeds Tab (`src/market/ShopPanel.gd`)**:
+     - Added dedicated tab: `"🌱 Seeds & Crops"` (`seeds_grid`) prominently positioned at Tab Index 0.
+     - Clash of Clans-style visual cards for each of the 7 crops showing centered pixel art previews with soft ground contact shadows and warm radial pedestal spotlights:
+       - Title & Agronomic Dossier button `(i)`: Opens full modal detailing footprint, type, growth/regrowth days, base price, seed cost, water/heat ranges, target pests, and agronomy description.
+       - Metadata strip: Growth/regrowth duration + footprint + perennial/annual status.
+       - Action buttons:
+         - Starter varieties (`palay`, `yellow_corn`): `Starter ✔` (disabled).
+         - Purchased varieties: `Owned ✔` (disabled).
+         - Unpurchased varieties: `₱XXX Unlock` (gold button) or `Need ₱XXX` (disabled dark wood button if short on cash).
+     - Added `ShopPanel.open_to_tab(tab_name: String) -> void` for clean cross-panel navigation from hotbars.
+     - Fully reactive: updates on cash changes, purchase completions, and `crop_unlocked` signals.
+  4. **Minimalist Plant Hotbar Drawer (`src/ui/PlantHotbar.gd`)**:
+     - When opening the seeds drawer, only currently unlocked seed varieties are shown in the square Minecraft-style flyout slots.
+     - If locked crops remain in the shop, appends a clean `[🔒 +Shop]` square button with hover tooltip linking directly to `ShopPanel.open_to_tab("Seeds")`.
+     - Once all 7 crops are unlocked, the `+Shop` button automatically disappears, leaving a clean 7-slot seed selector.
+     - Guarded `PlantHotbar.get_selected_crop()` and `set_selected_crop()` so that attempts to select locked varieties safely fallback to `"palay"`.
+  5. **Drone Command Deck & Autonomous Farming Integration (`src/ui/DroneCommandDeck.gd` & `src/drone/FarmDrone.gd`)**:
+     - Crop buttons in the Drone Command Deck display `🔒 <Crop>\nLocked` with disabled styling until unlocked in the shop.
+     - Guards in `_on_crop_selected()` prevent assigning locked seeds to drones.
+     - In `FarmDrone.gd`, the auto-plant logic checks `BuildingManager.is_crop_unlocked(crop_type)` and pauses with telemetry alert `"Designated crop <Crop> locked (Agri-Shop)"` if assigned a locked crop.
+  6. **Bayanihan Communal Directives Integration (`src/ui/BayanihanModal.gd`)**:
+     - Communal crop buttons display `🔒\nLocked` with disabled styling for unpurchased varieties.
+     - Guards in `_select_crop()` prevent assigning unbought crops to communal field directives.
+  7. **FarmGrid Field Planting Guards (`src/core/FarmGrid.gd`)**:
+     - In `_on_action_popup_selected` and `_on_batch_action_selected`, requests to plant crops check `BuildingManager.is_crop_unlocked(crop_name)`.
+     - If locked, shows floating error text `"Seed Locked (Agri-Shop)"`, plays error buzzer, logs to chronicle, and aborts planting.
+     - In `_ready()`, sandbox mode automatically unlocks all 7 crops.
+  8. **Save & Load Persistence (`autoload/SaveManager.gd`)**:
+     - `unlocked_crops` serialized inside `building_manager_data` dictionary.
+     - Restored on load (defaulting to `["palay", "yellow_corn"]` for backward compatibility, or all 7 in sandbox mode).
+- **Testing & Verification**:
+  - `scratch/run_test_seed_progression.tscn`: 100% passed (exit code 0) across all 6 core progression tests:
+    1. `Data.CROPS` license properties, default unlocks, and pricing helpers.
+    2. `BuildingManager` initial state `[palay, yellow_corn]` and locked state of advanced crops.
+    3. Seed license purchase flow (cash deduction, signal emission, rejection of duplicate and unaffordable requests).
+    4. `PlantHotbar` safe crop guards and fallback to `palay`.
+    5. Creative Sandbox mode instant unlock of all 7 crops.
+    6. `SaveManager` serialization and deserialization of `unlocked_crops`.
+  - `scratch/run_test_seed_ui_integration.tscn`: 100% passed (exit code 0) across all 5 UI integration tests:
+    1. `ShopPanel` Seeds tab generation with all 7 CoC cards and button text states (`Starter ✔`, `₱200 Unlock`, `Need ₱950`).
+    2. Purchasing sugarcane license via shop card updates button to `Owned ✔`.
+    3. `ShopPanel.open_to_tab()` navigation API.
+    4. `PlantHotbar` flyout filtering to 3 unlocked seeds + `[🔒 +Shop]` button.
+    5. When all 7 crops unlocked, flyout cleanly displays all 7 crops without expansion button.
+### Session 122 — Industrial Factory & Building Scale & Grid Footprint Rebalance (2026-10-26)
+- **Goal**: Resolve the visual disproportion where heavy industrial factories (`rice_mill`, `sugar_mill`, `copra_dryer`, `coffee_roastery`) and milling depots (`tacurong_mill`) appeared noticeably smaller and shorter than the simple wooden farm shack (`bahay_kubo`), scaling up building sprites and tile grid footprints.
+- **Key Changes**:
+  1. **Grid Footprint Rebalance (`autoload/Data.gd`)**:
+     - `rice_mill` ("Kiskisan Rice Mill"): Increased from `Vector2i(2, 2)` (4 tiles) to **`Vector2i(3, 3)`** (9 tiles, 384×192px isometric diamond).
+     - `coffee_roastery` ("Artisan Coffee Roastery"): Increased from `Vector2i(2, 2)` (4 tiles) to **`Vector2i(3, 3)`** (9 tiles, 384×192px isometric diamond).
+     - `sugar_mill` ("Trapiche Sugar Central"): Increased from `Vector2i(3, 2)` (6 tiles) to **`Vector2i(4, 4)`** (16 tiles, 512×256px isometric diamond).
+     - `copra_dryer` ("Tapahan Copra Dryer & Press"): Increased from `Vector2i(3, 2)` (6 tiles) to **`Vector2i(4, 4)`** (16 tiles, 512×256px isometric diamond).
+     - `tacurong_mill` ("Tacurong Grain Mill Depot"): Increased from `Vector2i(3, 3)` (9 tiles) to **`Vector2i(4, 4)`** (16 tiles, 512×256px isometric diamond).
+     - Starter homestead layout at `(0, 0)` (Kubo, 2×2) and `(2, 0)` (Bodega, 2×2) remains completely preserved.
+  2. **Art Calibration & Proportional Scaling (`src/buildings/Building.gd`)**:
+     - `rice_mill` (96×80): Scale bumped from 2.0 to **3.4x** (326×272px, +80px taller than Kubo; apex `-183.6px` vs Kubo's `-156.0px`).
+     - `sugar_mill` (112×80): Scale bumped from 2.0 to **3.5x** (392×280px, +88px taller than Kubo; apex `-185.5px`).
+     - `copra_dryer` (128×80): Scale bumped from 2.0 to **3.5x** (448×280px, +88px taller than Kubo; apex `-185.5px`).
+     - `coffee_roastery` (112×80): Scale bumped from 2.0 to **3.3x** (370×264px, +72px taller than Kubo; apex `-176.5px`).
+     - `tacurong_mill` (160×96): Scale bumped from 2.0 to **2.7x** (432×259px, +67px taller than Kubo; apex `-172.8px`).
+     - `koronadal_wholesale` (176×97): Scale bumped from 2.0 to **2.5x** (440×243px, apex `-166.0px`).
+     - `gensan_seaport` (176×128): Scale bumped from 2.0 to **2.4x** (422×307px, apex `-198.0px`).
+     - `cold_storage` (128×96): Scale bumped from 2.0 to **2.5x** (320×240px, apex `-168.0px`).
+     - `bodega` (48×64): Scale bumped from 2.0 to **2.5x** (120×160px, apex `-118.0px`).
+  3. **Visual Grounding, Shadows, UI & Night Lights (`src/buildings/Building.gd`)**:
+     - Updated soft contact shadow radii (`shadow_rx`, `shadow_ry`, `shadow_cy`) in `_draw_art_building()` to match expanded footprints (76–96% diamond coverage).
+     - Scaled night warm window lamplights and work lights to accurately highlight windows/furnaces on enlarged sprites.
+     - Updated `roof_apex_y` and `scaffold_h` across `_setup_ui()` and `_draw_scaffold_overlay()` so construction scaffolding and status bars hover neatly above enlarged roofs.
+     - Updated `Building.get_placement_preview()` and `BuildingPlacementOverlay.gd` so ghost placement diamonds and ghost sprites reflect the new dimensions with pixel-accurate 1:1 scaling.
+  4. **Save & Load Upgrade Resilience (`autoload/SaveManager.gd`)**:
+     - Updated `apply_pending_save` so existing saved games read `fp` dynamically from `Data.BUILDINGS.grid_size` with fallback to saved footprint, gracefully upgrading older saves.
+- **Verification**:
+  - `scratch/test_all_buildings_fit.tscn`: 100% passed across all 17 buildings, verifying diamond ratios (76–96%) and that all factories are strictly taller than Bahay Kubo.
+  - `scratch/test_trade_hubs.tscn`: 100% passed across all 9 checks.
+  - `scratch/test_processing_system.tscn`: 100% passed across all agro-industrial processing tests.
+  - `scratch/test_building_size_visual.tscn`: 100% passed across size benchmarks, footprint tile coverage, and FarmGrid placement.
+
+---
+
+### Session 123 — Dryer 3×3 Footprint Calibration & Plant Overlay Depth Sorting Fix (2026-10-26)
+- **Goal**:
+  1. Calibrate dryers (`solar_dryer` and `copra_dryer`) to 3×3 tile footprints while keeping sprite size at standard 2.0x scale (without enlarging).
+  2. Fix depth sorting bug where fully grown crops in front of buildings rendered underneath buildings instead of properly covering them.
+- **Root Cause & Fixes**:
+  1. **Crop Overlay vs. Building Depth Sorting (`src/buildings/Building.gd`, `src/farmer/Farmer.gd`, `scenes/MainGame.tscn`, `src/ui/HUD.gd`)**:
+     - *Root Cause*: `Building.gd` had hardcoded `z_index = 14`, while `FarmGrid` tile standing roots (`Tile_x_y`) were at `z_index = 10` and `Farmer` was at `z_index = 12`. In Godot 4 CanvasItem rendering, `z_index` completely overrides `y_sort_enabled`, causing any building at Z=14 to unconditionally render on top of all crops at Z=10 regardless of isometric Y coordinate.
+     - *Fix*: Standardized all standing surface entities to `z_index = 10` (`Building.gd`, `Farmer.gd`, `MainGame.tscn`, `HUD.gd`). Because `FarmGrid` and `MainGame` have `y_sort_enabled = true`, Godot 4's hierarchical Y-sort now cleanly orders buildings, crops, and workers by true isometric Y coordinates. Crops on tiles in front (south) of a building (`position.y > building.position.y`) render on top of the building facade, while crops and workers behind the building (`position.y < building.position.y`) are properly occluded by the building.
+  2. **Dryer 3×3 Footprint Calibration & Sprite Size (`autoload/Data.gd`, `src/buildings/Building.gd`)**:
+     - `solar_dryer` ("Solar Dryer (Bilaran)"): Updated `grid_size` from `Vector2i(2, 3)` to **`Vector2i(3, 3)`** in `Data.gd`. Centered `dryer_rect` at `Rect2(-176.0, -112.0, dryer_w, dryer_h)` in `_draw_solar_dryer()`, and updated placement preview `center_offset` to `Vector2(88.0, 56.0)`. Sprite scale stays at 2.0x (352×224px, 91.7% diamond width).
+     - `copra_dryer` ("Tapahan Copra Dryer & Press"): Updated `grid_size` to **`Vector2i(3, 3)`** in `Data.gd` (reverted from 4×4). Restored sprite scale to **2.0x** (`scale: 2.0`, 256×160px; `center_offset: Vector2(64.0, 50.0)`, `roof_apex_y: -100.0`, `scaffold_h: 70.0`, `shadow_rx: 85.0`, `shadow_ry: 42.0`, `shadow_cy: 14.0`, night light at `Vector2(-20.0 * fs, -18.0)`).
+- **Verification**:
+  - `scratch/test_building_crop_depth.tscn`: 100% passed, confirming `TileBehind Y < Building Y < TileFront Y`, identical `z_index = 10`, and mature crop sprites rendering on front overlays.
+  - `scratch/test_all_buildings_fit.tscn`: 100% passed across all 17 buildings.
+  - `scratch/test_trade_hubs.tscn`: 100% passed across all 9 checks.
+  - `scratch/run_test_processing.tscn`: 100% passed across all agro-industrial processing tests.
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI overhaul assertions.
+
+---
+
+### Session 124 — Permanent Land Parcel Signpost Removal & Save Load Deduplication Fix (2026-10-26)
+- **Goal**: Resolve bug where in-world wooden territory expansion signposts (`📜 12×12 LAND ...`) remained standing on tiles even after purchasing the parcel.
+- **Root Causes**:
+  1. **Premature Signpost Creation & Save/Load Duplication**:
+     In `FarmGrid._create_grid()`, `_create_parcel_signposts()` was called unconditionally outside `if not SaveManager.has_pending_save_data():`. When loading a save game (or autosave), `FarmGrid._create_grid()` ran first with default `unlocked_parcels = ["homestead"]`, attaching signposts for all 3 expansion parcels to `tile_roots`. `SaveManager.apply_pending_save()` then restored `unlocked_parcels` and called `_create_parcel_signposts()` a second time. Because `_create_parcel_signposts()` previously only skipped parcels in `unlocked_parcels` without clearing existing signposts from `tile_roots`, the initial signpost remained orphaned on owned parcel tiles forever. On unbought parcels, a second duplicate signpost was stacked on top; upon purchase, only the top signpost was freed, leaving the bottom signpost visible.
+  2. **Weak Node Deletion in `unlock_parcel`**:
+     `unlock_parcel()` previously only called `queue_free()` on `parcel_sign_nodes[parcel_id]`. If duplicate or orphaned signpost nodes existed on the tile root, they were never cleared.
+  3. **Timing Error in `LandExpansionModal.open_for_parcel()`**:
+     Because `FarmGrid` adds `land_modal` via `call_deferred("add_child", land_modal)`, calling `open_for_parcel()` before `_ready()` executed resulted in a `Nil` assignment error on `_subtitle_lbl`.
+- **Fixes**:
+  1. **Idempotent Signpost Creation (`src/core/FarmGrid.gd`)**:
+     - In `_create_grid()`: Nested `_create_parcel_signposts()` inside `if not SaveManager.has_pending_save_data():`, preventing signposts from spawning prematurely before saved parcels are restored.
+     - In `_create_parcel_signposts()`: Implemented comprehensive pre-cleanup. Before creating any signposts, all existing `parcel_sign_nodes` and any children on parcel `sign_tile` roots starting with `"Signpost"` are explicitly unparented (`remove_child`) and freed (`queue_free()`), guaranteeing zero duplicate or orphaned nodes.
+  2. **Thorough Parcel Signpost Removal (`src/core/FarmGrid.gd`)**:
+     - In `unlock_parcel()`: Removes the tracked signpost via `remove_child` and `queue_free()`, sweeps the parcel's `sign_tile` root for any node starting with `"Signpost"`, sweeps all tile roots across the unlocked parcel rectangle, and emits `parcel_unlocked(parcel_id)`.
+  3. **Defensive UI Initialization (`src/ui/LandExpansionModal.gd`)**:
+     - Added `if _panel == null: _build_ui()` to `open_for_parcel()` and guarded `_build_ui()` with `if _panel != null: return` to ensure UI elements are always instantiated before configuration.
+  4. **Live Shop Synchronization (`src/market/ShopPanel.gd`)**:
+     - Connected `FarmGrid.parcel_unlocked` in `ShopPanel._ready()` to automatically re-populate the Land tab to `"Owned ✔"` immediately when a parcel is acquired.
+- **Verification**:
+  - `scratch/test_save_sign_bug.tscn`: 100% passed (verified 0 signs on East Meadows upon save load, exactly 1 sign on South Plains, and 0 signs after purchasing South Plains).
+  - `scratch/test_sign_in_maingame.tscn`: 100% passed in live MainGame tree without script errors.
+  - `scratch/test_all_buildings_fit.tscn`: 100% passed across all 17 buildings.
+  - `scratch/test_trade_hubs.tscn`: 100% passed across all 9 checks.
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI assertions.
+
+---
+
+### Session 125 — Custom Pixel-Art Obstacles & Pest Overlays Integration (2026-10-26)
+- **Goal**: Integrate all 4 custom obstacle pixel-art sprites and all 4 pest infestation overlay pixel-art sprites into isometric farm tile rendering and UI inspection panels.
+- **Assets Integrated**:
+  1. **Obstacles (`assets/sprites/obstacles/`)**:
+     - `OBSTACLE_Boulder-kinda-round..png` (48×32) -> Variant 1 boulder
+     - `OBSTACLE_Boulder-Oval.png` (48×32) -> Variant 2 boulder
+     - `OBSTACLE_Boulder-Trio.png` (48×32) -> Variant 3 boulder cluster
+     - `OBSTACLE_Old-Tree-Stump..png` (32×32) -> Ancient tree stump
+  2. **Tile Overlays (`assets/sprites/TILE OVERLAYS/`)**:
+     - `TO-KUHOL-SNAIL.png` (32×48) -> Golden Apple Snail (`kuhol`)
+     - `TO-ARMY-WORM.png` (32×48) -> Fall Armyworm (`armyworm`)
+     - `TO-RICE-BLACKBUG.png` (32×48) -> Rice Black Bug (`rice_black_bug`)
+     - `TO-Wilt-Spores.png` (32×48) -> Fusarium Wilt (`fusarium_wilt`)
+- **Key Implementation Details**:
+  1. **Obstacle Rendering (`src/core/TileRenderer.gd`)**:
+     - Replaced legacy procedural Polygon2D obstacles with official pixel-art sprites.
+     - Sized obstacles to crisp **2.0× integer pixel scale** (`scale = Vector2(2.0, 2.0)` at `position = Vector2(0.0, -6.0)`), perfectly containing both tree stumps (64×64 px) and boulders (drawn 68–78 px wide) within the 128×64 px isometric tile diamond, with 0 adjacent tile overlap in all 8 directions.
+     - Boulder obstacles use soft ground contact shadows (`Color(0.04, 0.08, 0.04, 0.40)`, 22×8 px ellipse at `y = +4.0`). Rock variant is deterministically selected via spatial hash `abs(pos.x * 7 + pos.y * 13 + pos.x * pos.y) % 3` across all 3 boulder types.
+     - Tree stump obstacle uses soft ground contact shadow (`Color(0.06, 0.10, 0.05, 0.45)`, 18×7 px ellipse at `y = +5.0`) grounding roots cleanly within the diamond.
+     - Unlocked obstacles render in full crisp pixel color; unbought locked parcel obstacles receive wilderness modulation (`Color(0.58, 0.66, 0.54, 1.0)`).
+     - Legacy procedural methods preserved as defensive fallbacks (`_draw_procedural_tree_fallback`, `_draw_procedural_rock_fallback`).
+  2. **Pest Infestation Overlays (`src/core/TileRenderer.gd`)**:
+     - Mapped all 4 pest types to their corresponding pixel-art overlay sprites (`PEST_OVERLAY_TEXTURES`).
+     - Sized at 3.5× scale (`position = Vector2(0.0, 28.0 - tex_h * 3.5 / 2.0)`, 112 px wide), fully contained within the diamond baseline with zero neighbor boundary violations.
+     - Infested tiles render the underlying standing crop (at withering/pest stage) with the pest overlay sprite sitting directly on top (`z_index = 1`).
+     - Extended pest overlay rendering to 2×2 perennial child plots so entire groves display the infestation.
+     - Suppressed placeholder emoji (`🐛`) from `_apply_fill_color` when custom pest overlay texture is active, keeping ground terrain and pixel art pristine.
+  3. **UI Integration (`src/ui/TileInfoPanel.gd`, `src/ui/TileActionPopup.gd`, `src/core/FarmGrid.gd`)**:
+     - `TileInfoPanel.gd`: `_get_tile_texture()` now returns the active boulder texture or tree stump texture on `OBSTACLE` and `LOCKED` tiles, and pest overlay textures on `INFECTED` tiles. Updated labels to `"🪨 Boulder Obstacle"` and `"🪵 Old Tree Stump"`.
+     - `TileActionPopup.gd`: Updated menu action to `"🪓 Chop & Clear Stump (₱50 - Worker required)"`.
+     - `FarmGrid.gd`: Updated `clear_obstacle` event log text to `"old tree stump"`.
+- **Verification**:
+  - `scratch/verify_obstacles_and_overlays.gd`: 100% passed (verified stump texture, 3 boulder variants, all 4 pest overlays, 2.0x scale, position, modulate, crop layer with z_index=1, emoji suppression, and multi-tile child plot overlay).
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI overhaul assertions.
+  - `scratch/test_all_buildings_fit.tscn`: 100% passed across all 17 buildings.
+
+---
+
+### Session 126 — Custom Freehand Magnifying Icon & Farmer Soil Investigation Tool (2026-10-26)
+- **Goal**: Add a freehand pixel-art magnifying glass icon and an "Investigate / Soil Check" tool for the farmer, allowing players to click or drag on soil to inspect diagnostics without issuing manual labor commands.
+- **Assets Added**:
+  - `assets/icons/Tools/Magnify.png` (32×32 pixel art): Handcrafted freehand brass-rimmed magnifying glass with reflective clear lens, specular glint, brass ferrule, and diagonal carved wooden handle with flared pommel. Perfectly matches palette and style of `Pick.png`, `Basket.png`, and `watering.png`.
+- **Key Implementation Details**:
+  1. **Hotbar Integration (`src/ui/PlantHotbar.gd`)**:
+     - Registered `"inspect": "res://assets/icons/Tools/Magnify.png"` in `TOOL_ICONS`.
+     - Added `"inspect"` as the first item (slot 0) in the "Tools" category:
+       `{"id": "inspect", "name": "Investigate / Soil Check", "cost": 0, "icon": "🔍", "desc": "Inspect soil diagnostics, moisture, nutrients, and crop progress without issuing farm labor tasks."}`
+     - Added dedicated tooltip card breakdown with non-destructive investigation metrics.
+     - In `select_tool()`: sets custom mouse cursor to `Magnify.png` with hotspot `Vector2(19, 11)` (the glass lens center) when `"inspect"` is selected; smoothly resets to default cursor on tool switch, hotbar closure, or worker deselection.
+  2. **Farm Simulation & Input Integration (`src/core/FarmGrid.gd`)**:
+     - Registered `"inspect"` in `get_tool_footprint()` (1×1) and `is_valid_tool_target()` (returns true for any unlocked tile).
+     - Guarded worker auto-selection in `_finish_drag()` with `active_tool != "inspect"` to prevent unwanted worker commandeering.
+     - Handled `"inspect"` in single click and marquee drag: calls `select_tile(root_pos)` and `selection_inspected.emit()`, plays `"tile_select"` SFX, shows floating feedback `"🔍 Inspected"` / `"🔍 Inspected %d Plots"`, and bypasses `_auto_apply_hotbar_action`.
+     - In `_auto_apply_hotbar_action()`: early-returns on `tool_id == "inspect"` to guarantee zero accidental farm labor tasks.
+     - In right-click deselect: clears tile highlights and calls `Input.set_custom_mouse_cursor(null)`.
+  3. **Visual Feedback & Diagnostics (`src/world/DragSelectOverlay.gd`)**:
+     - Updated `_draw_tool_hover()` to allow hover previews when `active_tool == "inspect"` without requiring a pre-selected worker.
+     - Outlines hovered tile with a diagnostic cyan border (`Color(0.35, 0.85, 1.0, 0.95)`) and highlights crop with `"cyan"`.
+- **Verification**:
+  - `scratch/test_magnify_tool.tscn`: 5/5 assertions passed (texture dimensions, hotbar registration, selection handling, 1×1 footprint, and zero task queueing).
+  - `scratch/run_verify_ui.tscn`: 15/15 UI overhaul assertions passed.
+  - `scenes/MainGame.tscn`: Smoke test passed with clean exit code 0.
+
+---
+
+### Session 127 — Farm Decorations Shop Category, 7 Renamed Flower Varieties & 1×1 Landscaping System (2026-10-26)
+- **Goal**: Add a brand new `"🌸 Decorations"` category in the Agri-Shop for homestead beautification. Inspect, categorize, and rename the flower sprite collection in `assets/sprites/Decorations/Flowers/` with culturally authentic names matching the Philippine farm theme, register each decoration in `Data.BUILDINGS`, integrate 1×1 diamond placement with instant activation, horizontal flipping (`[R]` key), and inspection/dig-up support in `BuildingCardPopup`.
+- **Assets Analyzed, Renamed & Re-imported**:
+  - `tile_041.png` → `flower_santan.png`: **Red Santan Bush** (₱35, *Ixora coccinea*) — Dense tropical bush with clusters of fiery scarlet florets.
+  - `tile_042.png` → `flower_gumamela.png`: **Gumamela Flower Patch** (₱30, *Hibiscus rosa-sinensis*) — Sprawling floral groundcover with crimson petals and golden stamens.
+  - `tile_043.png` → `flower_garden_hedge.png`: **Ornamental Garden Hedge** (₱25) — Neatly trimmed, lush evergreen border shrub for path lining.
+  - `tile_044.png` → `flower_bougainvillea.png`: **Purple Bougainvillea Bush** (₱45, *Bougainvillea spectabilis*) — Dramatic cascading magenta-purple floral shrub.
+  - `tile_045.png` → `flower_topiary_shrub.png`: **Tropical Foliage Shrub** (₱25) — Sculpted upright green topiary shrub for formal garden accents.
+  - `tile_046.png` → `flower_wildflower_bed.png`: **Wildflower Garden Bed** (₱40) — Mixed native Mindanao wildflower bed with mixed blooms.
+  - `tile_047.png` → `flower_blossom_cluster.png`: **Golden Blossom Cluster** (₱20) — Sunny yellow, orange, and white perennial floral cluster.
+  - All old `.import` files purged and newly imported via Godot with nearest-neighbor filtering.
+- **Key Implementation Details**:
+  1. **Data Registration (`autoload/Data.gd`)**:
+     - Registered all 7 flower items in `Data.BUILDINGS` with `shop_category: "decorations"`, `grid_size: Vector2i(1, 1)`, `build_time: 0.0`, `max_level: 1`, `unique: false`, `is_decoration: true`, and tailored descriptions.
+  2. **Agri-Shop Category & Clash of Clans Cards (`src/market/ShopPanel.gd`)**:
+     - Preloaded all 7 flower textures (`TEX_FLOWER_SANTAN`, etc.).
+     - Added `decorations_grid` and registered tab `_make_tab("Decorations", "🌸 Decorations")` in `_ready()`.
+     - In `_populate_buildings()`: populated `decorations_grid` with `_fill_category_grid(decorations_grid, "decorations")`.
+     - In `_create_building_coc_card()`: formatted metadata with `"🌸 1×1 Plot"` and `"Instant Decor"`.
+     - In `ShopSpritePreview`: scaled 32×32 flower textures at 2.0× on warm circular pedestals with soft isometric contact shadows.
+  3. **World Placement & Visual Alignment (`src/buildings/Building.gd`, `src/buildings/BuildingPlacementOverlay.gd`, `src/core/FarmGrid.gd`)**:
+     - `Building.gd`: Added entries in `get_art_fit()` with `scale: 2.0`, `center_offset: Vector2(16.0, 22.0)`, `has_slab: false`, `roof_apex_y: -36.0`, `scaffold_h: 28.0`.
+     - In `_draw_art_building()`: rendered grounded contact shadow (`shadow_rx: 20.0, shadow_ry: 9.0, shadow_cy: 10.0`) fitting cleanly within the 128×64 diamond.
+     - Enabled horizontal flip (`art_sprite.flip_h = is_flipped`) and immediate `BuildingState.ACTIVE`.
+     - `BuildingPlacementOverlay.gd`: Added horizontal flip preview transform so ghosts mirror when `[R]` is pressed during placement.
+     - `FarmGrid.gd`: Guarded building placement against standing crops (`tile.crop_type != ""`) and set instant `duration = 0.0` and `BuildingState.ACTIVE` for decorations.
+  4. **Inspection & Landscaping Management (`src/buildings/BuildingCardPopup.gd`, `src/ui/TileInfoPanel.gd`)**:
+     - `BuildingCardPopup.gd`: Added `is_decoration` handling: sets `"Garden Flora • 1×1 Plot"` level label, `"🌸 Beautifying Farmstead"` status, hides upgrade button and next tier stats, and styles demolition button as `"🗑️ Dig Up & Remove (+₱refund)"`.
+     - In `_refresh_generic_feature_section()`: populated botanical card breakdown and landscaping tips.
+     - `TileInfoPanel.gd`: Updated tile inspection to display flower display name, `"🌸 Garden Flora"`, and 32×32 texture preview.
+- **Verification**:
+  - `scratch/test_decorations_shop.tscn`: 100% passed (verified registration of all 7 flowers, 32×32 textures, 2.0× scale previews, 7 shop cards, 1×1 FarmGrid placement, instant ACTIVE state, `[R]` horizontal flip, BuildingCardPopup inspection, and clean dig-up refund).
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI overhaul assertions.
+  - `scenes/MainMenu.tscn`: Headless smoke test passed with clean exit code 0.
+
+---
+
+### Session 128 — Multi-Layered Farmer Action Cancellation, Stop Tool & Refund System (2026-10-26)
+- **Goal**: Implement a responsive, multi-layered action cancellation system so players can immediately halt or undo farmer actions if they missclick (accidental clicks on soil, erroneous plowing/planting/watering/harvesting/clearing/spraying, or incorrect marquee drag selections).
+- **Features Implemented**:
+  1. **Right-Click Cancellation Reflex (`src/core/FarmGrid.gd`)**:
+     - Right-clicking directly on a tile with an active or pending task (`TaskManager.has_task_at(clicked_pos)`) immediately cancels the task at that position and interrupts the assigned worker.
+     - Right-clicking anywhere while workers are selected halts all active/selected workers and clears their queues.
+     - Displays floating notification `"🛑 Action Cancelled"` at the target position, triggers `AudioManager.play_ui("click")`, and logs the event in `LogManager`.
+  2. **Instant Keyboard Hotkeys `[X]` / `[Delete]` (`src/ui/HUD.gd`, `src/ui/PlantHotbar.gd`)**:
+     - Pressing `[X]` or `[Delete]` immediately halts active or selected workers, cancels tasks, and triggers floating feedback `"🛑 Action Cancelled"`.
+     - If no tasks are currently executing or queued, pressing `[X]` arms the dedicated `"cancel_task"` tool for precision click-to-cancel.
+  3. **Dedicated Hotbar "Stop / Cancel Action" Tool (`src/ui/PlantHotbar.gd`, `assets/icons/Tools/Cancel.png`)**:
+     - Generated custom 32×32 pixel-art stop icon (`Cancel.png`) with gold beveled rim, crimson inset, and crisp white 'X' drop shadow matching the UI style.
+     - Added `"cancel_task"` into `TOOL_ICONS` and registered under the `tools` category: `"Stop / Cancel Action [X]"`.
+     - Left-clicking or dragging with the Cancel tool over tiles cancels tasks covering those plots without requiring pre-selected workers. Sets a custom 32×32 cancel cursor with centered hotspot `(16, 16)`.
+  4. **Interactive HUD Task Capsule (`src/ui/HUD.gd`, `scenes/MainGame.tscn`)**:
+     - The top-right `TaskCapsule` automatically displays when `TaskManager.get_task_count() > 0`: `"📋 %d [🛑 Cancel]"`.
+     - Left-clicking the capsule calls `_cancel_worker_action()`, halting all active farm tasks and workers in one click.
+  5. **Full Economic Safety & Prepaid Refunds (`autoload/TaskManager.gd`, `src/farmer/Farmer.gd`)**:
+     - `cancel_task_at()`, `cancel_tasks_for_farmer()`, and `cancel_all_tasks()` inspect cancelled tasks for prepaid costs (e.g., `clear_obstacle` ₱50, `spray_pest` ₱30/₱45) and automatically credit the funds back to `EconomyManager.add_cash()`.
+     - Incomplete planting halts before seeds are consumed, preventing accidental seed loss.
+     - Workers return to `IDLE` state with appropriate animations and cleared paths.
+- **Verification**:
+  - `scratch/test_cancel_action.tscn`: 100% passed (8 assertions: tool icon presence, hotbar tools registration, unassigned task cancellation, prepaid obstacle refund, active worker task cancellation with smooth transition to remaining queue, final task reset to `IDLE`, and selected worker halt).
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI overhaul assertions.
+  - `scenes/MainGame.tscn`: Headless run verified startup with 0 errors.
+
+---
+
+### Session 129 — Coastal Beach Sand System & Machine Sprites for Drones and Sprinklers (2026-10-27)
+- **Goal**: Integrate the new sand tiles (`assets/sprites/ground/SAND/`) along the eastern beach coast and wire up the new machine sprites (`assets/sprites/Machine/`) for autonomous farm drones and field rotary sprinklers.
+- **Features Implemented**:
+  1. **Beach Sand Terrain & Coastal Shallows System (`assets/sprites/ground/SAND/`, `src/core/GroundTileSprites.gd`, `assets/sprites/ground/ground_tile_sprites.tres`, `src/world/SeaWater.gd`)**:
+     - Integrated 6 new 32×32 pixel-art sand textures with 4× nearest-neighbor scaling and zero-offset isometric diamond alignment:
+       - Dry Golden Sand: `Sand-01.png`, `Sand-02.png`, `Sand-03.png`.
+       - Tidal Wet Shore Sand: `WSand-01.png`, `WSand-02.png`, `WSand-03.png`.
+     - Added `GroundTileSprites.is_beach_tile(pos: Vector2i)`: detects the entire eastern shoreline column (`pos.x == 23`) and ~64% of `pos.x == 22` using deterministic spatial hashing for an organic undulating dune line (39 beach plots total).
+     - In `GroundTileSprites.get_texture()`: natural uncultivated tiles (`EMPTY`, `LOCKED`, `OBSTACLE`, `FLOODED`) on the beach return wet sand (when touching water `pos.x == 23` or moisture > 50%) or dry sand. Completed buildings on the coast (e.g. GenSan Seaport) sit on clean sand. Cultivated/planted plots preserve soil textures so farming near the shore remains legible.
+     - `SeaWater.gd`: Added a shallow tropical turquoise sand bar shelf polygon (`Color(0.10, 0.62, 0.70, 0.60)`) between `COAST_X` (24.0) and `COAST_X + 2.2`, ambient caustic highlights, and dynamic tide wash with translucent foam sheet and breaking surf rolling up onto the golden beach sand.
+  2. **Farm Drone Machine Sprites (`assets/sprites/Machine/Drones.png`, `src/drone/FarmDrone.gd`, `src/ui/PlantHotbar.gd`, `src/market/ShopPanel.gd`)**:
+     - Integrated the 192×96 px drone sprite sheet (3 columns × 2 rows = 64×48 px per cell):
+       - Col 0: Lv.1 Plow Drone (heavy undercarriage tiller).
+       - Col 1: Lv.2 Seeder Drone (aerial hopper & seed tubes).
+       - Col 2: Lv.3 Harvester Drone (robotic cutter claws & spray mist).
+       - Row 0: Rotor Flight Angle A; Row 1: Rotor Flight Angle B (animated during hovering/patrol).
+     - Updated `FarmDrone.draw_drone_art()`: draws the sprite sheet using `draw_texture_rect_region` centered on `(32, 24)` with scale factor `px / 3.0`.
+     - Automatically updates all drone visuals across world entities (1.0× scale 64×48), HUD PlantHotbar slot & drawer (~28×28 scaled), and ShopPanel machinery card preview.
+  3. **Field Sprinkler Machine Sprites (`assets/sprites/Machine/Sprinklers.png`, `src/buildings/Building.gd`, `src/market/ShopPanel.gd`)**:
+     - Integrated the 416×80 px sprinkler sprite sheet containing 5 precise frames:
+       - Frame 0 (Idle): Ground-mounted metal tripod stand with feeder hose and brass nozzle (`stem: Vector2(12, 43)`).
+       - Frames 1..4 (Active Spray): 360° rotating water jets, ballistic arcs, and atomized mist across 4 rotation angles (`stems: [28.5, 51.0], [38.0, 60.0], [44.0, 60.0], [40.0, 60.0]`).
+     - In `Building.gd` (`_draw_sprinkler`): when idle, displays Frame 0; when active, smoothly cycles frames 1..4 at ~7.5 fps with grounded wet patch, ambient 360° mist halo, and expanding impact ripples. Stem coordinate offsets ensure the tripod stand is rock-solid at `(0, 4)` without any visual jitter.
+     - In `ShopPanel.gd` (`_draw_sprinkler_preview`): displays an animated rotating spray preview directly on the shop pedestal.
+- **Verification**:
+  - `scratch/test_beach_and_machines.tscn`: 100% passed (verified 39 beach tiles, correct sand/wet sand texture mapping, inland grass preservation, 192×96 Drones.png loading, `draw_drone_art` execution across all tiers and rotor phases, 416×80 Sprinklers.png loading, and bounds check on all 5 sprinkler frames).
+  - `scratch/compose_preview.gd`: Composited all sand variants, drone upgrade tiers, and sprinkler spray cycles into `beach_and_machines_composite.png` artifact for visual inspection.
+  - `scratch/run_verify_ui.tscn`: 100% passed across all 15 UI overhaul assertions.
+  - `scenes/MainGame.tscn`: Smoke test launched cleanly and passed with exit code 0.
+
+---
+
+### Session 130 — Individual Drone Control, Hangar Pairing & Autonomous Repeat Fields (2026-10-27)
+- **Goal**: Address drone UX feedback: enable individual drone selection and control, field designation tied directly to chosen crops (Palay, Corn, Sugarcane, Pineapple, Coffee, Banana, Coconut) with perpetual hovering/monitoring repeat loops, capability level mapped directly to each drone's specific hangar, and remove the farmer pilot requirement (1 Hangar = 1 Autonomous Drone).
+- **Features Implemented**:
+  1. **Complete Removal of Farmer Pilot Requirements (`autoload/Data.gd`, `autoload/BuildingManager.gd`, `src/market/ShopPanel.gd`, `src/buildings/BuildingCardPopup.gd`)**:
+     - `Data.BUILDINGS["drone_station"]`: Changed `"unique": true` to `"unique": false` so players can construct multiple Drone Command Hangars across their farm.
+     - `BuildingManager.gd`: Updated `get_drone_capacity() = get_drone_station_count()` and `recalculate_bonuses()` so `active_drones = hangar_count` without checking `active_workers`. Removed pilot limitations from `can_commission_drone()`.
+     - `ShopPanel.gd`: Updated Machinery card meta to `"🛸 +1 Drone (Autonomous)"`. Transformed the Labor tab card into an autonomous fleet info card with a one-click redirect button to Machinery (`"Build Hangar ➜"`).
+     - `BuildingCardPopup.gd`: Replaced "Remote Pilot Requirement" text with "Autonomous AI Fleet: 1 Drone per Drone Command Hangar (0 Human Pilots Required)".
+  2. **Drone-to-Hangar 1:1 Pairing & Individual Levels (`src/drone/FarmDrone.gd`, `src/core/FarmGrid.gd`)**:
+     - Each `FarmDrone` tracks `drone_index: int`, `hangar_ref: Node`, and `is_selected: bool`.
+     - `FarmDrone.get_level()` and `_refresh_level()` derive capability tier directly from `hangar_ref.level` (Lv.1 Plow & Irrigation, Lv.2 Seeder & IPM, Lv.3 Harvester & Infinite Repeat Loop). Upgrading Hangar #1 upgrades Drone #1 without affecting other hangars.
+     - `FarmGrid._sync_drones()` pairs each active `drone_station` building with its dedicated `FarmDrone` instance.
+  3. **Field Designation, Crop-Dependent Automation & Hover Repeat Loops (`src/drone/FarmDrone.gd`, `src/core/FarmGrid.gd`)**:
+     - Selecting/dragging a field assigns that specific rectangular boundary to the selected drone (`deploy(zone_tiles, chosen_crop)`).
+     - Supported crops: Palay, Yellow Corn, Sugar Cane, Pineapple, Arabica Coffee, Banana, and Coconut Palm.
+     - When idle in its field, the drone hovers over `zone_center_pos` with organic bobbing and sway, continuously monitoring its plots.
+     - Priority scanning loop: cures blighted crops (Tier 0, Lv.2+) -> harvests mature produce to storage (Tier 1, Lv.3+) -> hydrates thirsty soil (Tier 2, Lv.1+) -> plants designated seed (Tier 3, Lv.2+) -> plows untilled dirt (Tier 4, Lv.1+) -> clears obstacles (Tier 5). Once harvested, the plot resets/regrows, triggering the drone to re-plow, re-plant, and continuously repeat the cycle.
+  4. **Individual Selection & World Entity Clicking (`src/core/FarmGrid.gd`, `src/drone/FarmDrone.gd`)**:
+     - Added `FarmGrid.select_drone_by_index(idx: int)` and `FarmGrid.select_drone(d: FarmDrone)`.
+     - In `_finish_drag()`: clicking within 36px of any hovering drone in the world selects that drone; clicking on any `drone_station` building tile selects its stationed drone.
+     - `ZoneOverlay`: distinct color coding per drone (Cyan for Drone 1, Amber for Drone 2, Emerald for Drone 3, Purple for Drone 4, Coral for Drone 5), glowing pulsing double-border for the selected drone, and floating isometric name/crop/level tags.
+  5. **New DroneQuickBar HUD Component (`src/ui/DroneQuickBar.gd`, `src/ui/HUD.gd`, `src/ui/PlantHotbar.gd`)**:
+     - Compact HUD bar anchored directly above the hotbar (`set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)`):
+       - Unit Switcher: `< 🛸 Drone #1: Palay (Lv.2) ▾ >` with live status badge (`🟢 Working`, `🔵 En Route`, `🟡 Monitoring`, `⚪ Docked`).
+       - 7 Crop Selector Pills: `[🌾 Palay] [🌽 Corn] [🎋 Cane] [🍍 Pine] [☕ Coffee] [🍌 Banana] [🥥 Coco]` — clicking any crop instantly updates that drone's automation target.
+       - Quick Action Buttons: `[🎯 Drag Field]`, `[🏠 Recall]`, `[⚙️ Deck]`, `[✕]`.
+     - In `PlantHotbar.gd`: Slot 4 (`drone`) displays selected drone's level and assigned crop; clicking slot 4 opens `DroneQuickBar` and arms `drone_zone` for drag-selection.
+  6. **Enhanced Drone Command Deck (`src/ui/DroneCommandDeck.gd`)**:
+     - Added a dedicated horizontal Unit Tab Bar across the top: `[ 🛸 Drone #1: Palay (Lv.1) ] [ 🛸 Drone #2: Corn (Lv.3) ] ... [ ➕ Build Hangar in Shop ]`.
+     - Selecting a tab switches all telemetry, crop buttons, directive toggles, and action buttons to that specific drone.
+- **Verification**:
+  - `scratch/test_individual_drones.tscn`: 100% passed (8 assertions: 2 hangars deployed without farmer pilots, distinct level inheritance Lv.1 vs Lv.3, individual selection switching, distinct crop & field zone assignments with hover centers, DroneQuickBar cycling and telemetry, and independent drone recall).
+  - `scratch/run_verify_ui.tscn`: 100% passed (15/15 assertions verified).
+  - `scenes/MainGame.tscn`: Headless smoke test passed with exit code 0.
+
+---
+
+### Session 131 — Elimination of Dark Circles & Ground Artifacts Under Building Sprites (2026-10-27)
+- **Goal**: Respond to player visual feedback: "Remove the circles in the sprites it looks so bad with other buildings" / "the dark circle on the buildings sprites when it is build that circle is what i mean".
+- **Root Cause Analysis**:
+  - In `src/buildings/Building.gd`, multiple sprite drawing methods procedurally generated dark elliptical polygons (`shadow_poly`) and vector circles (`draw_circle`) beneath placed buildings:
+    1. `_draw_art_building`: Drew a 16-point elliptical shadow polygon across all 8 commercial/processing buildings (`bayanihan_center`, `tacurong_mill`, `koronadal_wholesale`, `gensan_seaport`, `rice_mill`, `sugar_mill`, `copra_dryer`, `coffee_roastery`) and all 7 flower decorations.
+    2. `_draw_bahay_kubo`: Drew a 46×23px elliptical `shadow_poly` plus 5 dark contact circles under the stilt footings and ladder.
+    3. `_draw_bodega`: Drew a 48×24px elliptical `shadow_poly` under the Silo sprite base.
+    4. `_draw_cold_storage`: Drew a 95×48px elliptical `shadow_poly` under the Cold Storage base.
+    5. `_draw_water_tower`: Drew a 44×22px elliptical `shadow_poly` under the Water Tower base.
+    6. `_draw_drone_station`: Drew a 54×27px elliptical `shadow_poly` under the Drone Hangar base.
+    7. `_draw_weather_station`: Drew a 50×25px elliptical `shadow_poly` under the Weather Station platform.
+    8. `_draw_sprinkler`: Drew a dark circular wet puddle (`draw_circle(Vector2.ZERO, 16.0, ...)`) and circular ripple arcs (`draw_arc`) around the tripod base.
+    9. `src/drone/FarmDrone.gd`: Drew a 17px circular vector shadow under the drone entity.
+  - These smooth vector circles clashed severely with the nearest-neighbor pixel art aesthetic of the buildings and the 2:1 isometric diamond grid.
+- **Changes Applied**:
+  - `src/buildings/Building.gd`:
+    - Completely removed all procedural dark circular/elliptical `shadow_poly` ground polygons from `_draw_bahay_kubo`, `_draw_bodega`, `_draw_cold_storage`, `_draw_art_building`, `_draw_water_tower`, `_draw_drone_station`, and `_draw_weather_station`.
+    - Removed the 5 dark stilt footing `draw_circle` contact dots under Bahay Kubo.
+    - Removed the dark wet ground `draw_circle` patch and ambient circular `draw_arc` ripple halos from `_draw_sprinkler`. The sprinkler pixel-art sprite now sits cleanly on the isometric tile with authentic nearest-neighbor rendering.
+  - `src/drone/FarmDrone.gd`:
+    - Removed the vector `draw_circle` ground shadow so drones hover cleanly over tiles and structures without projecting circular artifacts.
+- **Verification**:
+  - `scratch/run_test_individual_drones.tscn`: 8/8 tests passed (100%).
+  - `scratch/run_verify_ui.tscn`: 15/15 tests passed (100%).
+  - `scenes/MainGame.tscn`: Smoke tested cleanly with 0 errors.
+
+---
+
+### Session 132 — Hotbar Drone Decoupling, Explicit Drone Ability Locks & UI Overhaul (2026-10-27)
+- **Goal**: Respond to player feedback: "Remove the drone from the farmer hopbar, fix up the drone UI its confusing whether the drone has the abitly to plant or what there is no indicator if he hasnt unlocked its ability also simplify the make the UI better to see".
+- **Root Cause Analysis**:
+  1. The worker squad's `PlantHotbar.gd` previously contained a 4th slot ("drone") that triggered drone zone designation. Drones are autonomous machinery, and placing drone controls on the human worker hotbar created severe conceptual confusion and forced coupling between worker seed selection and drone automation.
+  2. At Hangar Level 1, drones can only till/plow untilled dirt and hydrate thirsty plots (<50% moisture). Seed planting is locked until Hangar Lv.2 in the Agri-Shop, and harvesting is locked until Hangar Lv.3.
+  3. However, `DroneQuickBar.gd` previously displayed all 7 crop pills as enabled at Lv.1, labeled the cycler button "Palay (Lv.1)", and highlighted Palay in gold. Players reasonably assumed the drone was assigned to plant Palay, and when it only plowed and then sat idle, players were completely confused whether the drone had planting capability or why it wasn't planting.
+  4. In `DroneCommandDeck.gd`, all 6 directives (including `auto_plant` and `auto_harvest`) and all 7 crops were displayed without level requirement locks or capability warnings.
+  5. The single-row layout of `DroneQuickBar` crammed 12 items into a 46px strip and overlapped `TileInfoPanel` on the left.
+- **Changes Applied**:
+  - `src/ui/PlantHotbar.gd`:
+    - Completely removed `"drone"` category from hotbar categories, order, flyout drawers, and shortcuts. The farmer hotbar is now strictly dedicated to the human squad: [1] Seeds, [2] Tools, [3] IPM Treatments.
+  - `src/core/FarmGrid.gd`:
+    - Decoupled drone zone deployment crop from `plant_hotbar.get_selected_category_item("seeds")`. Drone deployment now retains the drone's own designated crop (`target_drone.crop_type`), operating 100% independently from the worker hotbar.
+  - `src/drone/FarmDrone.gd`:
+    - Added explicit diagnostic blocked reasons in `_scan_for_job()` when idle plots are gated by hangar capability:
+      - `"🔒 Sowing locked: Drone is Lv.1 (Hangar Lv.2 required in Shop)"`
+      - `"🔒 Harvesting locked: Drone is Lv.%d (Hangar Lv.3 required in Shop)"`
+  - `src/ui/DroneQuickBar.gd`:
+    - Redesigned into a clean, spacious 2-row panel with cleared geometry (`offset_left = 420.0, offset_right = -15.0`) providing zero overlap with `TileInfoPanel` (x=14..414) and 19px vertical breathing room above `PlantHotbar`.
+    - **Row 1 (Header & Telemetry)**:
+      - Unit Cycler Button: `< 🛸 Drone #1 (Lv.1) ▾ >` (Lv.1 labeled Ground Prep, Lv.2+ labeled with assigned crop).
+      - Prominent Ability Badge:
+        - Lv.1 (Amber): `[ ⛏️ Tills & 💧 Waters | 🔒 Sowing Locked (Requires Hangar Lv.2) ]`
+        - Lv.2 (Mint): `[ 🌱 Sows %s • 💧 Waters • 🧪 Cures Blight | 🔒 Harvest at Lv.3 ]`
+        - Lv.3 (Gold): `[ ⚡ Full Loop: Till ➔ Sow ➔ Water ➔ IPM ➔ Harvest to Bodega ]`
+      - Live Status Pill (`🟢 Working`, `🔵 En Route`, `🟡 Monitoring`, `⚪ Docked`, or active blocked alert).
+      - Command Deck shortcut `[⚙️ Deck (U)]` and Close button `[✕]`.
+    - **Row 2 (Capability-Gated Sowing & Actions)**:
+      - When Lv.1: Replaces crop pills with an unmistakable locked notice: `🔒 Sowing Unlocks at Hangar Lv.2 (Tills & Waters only)` + direct shortcut `[🛒 Upgrade in Agri-Shop]` opening the Machinery tab.
+      - When Lv.2 or Lv.3: Clean crop pills `[🌾 Palay] [🌽 Corn] ...` with gold checkmark on active crop and padlocks on unresearched varieties.
+      - Action controls: `[🎯 Drag Field]`, `[🌐 Auto-Patrol]`, and `[🏠 Recall]`.
+  - `src/ui/DroneCommandDeck.gd`:
+    - Added a prominent **Capability Card** beneath fleet telemetry displaying current level tier, active capabilities, locked capabilities, and a 1-click `[🛒 Upgrade in Shop]` button.
+    - Sowing Seed Header: Updates to `🔒 SOWING LOCKED (Requires Hangar Lv.2 in Agri-Shop)` when Lv.1.
+    - Crop Buttons: Disabled at Lv.1 with `🔒 [Crop] \n (Lv.2 Req)` and clear tooltips explaining Hangar Lv.2 requirement.
+    - Directives Grid: Enforces level locks on `auto_plant` (Lv.2 Req), `auto_spray` (Lv.2 Req), `auto_harvest` (Lv.3 Req), and `auto_clear` (Lv.3 Req) with padlock tags and disabled styling.
+    - Guarded `_toggle_directive()` and `_on_crop_selected()` against level bypass.
+- **Verification**:
+  - `scratch/run_test_drone_ui_capability.tscn`: 100% passed (5/5 assertions verifying Lv.1, Lv.2, and Lv.3 capability badges, directive locks, and sowing states in both QuickBar and CommandDeck).
+  - `scratch/run_test_drone_independence.tscn`: 100% passed (13/13 assertions verifying full worker decoupling and autonomous operations).
+  - `scratch/run_test_individual_drones.tscn`: 100% passed (8/8 assertions verifying multi-hangar pairing, telemetry, and QuickBar cycling).
+  - `scratch/run_verify_ui.tscn`: 100% passed (15/15 assertions verified).
+  - Visual In-Engine Verification:
+    - `scratch/drone_quickbar_lv1.png`: Confirms Lv.1 QuickBar with locked sowing indicator, shop upgrade button, zero overlap with TileInfoPanel, and clean 3-slot farmer hotbar below.
+    - `scratch/drone_deck_lv1.png`: Confirms Level 1 Capability Card, locked crop pills, and padlocked directives.
+    - `scratch/drone_quickbar_lv2.png`: Confirms Lv.2 QuickBar with active sowing pills and mint capability badge.
+
+---
+
+### Session 133 — Floating Capsule Pill QuickBar, Central Fleet Hangar & Repeatable Drone Landing Pads (2026-10-28)
+- **Goal**: Respond to player feedback: "Fix the rectangle it looks bad and takes up so much, and for the drone how about the hanger is a one time purchase to upgrade all drones and theres a an individual one like teh bahay kubo that stores the drone a determines how many drones you can own each of these can level up to 3 owned drones and you can just buy one again to increase it".
+- **Key Architecture & Design**:
+  1. **QuickBar Visual Overhaul (Floating Capsule Pill)**:
+     - Eliminated the oversized 845×88px two-row rectangular box (`Samplebox1.tres`) which covered 74,000 px² of farmland.
+     - Replaced with a sleek, 450×38px single-row floating capsule pill (`corner_radius = 19`, dark espresso glass `Color(0.10, 0.08, 0.06, 0.92)`, warm gold trim `Color(0.85, 0.68, 0.32, 0.85)`, soft drop shadow).
+     - Centered right above the 3-slot worker hotbar with generous 45px clearance from `TileInfoPanel`.
+     - Single row layout: `[ 🛸 #1 (Lv.X) ▾ ] [ 🌱 Crop ▾ ] | [ 🎯 Field ] [ 🌐 Auto ] [ 🏠 Dock ] | [ ⚙️ ] [ ✕ ]`.
+     - Compact flyout crop selector popup (`top_level = true`) opens directly above `[🌱 Crop ▾]`, clamped right of `TileInfoPanel` (`x >= 390.0`), featuring the 7 crop icons with tooltips, seed costs, and active highlights without cluttering the screen.
+  2. **Central Fleet Avionics Hangar (`drone_station`, One-Time Purchase)**:
+     - Set `unique: true` in `Data.BUILDINGS`.
+     - Upgrading the central Hangar upgrades avionics and capabilities for **ALL owned drones fleet-wide** (`BuildingManager.get_drone_level()`).
+     - Lv.1 = Ground Prep (Plowing) & Irrigation; Lv.2 = Precision Seeder & Blight IPM; Lv.3 = Master Full Loop.
+  3. **Repeatable Drone Landing Pad (`drone_pad`, Like Bahay Kubo for Drones)**:
+     - Added `drone_pad` to `Data.BUILDINGS` (`unique: false`, `cost: 350`, `grid_size: Vector2i(2, 2)`, `max_level: 3`, `drone_capacity: 1`, `requires_building: "drone_station"`).
+     - Each pad stores drones up to its level: Lv.1 stores 1 drone, Lv.2 stores 2 drones, Lv.3 stores 3 drones.
+     - Buying additional landing pads expands total fleet capacity.
+     - Central Hangar provides 1 starter berth if no pads are built yet, so the Hangar is immediately playable upon purchase.
+  4. **Procedural 2.5D Isometric Rendering (`Building.gd`)**:
+     - Added `_draw_drone_pad()` with 2×2 reinforced concrete curb, dark tarmac diamond, hazard chevrons, central helipad rings, Lv.1..3 docking bays (1 central, 2 dual-bay, 3 runway arrows + solar panels), and pulsing night runway LEDs.
+     - Zero vector ground circle artifacts (`shadow_poly`), seamless pixel alignment.
+  5. **Shop, UI & Deck Integration**:
+     - `ShopPanel.gd`: Added `drone_pad` to Machinery tab with prerequisite check, procedural landing pad preview, and updated Labor tab fleet telemetry.
+     - `BuildingCardPopup.gd`: Added detailed inspect cards for `drone_pad` (berths, capacity) and `drone_station` (fleet-wide upgrade).
+     - `DroneCommandDeck.gd`: Updated fleet telemetry to show total drones owned vs max landing pad capacity and fleet-wide Hangar tier.
+- **Verification**:
+  - `scratch/run_test_individual_drones.tscn`: 10/10 assertions passed (100%): Central Hangar Lv.2 upgrades all drones fleet-wide; Pad 1 (Lv.2) + Pad 2 (Lv.1) grant 3 total capacity; Hangar Lv.3 instantly upgrades all drones; individual selection, crop assignment, zone deployment, QuickBar cycling, and independent recall confirmed.
+  - `scratch/run_test_drone_ui_capability.tscn`: 100% passed (Lv.1 locked sowing pill, Lv.2 flyout selector, Lv.3 full loop).
+  - `scratch/run_test_drone_independence.tscn`: 13/13 assertions passed (100%).
+  - Visual in-engine verification (`scratch/drone_quickbar_lv1.png` and `scratch/drone_quickbar_lv2.png`): Confirms gorgeous floating capsule pill layout, smooth flyout positioning, and zero collision with other UI elements.
+
+---
+
+### Session 134 — Unified Farmer-Like Hotbar Drone Control, Hangar Retirement & Strict Highlight Isolation (2026-10-28)
+- **Goal**: Respond directly to player feedback:
+  - *"Its kind confusing having this so much control how about remove the hanger and have kinda like the farmer where you click or switch and has the hopbar to control what to do."*
+  - *"Also dont show the highlights unless the drone you are using is responsible for that highlight. because I want to maek you see the indiviual task of different drone do with tehre automated/ hovered part of the fields"*
+- **Key Architecture & Design**:
+  1. **Hangar Retirement & Standalone Repeatable Drone Landing Pads**:
+     - Removed `drone_station` ("Drone Command Hangar") completely as a required building/gate. Cleared its `shop_category` so it no longer appears in the shop.
+     - Repeatable **Drone Landing Pads** (`drone_pad`, ₱350, max level 3) are now standalone, repeatable facilities (housing 1..3 drones per pad) exactly like Bahay Kubo houses human workers.
+     - Fleet avionics level is derived directly from built/upgraded landing pads (`BuildingManager.get_drone_level()`).
+     - Retired `DroneCommandDeck` modal and `DroneQuickBar` in favor of unifying drone control directly on `PlantHotbar.gd`.
+  2. **Farmer-Like Control via Unit Click/Switch & Hotbar (`PlantHotbar.gd`)**:
+     - Clicking any drone in the world selects that drone and deselects human farmers.
+     - Clicking a human worker deselects all drones.
+     - Pressing [U] or clicking the Drone Button on HUD cycles active drones.
+     - Docked a sleek **Unit Switcher Bar** right above the hotbar slots: `[◀] [🛸 Drone #1 (Lv.X)] [▶] [👨‍🌾 Workers]`, allowing 1-click cycling between drones or toggling between human laborers and autonomous drones.
+     - Hotbar slots dynamically adapt when a drone is active:
+       - **Slot 1 (`seeds`)**: Displays and controls the selected drone's assigned crop (Rice, Corn, Cane, Pineapple, Coffee, Banana, Coconut).
+       - **Slot 2 (`tools` / modes)**: Displays and controls the selected drone's automation mode (🌀 Auto-Loop, ⛏️ Plow Only, 🌱 Sow Only, 💧 Water Only, 🧺 Harvest Only, 🎯 Designate Field, 🌐 Patrol Whole Farm, 🏠 Return & Dock).
+       - **Slot 3 (`treatments`)**: Sets the drone's IPM method (Chemical Spray or Organic Biocontrol).
+     - Dragging a marquee box across the farm while a drone is selected assigns that exact zone to the selected drone immediately (identical to assigning tasks to farmers!).
+  3. **Strict Highlight Isolation (Only Responsible Drone Highlights)**:
+     - In `FarmDrone.gd` `ZoneOverlay._draw()`: Added top-level guard `if not drone.is_selected: return`.
+     - Unselected drones draw 0% field outlines, 0% polygons, 0% corner brackets, and 0% tile highlights.
+     - When Drone 1 is selected, ONLY Drone 1's field boundary and currently worked/hovered tile with high-contrast task badge (`⚡ %s` e.g. `⚡ SOWING PALAY`, `⚡ PLOWING`) are rendered. All other drones farm silently in the background with zero visual clutter.
+     - When human workers are selected, all drone field highlights vanish completely.
+- **Verification**:
+  - `scratch/run_test_drone_hotbar_unified.tscn`: 8/8 assertions passed (100%): Standalone pad capacity & avionics without Hangar, pad capacity stacking, FarmGrid drone sync, hotbar farmer mode initialization, drone selection & farmer deselection, hotbar crop & mode controls, unit switcher cycling, and zero highlight overlap verified.
+  - Visual In-Engine Verification:
+    - `scratch/capture_drone1_selected.png`: Confirms Drone #1 selected with hotbar unit switcher, Slot 1 showing Rice, Slot 2 showing Plow, Field A highlighted in cyan with worked tile badge, and Field B completely unhighlighted with 0 clutter.
+    - `scratch/capture_drone2_selected.png`: Confirms Drone #2 selected with hotbar unit switcher, Slot 1 showing Yellow Corn, Field B highlighted in amber with `⚡ SOWING YELLOW CORN` badge, and Field A completely unhighlighted.
+    - `scratch/capture_worker_selected.png`: Confirms switching to human workers with worker selection circle, hotbar unit switcher showing `[👨‍🌾 Worker 1] [🛸 Drones]`, and zero drone highlights in the entire world.
+
+---
+
+### Session 135 — 8-Bit Peaceful Retro Chiptune Soundtracks & Background Music System (2026-10-28)
+- **Goal**: Create directory `sounds/soundtracks/` and compose authentic "bit style" (8-bit / 16-bit retro chiptune) soundtracks matching the peaceful, cozy Philippine farm tycoon theme that play smoothly in the background while casually playing the game.
+- **Key Architecture & Design**:
+  1. **New Soundtracks Directory & Compositions (`res://sounds/soundtracks/`)**:
+     - Created `sounds/soundtracks/` in the project root.
+     - Synthesized 3 full-length, seamless looping 44.1kHz 16-bit stereo PCM WAV tracks:
+       - **Track 1: `countryside_morning.wav`** (*"Awit ng Bukid"* / Countryside Morning)
+         - 73.8 seconds, 104 BPM, 4/4 time, G Major.
+         - Cheerful, sunny, optimistic morning farming melody with 50% pulse lead, bouncy walking triangle bass, sparkling 25% pulse arpeggio harp, and soft retro brush drums.
+       - **Track 2: `pastoral_breeze.wav`** (*"Hanging Habagat"* / Pastoral Breeze)
+         - 70.4 seconds, 92 BPM, 3/4 swaying waltz / pastoral dance, C Major / F Major.
+         - Calming, idyllic tropical breeze rhythm with sweet expressive pulse lead, triangle bass, and acoustic-chiptune broken chord backing.
+       - **Track 3: `dusk_at_homestead.wav`** (*"Takipsilim"* / Twilight at the Homestead)
+         - 101.1 seconds, 76 BPM, 4/4 time, D Major / B minor pentatonic.
+         - Serene, soothing retro music-box chiptune lullaby for twilight, fireflies, and starry night skies.
+     - Formatted and reimported with forward loop mode (`edit/loop_mode=1`) in `.import` files and runtime code.
+  2. **Dedicated Background Music (BGM) Player & Autoload Integration (`autoload/AudioManager.gd`)**:
+     - Added `SOUNDTRACK_PATHS` and `SOUNDTRACK_TITLES` dictionary mappings.
+     - Added dedicated `_bgm_player: AudioStreamPlayer` (`process_mode = Node.PROCESS_MODE_ALWAYS` so music continues uninterrupted during game pauses).
+     - Added soundtrack playback API:
+       - `play_soundtrack(track_name, crossfade_duration)`: Smooth crossfade transitions with volume fading via Tweens.
+       - `stop_soundtrack(fade_duration)`: Graceful fadeout to silence.
+       - `next_soundtrack()` & `prev_soundtrack()`: 1-click cycling across the playlist.
+       - `set_music_volume(volume)` & `set_music_muted(muted)`: Independent background music volume and mute controls.
+       - `get_current_soundtrack()` & `get_soundtrack_title()`: Formatted display titles.
+     - **Context-Aware Day/Night Transition**:
+       - Hooked `TimeManager.period_changed`: Automatically transitions to `"dusk_at_homestead"` during Dusk/Night, and switches back to daytime tracks during Dawn/Morning!
+  3. **Casual Background Playback Integration**:
+     - `MainMenu.gd`: Plays `"countryside_morning"` upon opening the game.
+     - `MainGame.gd`: Ensures background music starts and plays casually during farming gameplay.
+     - `PauseMenu.gd`: Integrated an in-game retro music controller row with live track title display, `[⏭️ Next]` track cycling button, and `[🔊/🔇]` music mute toggle.
+- **Verification & Audio Playback Diagnostics**:
+  - **Loop Boundary & Signal Cascade Fix**: Diagnosed why music was silent during early playtests:
+    1. Godot's `AudioStreamWAV` importer had set `loop_end = 0` when `edit/loop_mode=1` with `edit/loop_end=-1` was imported. When `loop_mode = 1` with `loop_end = 0`, Godot aborted playback on sample 0 and immediately emitted `finished`.
+    2. The `finished` signal was connected to `_on_soundtrack_finished() -> next_soundtrack()`, which immediately killed the tween and restarted a new track from -80 dB, creating a repeating cascade every few frames where volume never rose above silence.
+  - **Audio Mixing & Soundbed Calibration**: Re-balanced background music levels to ensure they blend gently into the background and never overpower gameplay sound effects:
+    1. Added `const BGM_BED_OFFSET_DB: float = -14.0` in `AudioManager.gd` so background music sits 14 dB below action SFX (providing a ~10:1 perceived prominence ratio for sound effects).
+    2. Implemented `_get_target_music_db()` with a hard ceiling `clampf(db, -80.0, -10.0)` guaranteeing that music can NEVER exceed -10 dB or be louder than SFX (0 dB) or UI (-1.4 dB).
+    3. Set default `music_volume = 0.50` (`vol = -20.0 dB`), allowing all plowing, planting, harvesting, tool chopping, and UI click SFX to ring out crisp, clear, and punchy over the warm, subtle retro chiptune soundbed.
+  - `scratch/run_diag_mainmenu.tscn`: Verified that `countryside_morning.wav` plays continuously at -20.02 dB from Frame 0 through 100+ with zero interruption.
+  - `scratch/test_maingame_audio.tscn`: Verified that `MainGame.tscn` immediately plays `countryside_morning.wav` at -20.02 dB upon launch.
+  - `scratch/test_soundtracks_scene.tscn`: 100% assertions passed across all 3 tracks, looping boundaries, volume/mute toggles, and time period transitions.
+  - `MainMenu.tscn` headless test-menu run passed with 0 errors.

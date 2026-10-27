@@ -11,6 +11,7 @@ signal worker_hired(total_workers: int)
 signal worker_capacity_changed(total_capacity: int, active_workers: int)
 signal building_placed(building: Node)
 signal drone_commissioned(total_drones: int)
+signal drone_capacity_changed(total_capacity: int, active_drones: int)
 signal weather_station_updated(level: int)
 signal irrigation_updated(level: int)
 signal machinery_updated(level: int)
@@ -18,10 +19,12 @@ signal bayanihan_updated(level: int)
 signal directive_changed(parcel_id: String, directive: Dictionary)
 signal sprinklers_updated(active_count: int, capacity: int)
 signal batch_processed(facility_name: String, input_crop: String, input_qty: int, outputs: Array)
+signal crop_unlocked(crop_key: String)
 
 var placed_buildings: Array = []          # Array of placed Building instances
 var purchased_buildings: Dictionary = {}		 # building_type -> count (for backward compatibility)
 var unlocked_techs: Array = []
+var unlocked_crops: Array = ["palay", "yellow_corn"]
 var bayanihan_directives: Dictionary = {} # parcel_id -> {"mode": String, "crop": String}
 
 var total_storage_capacity: int = 200
@@ -91,8 +94,12 @@ func recalculate_bonuses() -> void:
 		if base_workers > 0:
 			new_workers += lvl * base_workers
 
-	total_storage_capacity = new_storage if not placed_buildings.is_empty() else 200
-	worker_capacity = max(new_workers, 1)
+	if Data.game_mode == "sandbox":
+		total_storage_capacity = maxi(new_storage, 25000)
+		worker_capacity = maxi(new_workers, 20)
+	else:
+		total_storage_capacity = new_storage if not placed_buildings.is_empty() else 200
+		worker_capacity = max(new_workers, 1)
 
 	var m_mgr = get_node_or_null("/root/MarketManager")
 	if m_mgr and m_mgr.has_method("get_total_stored_units"):
@@ -101,7 +108,12 @@ func recalculate_bonuses() -> void:
 	storage_updated.emit(total_storage_capacity, used_storage)
 	worker_hired.emit(active_workers)
 	worker_capacity_changed.emit(worker_capacity, active_workers)
+
+	# Drones: central Hangar upgrades abilities fleet-wide; Drone Landing Pads determine capacity
+	var d_cap: int = get_drone_capacity()
+	active_drones = d_cap
 	drone_commissioned.emit(active_drones)
+	drone_capacity_changed.emit(d_cap, active_drones)
 	weather_station_updated.emit(get_weather_station_level())
 	irrigation_updated.emit(get_irrigation_level())
 	machinery_updated.emit(get_machine_garage_level())
@@ -182,12 +194,47 @@ func buy_tech(tech_type: String) -> bool:
 	tech_unlocked.emit(tech_type)
 	return true
 
-## Returns the owned Farm Drone level derived from the placed & upgraded Drone Command Hangar:
-## 0 = no active hangar, 1 = plow, 2 = +plant, 3 = +harvest
+# ---------------------------------------------------------------------------
+# Seed Variety Licenses & Crop Progression
+# ---------------------------------------------------------------------------
+func is_crop_unlocked(crop_key: String) -> bool:
+	if Data.game_mode == "sandbox":
+		return true
+	return unlocked_crops.has(crop_key)
+
+func get_unlocked_crops() -> Array:
+	if Data.game_mode == "sandbox":
+		return Data.CROPS.keys()
+	return unlocked_crops.duplicate()
+
+func unlock_crop(crop_key: String) -> bool:
+	if not Data.CROPS.has(crop_key):
+		return false
+	if unlocked_crops.has(crop_key):
+		return false
+
+	var cost: int = Data.get_crop_license_cost(crop_key)
+	if not EconomyManager.deduct_cash(cost):
+		return false
+
+	unlocked_crops.append(crop_key)
+	crop_unlocked.emit(crop_key)
+
+	var c_data: Dictionary = Data.get_crop(crop_key)
+	var disp: String = str(c_data.get("display_name", crop_key.capitalize()))
+	var icon: String = str(c_data.get("icon", "🌱"))
+	LogManager.log_event("license", "Acquired %s variety license for ₱%s!" % [disp, Utils.format_number(cost)], icon, Color(0.40, 0.95, 0.65, 1.0))
+	AudioManager.play_tech("unlock")
+	return true
+
+## Returns the owned Farm Drone level derived from placed & upgraded Drone Landing Pads:
+## 0 = no active pad, 1 = plow & water, 2 = +seeder & IPM, 3 = +master harvester
 func get_drone_level() -> int:
+	if Data.game_mode == "sandbox":
+		return 3
 	var max_lvl: int = 0
 	for b in placed_buildings:
-		if is_instance_valid(b) and b.building_type == "drone_station" and b.state == b.BuildingState.ACTIVE:
+		if is_instance_valid(b) and (b.building_type == "drone_pad" or b.building_type == "drone_station") and b.state == b.BuildingState.ACTIVE:
 			max_lvl = maxi(max_lvl, b.level)
 	if max_lvl > 0:
 		return clampi(max_lvl, 1, 3)
@@ -201,32 +248,64 @@ func get_drone_level() -> int:
 		return 1
 	return 0
 
-func get_drone_station() -> Node:
+func get_drone_stations() -> Array:
+	var list: Array = []
 	for b in placed_buildings:
-		if is_instance_valid(b) and b.building_type == "drone_station" and b.state == b.BuildingState.ACTIVE:
-			return b
-	return null
+		if is_instance_valid(b) and (b.building_type == "drone_station" or b.building_type == "drone_pad") and b.state == b.BuildingState.ACTIVE:
+			list.append(b)
+	return list
+
+func get_drone_station_count() -> int:
+	return get_drone_stations().size()
+
+func get_drone_station() -> Node:
+	var stations := get_drone_stations()
+	return stations[0] if not stations.is_empty() else null
 
 func has_drone_station() -> bool:
-	return get_drone_station() != null
+	return get_drone_pad_count() > 0 or get_drone_station_count() > 0
 
+func has_drone_pad() -> bool:
+	return get_drone_pad_count() > 0 or get_drone_station_count() > 0
+
+func get_drone_pads() -> Array:
+	var list: Array = []
+	for b in placed_buildings:
+		if is_instance_valid(b) and b.building_type == "drone_pad" and b.state == b.BuildingState.ACTIVE:
+			list.append(b)
+	return list
+
+func get_drone_pad_count() -> int:
+	return get_drone_pads().size()
+
+func get_drone_pads_capacity() -> int:
+	var total: int = 0
+	for b in placed_buildings:
+		if is_instance_valid(b) and b.building_type == "drone_pad" and b.state == b.BuildingState.ACTIVE:
+			total += clampi(b.level, 1, 3)
+	return total
+
+## Returns total drone capacity across the farm:
+## - Drone Landing Pads store 1..3 drones per pad (like Bahay Kubo for drones)
+## - Upgrades advance drone level (Lv.1, Lv.2, Lv.3) and capacity
 func get_drone_capacity() -> int:
-	if not has_drone_station():
-		return 0
-	return active_workers
+	if Data.game_mode == "sandbox":
+		return maxi(get_drone_pads_capacity(), 3)
+	return get_drone_pads_capacity()
 
 func can_commission_drone() -> bool:
-	if not has_drone_station():
-		return false
-	return active_drones < active_workers
+	if Data.game_mode == "sandbox":
+		return true
+	return active_drones < get_drone_capacity()
 
-func commission_drone(cost: int = 350) -> bool:
+func commission_drone(cost: int = 0) -> bool:
 	if not can_commission_drone():
 		return false
-	if not EconomyManager.deduct_cash(cost):
+	if cost > 0 and not EconomyManager.deduct_cash(cost):
 		return false
 	active_drones += 1
 	drone_commissioned.emit(active_drones)
+	drone_capacity_changed.emit(get_drone_capacity(), active_drones)
 	return true
 
 # ---------------------------------------------------------------------------
@@ -244,6 +323,8 @@ func has_weather_station() -> bool:
 ## Returns the active Weather Station equipment tier:
 ## 0 = None (Farmer Almanac), 1 = AM Radio Mast, 2 = AWS Station, 3 = Satellite Uplink Dish
 func get_weather_station_level() -> int:
+	if Data.game_mode == "sandbox":
+		return 3
 	var max_lvl: int = 0
 	for b in placed_buildings:
 		if is_instance_valid(b) and b.building_type == "weather_station" and b.state == b.BuildingState.ACTIVE:
@@ -319,6 +400,8 @@ func has_irrigation() -> bool:
 ## Active irrigation infrastructure level:
 ## 0 = Manual Pail, 1 = Well Pump, 2 = Elevated Water Tower, 3 = Solar Drip Net
 func get_irrigation_level() -> int:
+	if Data.game_mode == "sandbox":
+		return 3
 	var max_lvl: int = 0
 	for b in placed_buildings:
 		if is_instance_valid(b) and b.building_type == "water_tower" and b.state == b.BuildingState.ACTIVE:
@@ -363,6 +446,8 @@ func get_irrigation_target_moisture(req_min: float, req_max: float) -> float:
 
 ## Sprinklers supported by water pressure: 0 if no tower, 6 at Lv.1, 16 at Lv.2, 999 (unlimited) at Lv.3
 func get_sprinkler_capacity() -> int:
+	if Data.game_mode == "sandbox":
+		return 999
 	match get_irrigation_level():
 		1: return 6
 		2: return 16
@@ -377,6 +462,8 @@ func get_active_sprinkler_count() -> int:
 	return count
 
 func can_place_sprinkler() -> bool:
+	if Data.game_mode == "sandbox":
+		return true
 	return has_irrigation() and get_active_sprinkler_count() < get_sprinkler_capacity()
 
 ## Sprinkler coverage radius: radius 1 = 3x3 diamond (8 surrounding plots); radius 2 = 5x5 diamond (24 surrounding plots)
@@ -462,6 +549,8 @@ func hire_worker() -> bool:
 	return true
 
 func has_tech(tech_type: String) -> bool:
+	if Data.game_mode == "sandbox":
+		return true
 	if tech_type == "drip_irrigation" and has_irrigation():
 		return true
 	if tech_type == "kuliglig" and has_kuliglig():
@@ -513,6 +602,8 @@ func is_hub_unlocked(hub_id: String) -> bool:
 
 ## True once the Field Survey Kit (F-key heatmap) has been purchased.
 func has_heatmap() -> bool:
+	if Data.game_mode == "sandbox":
+		return true
 	return unlocked_techs.has("field_survey_kit")
 
 func has_cold_storage() -> bool:
@@ -682,6 +773,14 @@ func _process_industrial_facilities() -> void:
 
 ## Validates mid-to-late game prerequisites for establishing agro-industrial processing facilities
 func get_processing_prerequisites(facility_type: String) -> Dictionary:
+	if Data.game_mode == "sandbox":
+		return {
+			"allowed": true,
+			"has_land_deed": true,
+			"has_storage_cap": true,
+			"reasons": [],
+			"requirement_text": "All requirements met (Creative Sandbox)"
+		}
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
 	var has_land_deed: bool = false
 	if farm_grid and "unlocked_parcels" in farm_grid:

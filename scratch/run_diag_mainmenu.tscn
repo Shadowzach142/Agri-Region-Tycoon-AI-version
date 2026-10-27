@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b82md184k3am"]
+
+[ext_resource type="Script" path="res://scratch/run_diag_mainmenu.gd" id="1_diag"]
+
+[node name="DiagRunner" type="Node"]
+script = ExtResource("1_diag")

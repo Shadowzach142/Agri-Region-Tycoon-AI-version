@@ -33,6 +33,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _build_ui() -> void:
+	if _panel != null:
+		return
 	# Full screen dimming backdrop
 	_backdrop = ColorRect.new()
 	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -143,6 +145,8 @@ func _build_ui() -> void:
 	vbox.add_child(_unlock_btn)
 
 func open_for_parcel(parcel_id: String, grid_ref: Node2D) -> void:
+	if _panel == null:
+		_build_ui()
 	current_parcel_id = parcel_id
 	farm_grid = grid_ref
 	var p: Dictionary = Data.get_parcel(parcel_id)

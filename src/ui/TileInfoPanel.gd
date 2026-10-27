@@ -159,11 +159,28 @@ func _get_tile_texture(tile: FarmTile) -> Texture2D:
 			return preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
 		FarmTile.TileState.FLOODED:
 			return preload("res://assets/sprites/ground/WGRASS/WGRASS-01.png")
+		FarmTile.TileState.INFECTED:
+			var pest_tex := rnd.get_pest_overlay_texture(tile.pest_type, tile.crop_type)
+			if pest_tex != null:
+				return pest_tex
+			return preload("res://assets/sprites/ground/NGRASS/NGRASS-01.png")
+		FarmTile.TileState.OBSTACLE:
+			if tile.obstacle_type == "rock" or "boulder" in tile.obstacle_type:
+				return rnd.get_rock_texture(selected_pos)
+			else:
+				return rnd.get_tree_obstacle_texture()
 		FarmTile.TileState.LOCKED:
+			if tile.obstacle_type == "rock" or "boulder" in tile.obstacle_type:
+				return rnd.get_rock_texture(selected_pos)
+			elif tile.obstacle_type != "":
+				return rnd.get_tree_obstacle_texture()
 			return preload("res://assets/sprites/ground/BARE SOIL/DROUGHT-SOIL-O1.png")
 		FarmTile.TileState.BUILDING:
 			var b_ref: Node = tile.building_ref
 			if b_ref != null and is_instance_valid(b_ref):
+				var prev: Dictionary = Building.get_placement_preview(b_ref.building_type, b_ref.is_flipped)
+				if not prev.is_empty() and prev.has("texture") and prev["texture"] != null:
+					return prev["texture"]
 				match b_ref.building_type:
 					"bahay_kubo": return preload("res://assets/sprites/buildings/KUBO.png")
 					"solar_dryer": return preload("res://assets/sprites/buildings/DRYER.PNG")
@@ -281,7 +298,7 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		title_label.text = "Tile (%d, %d)" % [pos.x, pos.y]
 	if state_label:
 		if tile.state == FarmTile.TileState.OBSTACLE:
-			state_label.text = "🪨 Boulder Obstacle" if tile.obstacle_type == "rock" else "🌳 Tree Obstacle"
+			state_label.text = "🪨 Boulder Obstacle" if tile.obstacle_type == "rock" else "🪵 Old Tree Stump"
 		else:
 			state_label.text = _tile_state_string(tile.state)
 
@@ -294,8 +311,12 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 		FarmTile.TileState.HARVESTABLE: fallback_icon = "🌾"
 		FarmTile.TileState.FLOODED: fallback_icon = "🌊"
 		FarmTile.TileState.INFECTED: fallback_icon = "🐛"
-		FarmTile.TileState.OBSTACLE: fallback_icon = "🪨" if tile.obstacle_type == "rock" else "🌳"
-		FarmTile.TileState.BUILDING: fallback_icon = "🏛️"
+		FarmTile.TileState.OBSTACLE: fallback_icon = "🪨" if tile.obstacle_type == "rock" else "🪵"
+		FarmTile.TileState.BUILDING:
+			if tile.building_ref != null and is_instance_valid(tile.building_ref) and Data.get_building(tile.building_ref.building_type).get("is_decoration", false):
+				fallback_icon = "🌸"
+			else:
+				fallback_icon = "🏛️"
 		FarmTile.TileState.LOCKED: fallback_icon = "🔒"
 
 	_set_portrait_texture(tile_tex, fallback_icon)
@@ -307,16 +328,21 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 			if state_label:
 				state_label.text = "₱%s to Unlock" % Utils.format_number(p.get("cost", 1000))
 		elif tile.state == FarmTile.TileState.OBSTACLE:
-			crop_label.text = "Boulder Obstacle" if tile.obstacle_type == "rock" else "Tree Obstacle"
+			crop_label.text = "Boulder Obstacle" if tile.obstacle_type == "rock" else "Old Tree Stump"
 		elif tile.state == FarmTile.TileState.BUILDING:
 			var b_ref: Node = tile.building_ref
 			if b_ref != null and is_instance_valid(b_ref):
 				var b_data := Data.get_building(b_ref.building_type)
 				var raw_name: String = b_data.get("display_name", b_ref.building_type)
 				var b_name: String = raw_name.split("(")[0].strip_edges()
-				crop_label.text = "%s Lv.%d" % [b_name, b_ref.level]
-				if state_label:
-					state_label.text = "Building Active"
+				if b_data.get("is_decoration", false):
+					crop_label.text = b_name
+					if state_label:
+						state_label.text = "🌸 Garden Flora"
+				else:
+					crop_label.text = "%s Lv.%d" % [b_name, b_ref.level]
+					if state_label:
+						state_label.text = "Building Active"
 			else:
 				crop_label.text = "Farm Building"
 		elif tile.crop_type != "" or tile.multi_tile_root_pos != Vector2i(-1, -1):

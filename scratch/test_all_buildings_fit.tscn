@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bjxoywccop83o"]
+
+[ext_resource type="Script" path="res://scratch/test_all_buildings_fit.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

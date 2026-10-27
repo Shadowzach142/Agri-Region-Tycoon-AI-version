@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://render_buildings_clean"]
+
+[ext_resource type="Script" path="res://scratch/render_buildings_clean.gd" id="1_render"]
+
+[node name="RenderBuildingsClean" type="Node2D"]
+script = ExtResource("1_render")

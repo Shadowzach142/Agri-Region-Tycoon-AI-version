@@ -377,10 +377,6 @@ func _draw_tool_hover() -> bool:
 		if hovered_ctrl != null and hovered_ctrl.mouse_filter != Control.MOUSE_FILTER_IGNORE:
 			return false
 
-	# Only draw tool hover when a farmer is selected and plant hotbar is active
-	if TaskManager.get_selected_farmers().is_empty():
-		return false
-
 	var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
 	if plant_hotbar == null or not plant_hotbar.visible:
 		return false
@@ -389,6 +385,10 @@ func _draw_tool_hover() -> bool:
 	if plant_hotbar and plant_hotbar.has_method("get_selected_tool"):
 		active_tool = plant_hotbar.get_selected_tool()
 	if active_tool.is_empty():
+		return false
+
+	# Only draw tool hover when a farmer is selected (unless inspecting)
+	if active_tool != "inspect" and TaskManager.get_selected_farmers().is_empty():
 		return false
 
 	var h_tile: FarmTile = farm_grid.tiles[gp.x][gp.y]
@@ -408,7 +408,7 @@ func _draw_tool_hover() -> bool:
 
 	# Check if the hovered footprint contains crop sprites
 	var has_crops: bool = false
-	var tool_col: String = "green" if is_overall_valid else "red"
+	var tool_col: String = "cyan" if active_tool == "inspect" else ("green" if is_overall_valid else "red")
 	for dx in range(fp.x):
 		for dy in range(fp.y):
 			var sub_pos := target_gp + Vector2i(dx, dy)
@@ -426,8 +426,11 @@ func _draw_tool_hover() -> bool:
 	var red_border   := Color(1.0, 0.25, 0.25, 0.95)
 	var red_line     := Color(1.0, 0.25, 0.25, 0.50)
 
-	# 1. Highlight blocked/invalid sub-tiles with a red outline (only when placing/planting, not for standing 2x2 crop)
-	if not is_standing_2x2:
+	var cyan_border  := Color(0.35, 0.85, 1.0, 0.95)
+	var cyan_line    := Color(0.35, 0.85, 1.0, 0.50)
+
+	# 1. Highlight blocked/invalid sub-tiles with a red outline (only when placing/planting, not for standing 2x2 crop or inspecting)
+	if not is_standing_2x2 and active_tool != "inspect":
 		for dx in range(fp.x):
 			for dy in range(fp.y):
 				var sub_pos := target_gp + Vector2i(dx, dy)
@@ -447,12 +450,12 @@ func _draw_tool_hover() -> bool:
 	var bottom_pt: Vector2 = _get_iso_pt(float(target_gp.x + fp.x), float(target_gp.y + fp.y))
 	var left_pt: Vector2   = _get_iso_pt(float(target_gp.x), float(target_gp.y + fp.y))
 
-	var outer_border_color := green_border if is_overall_valid else red_border
+	var outer_border_color := cyan_border if active_tool == "inspect" else (green_border if is_overall_valid else red_border)
 	var outer_border := PackedVector2Array([top_pt, right_pt, bottom_pt, left_pt, top_pt])
 	draw_polyline(outer_border, outer_border_color, 2.5)
 
 	# 3. Interior division lines if multi-tile footprint (e.g. 2x2 Coconut or larger), but only when placing/planting seeds on empty land
-	if not is_standing_2x2:
+	if not is_standing_2x2 and active_tool != "inspect":
 		var div_line_color := green_line if is_overall_valid else red_line
 		for x in range(1, fp.x):
 			var p1: Vector2 = _get_iso_pt(float(target_gp.x + x), float(target_gp.y))

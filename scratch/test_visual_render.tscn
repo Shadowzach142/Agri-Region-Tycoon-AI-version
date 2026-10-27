@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dmv7xq35yklp"]
+
+[ext_resource type="Script" path="res://scratch/test_visual_render.gd" id="1_vis"]
+
+[node name="TestVisualRender" type="Node2D"]
+script = ExtResource("1_vis")

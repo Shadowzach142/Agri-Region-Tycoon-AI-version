@@ -49,6 +49,7 @@ var worker_label: Label = null
 var storage_label: Label = null
 var storage_bar: ProgressBar = null
 var cash_label: Label = null
+var task_capsule: Control = null
 var task_label: Label = null
 
 var _last_cycled_farmer_idx: int = -1
@@ -76,6 +77,7 @@ var market_panel: Node = null
 var sell_panel: Node = null
 var shop_panel: Node = null
 var drone_deck: Node = null
+var drone_quick_bar: Node = null
 var tile_info_panel: Node = null
 var plant_hotbar: Control = null
 var _disaster_timer: float = 0.0
@@ -239,6 +241,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_V:
 			_quick_harvest_all()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_X or event.keycode == KEY_DELETE:
+			_cancel_worker_action()
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
 			var handled_modal: bool = false
 			if (shop_panel and shop_panel.visible) or (market_panel and market_panel.visible) or (sell_panel and sell_panel.visible) or (drone_deck and drone_deck.visible) or (heatmap_bar and heatmap_bar.visible):
@@ -306,6 +311,13 @@ func _discover_nodes() -> void:
 	storage_label     = find_child("StorageLabel", true, false) as Label
 	storage_bar       = find_child("StorageBar", true, false) as ProgressBar
 	cash_label        = find_child("CashLabel", true, false) as Label
+
+	task_capsule      = find_child("TaskCapsule", true, false) as Control
+	if task_capsule and not task_capsule.gui_input.is_connected(_on_task_capsule_gui_input):
+		task_capsule.gui_input.connect(_on_task_capsule_gui_input)
+		task_capsule.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		task_capsule.tooltip_text = "Click to cancel active tasks & halt workers [X]"
+
 	task_label        = find_child("TaskLabel", true, false) as Label
 
 	region_hover_card = find_child("RegionHoverCard", true, false)
@@ -325,14 +337,20 @@ func _discover_nodes() -> void:
 	sell_panel        = find_child("SellPanel", true, false)
 	shop_panel        = find_child("ShopPanel", true, false)
 	drone_deck        = find_child("DroneCommandDeck", true, false)
+	if drone_deck:
+		drone_deck.visible = false
 	heatmap_bar       = find_child("HeatmapLegendBar", true, false) as HeatmapLegendBar
-	if drone_deck or heatmap_bar:
-		var fg = get_tree().root.find_child("FarmGrid", true, false)
-		if fg:
-			if drone_deck:
-				drone_deck.farm_grid = fg
-			if heatmap_bar and fg.has_method("get_heatmap_overlay"):
-				heatmap_bar.heatmap_overlay = fg.get_heatmap_overlay()
+	drone_quick_bar   = find_child("DroneQuickBar", true, false)
+	if drone_quick_bar:
+		drone_quick_bar.visible = false
+
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	if fg:
+		if drone_deck:
+			drone_deck.farm_grid = fg
+			drone_deck.visible = false
+		if heatmap_bar and fg.has_method("get_heatmap_overlay"):
+			heatmap_bar.heatmap_overlay = fg.get_heatmap_overlay()
 	tile_info_panel   = find_child("TileInfoPanel", true, false)
 	plant_hotbar      = find_child("PlantHotbar", true, false) as Control
 
@@ -368,8 +386,11 @@ func _process(delta: float) -> void:
 			if disaster_box and disaster_box.visible and disaster_box_title:
 				disaster_box_title.text = "⚠️ %s (%.1fs)" % [hazard_title, _disaster_countdown_remaining]
 
+	var t_count: int = TaskManager.get_task_count()
+	if task_capsule:
+		task_capsule.visible = (t_count > 0)
 	if task_label:
-		task_label.text = "Tasks: %d" % TaskManager.get_task_count()
+		task_label.text = "📋 %d [🛑 Cancel]" % t_count
 
 func _update_region_display() -> void:
 	if region_label == null:
@@ -431,8 +452,12 @@ func _on_cash_changed(amount: int) -> void:
 func _on_day_changed(day: int) -> void:
 	if day_label:
 		if TimeManager.is_freeplay_mode:
-			day_label.text = "Day: %d" % day
-			day_label.tooltip_text = "Freeplay Tycoon: Day %d" % day
+			if Data.game_mode == "sandbox":
+				day_label.text = "Day: %d (Sandbox)" % day
+				day_label.tooltip_text = "Creative Sandbox: Day %d\nUnlimited cash, all land and tech unlocked!" % day
+			else:
+				day_label.text = "Day: %d" % day
+				day_label.tooltip_text = "Freeplay Tycoon: Day %d" % day
 		else:
 			var target: int = Data.selected_season_days
 			var left: int = maxi(target - day + 1, 0)
@@ -932,18 +957,15 @@ func _on_shop_toggle_pressed() -> void:
 				shop_panel.refresh()
 
 func _on_drone_toggle_pressed() -> void:
-	if drone_deck:
-		if drone_deck.has_method("toggle"):
-			drone_deck.toggle()
-		else:
-			drone_deck.visible = not drone_deck.visible
-		if drone_deck.visible:
-			if market_panel:
-				market_panel.visible = false
-			if sell_panel:
-				sell_panel.visible = false
-			if shop_panel:
-				shop_panel.visible = false
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	if not fg or BuildingManager.active_drones <= 0 or fg.drones.is_empty():
+		AudioManager.play_ui("error")
+		LogManager.log_event("buildings", "Build a Drone Landing Pad in Agri-Shop to get drones!", "🛸", Color(1.0, 0.5, 0.3))
+		return
+	var total_drones: int = fg.drones.size()
+	var cur_idx: int = fg.selected_drone_index
+	var next_idx: int = (cur_idx % total_drones) + 1
+	fg.select_drone_by_index(next_idx)
 
 func _update_heatmap_btn_state() -> void:
 	if heatmap_btn and is_instance_valid(heatmap_btn):
@@ -985,7 +1007,7 @@ func _on_worker_spawn_requested() -> void:
 		farmer.current_task = {}
 		farmer.is_selected = false
 		farmer.state = FarmerStateMachine.WorkerState.IDLE
-		farmer.z_index = 12
+		farmer.z_index = 10
 		if "variant_id" in farmer:
 			farmer.variant_id = new_variant
 		get_parent().add_child(farmer)
@@ -994,7 +1016,7 @@ func _on_worker_spawn_requested() -> void:
 		farmer = CharacterBody2D.new()
 		farmer.set_script(farmer_script)
 		farmer.name = "Farmer_%d" % BuildingManager.active_workers
-		farmer.z_index = 12
+		farmer.z_index = 10
 		var depot_pos: Vector2 = FarmerMovement.grid_to_pixel_center(Vector2i(0, 0), null)
 		farmer.position = depot_pos + Vector2(randf_range(-30, 30), randf_range(-15, 15))
 
@@ -1091,6 +1113,33 @@ func _quick_harvest_all() -> void:
 func _on_worker_capsule_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_cycle_idle_worker()
+
+func _on_task_capsule_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_cancel_worker_action()
+
+func _cancel_worker_action() -> void:
+	var cancelled: int = TaskManager.cancel_active_or_selected_tasks()
+	if cancelled > 0:
+		AudioManager.play_ui("click")
+		LogManager.log_event("task", "Halted workers & cancelled %d task(s)" % cancelled, "🛑", Color(1.0, 0.5, 0.5))
+		var fg = get_tree().root.find_child("FarmGrid", true, false)
+		if fg and fg.has_method("spawn_floating_text_at_world"):
+			var m_world: Vector2 = fg.to_local(fg.get_global_mouse_position())
+			fg.spawn_floating_text_at_world(m_world, "🛑 Action Cancelled (%d)" % cancelled)
+	else:
+		var all_cancelled: int = TaskManager.cancel_all_tasks()
+		if all_cancelled > 0:
+			AudioManager.play_ui("click")
+			LogManager.log_event("task", "Halted all workers & cleared task queue (%d)" % all_cancelled, "🛑", Color(1.0, 0.5, 0.5))
+			var fg = get_tree().root.find_child("FarmGrid", true, false)
+			if fg and fg.has_method("spawn_floating_text_at_world"):
+				var m_world: Vector2 = fg.to_local(fg.get_global_mouse_position())
+				fg.spawn_floating_text_at_world(m_world, "🛑 All Tasks Cancelled")
+		else:
+			var hotbar = get_tree().root.find_child("PlantHotbar", true, false)
+			if hotbar and hotbar.has_method("select_tool"):
+				hotbar.select_tool("cancel_task")
 
 func _update_speed_buttons_visual() -> void:
 	var scale: float = TimeManager.get_speed_scale()

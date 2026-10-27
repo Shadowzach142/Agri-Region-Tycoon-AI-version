@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dfutj5sjdex07"]
+
+[ext_resource type="Script" path="res://scratch/test_save_sign_bug.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

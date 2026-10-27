@@ -176,7 +176,7 @@ func get_variant_name() -> String:
 # ---------------------------------------------------------------------------
 func _ready() -> void:
 	add_to_group("farmers")
-	z_index = 12  # Render worker above field crop overlays (Z=10) and beneath buildings (Z=14)
+	z_index = 10  # Ground object layer (Z=10); Y-sorted with crops, other workers, and buildings
 
 	# Initialize worker ID from node name
 	if name.begins_with("Farmer_"):
@@ -283,10 +283,12 @@ func assign_task(task: Dictionary) -> void:
 	else:
 		_update_status_label()
 
-func clear_assigned_tasks() -> void:
-	assigned_tasks.clear()
+func cancel_current_task() -> Dictionary:
+	var cancelled := current_task.duplicate()
 	current_task = {}
 	target_grid_pos = Vector2i(-1, -1)
+	work_timer = 0.0
+	is_wandering = false
 	if state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
 		state = FarmerStateMachine.WorkerState.IDLE
 		_play_anim("idle", 0.0)
@@ -294,6 +296,47 @@ func clear_assigned_tasks() -> void:
 		farm_grid.drag_overlay.queue_redraw()
 	TaskManager.tasks_changed.emit()
 	_update_status_label()
+	return cancelled
+
+func clear_assigned_tasks() -> Array:
+	var cancelled: Array = []
+	if not current_task.is_empty():
+		cancelled.append(current_task.duplicate())
+	cancelled.append_array(assigned_tasks)
+	assigned_tasks.clear()
+	current_task = {}
+	target_grid_pos = Vector2i(-1, -1)
+	work_timer = 0.0
+	is_wandering = false
+	if state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
+		state = FarmerStateMachine.WorkerState.IDLE
+		_play_anim("idle", 0.0)
+	if farm_grid and farm_grid.drag_overlay:
+		farm_grid.drag_overlay.queue_redraw()
+	TaskManager.tasks_changed.emit()
+	_update_status_label()
+	return cancelled
+
+func cancel_task_at(pos: Vector2i, type: String = "") -> Dictionary:
+	var cancelled: Dictionary = {}
+	if not current_task.is_empty() and (type == "" or current_task.get("type", "") == type):
+		if _task_covers_tile(current_task, pos):
+			cancelled = cancel_current_task()
+			if not assigned_tasks.is_empty():
+				_start_next_task()
+			return cancelled
+	for i in range(assigned_tasks.size()):
+		var t: Dictionary = assigned_tasks[i]
+		if type == "" or t.get("type", "") == type:
+			if _task_covers_tile(t, pos):
+				cancelled = assigned_tasks[i]
+				assigned_tasks.remove_at(i)
+				if farm_grid and farm_grid.drag_overlay:
+					farm_grid.drag_overlay.queue_redraw()
+				TaskManager.tasks_changed.emit()
+				_update_status_label()
+				return cancelled
+	return {}
 
 func has_task_at(pos: Vector2i, type: String = "") -> bool:
 	if not current_task.is_empty() and (type == "" or current_task.get("type", "") == type):

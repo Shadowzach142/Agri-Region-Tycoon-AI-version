@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cap_dr0ne_u1_overhaul"]
+
+[ext_resource type="Script" path="res://scratch/capture_drone_ui_overhaul.gd" id="1_cap"]
+
+[node name="CaptureDroneUIOverhaul" type="Node"]
+script = ExtResource("1_cap")

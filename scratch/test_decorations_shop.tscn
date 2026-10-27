@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c5e533c6g4m51"]
+
+[ext_resource type="Script" path="res://scratch/test_decorations_shop.gd" id="1_test"]
+
+[node name="TestRoot" type="Node"]
+script = ExtResource("1_test")

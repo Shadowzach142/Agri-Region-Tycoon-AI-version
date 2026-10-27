@@ -185,3 +185,86 @@ func assign_tasks(tasks: Array) -> void:
 			add_task(t)
 		tasks_assigned.emit(0, tasks.size())
 		tasks_changed.emit()
+
+# ---------------------------------------------------------------------------
+# Task Cancellation & Action Refund API
+# ---------------------------------------------------------------------------
+## Cancels any pending or active task covering pos. Refunds prepaid costs.
+## Returns total number of tasks cancelled at that position.
+func cancel_task_at(pos: Vector2i, type: String = "") -> int:
+	var count: int = 0
+
+	# 1. Check global queue
+	for i in range(task_queue.size() - 1, -1, -1):
+		var t: Dictionary = task_queue[i]
+		if type == "" or t.get("type", "") == type:
+			if _task_covers_tile(t, pos):
+				var cost: int = int(t.get("cost", 0))
+				if cost > 0:
+					EconomyManager.add_cash(cost)
+				task_queue.remove_at(i)
+				count += 1
+
+	# 2. Check all worker queues & current tasks
+	var all_farmers := get_tree().get_nodes_in_group("farmers")
+	for f in all_farmers:
+		if not is_instance_valid(f):
+			continue
+		var cancelled: Dictionary = f.cancel_task_at(pos, type)
+		if not cancelled.is_empty():
+			var cost: int = int(cancelled.get("cost", 0))
+			if cost > 0:
+				EconomyManager.add_cash(cost)
+			count += 1
+
+	if count > 0:
+		tasks_changed.emit()
+	return count
+
+## Cancels all tasks assigned to the given farmer. Refunds costs and halts the worker.
+func cancel_tasks_for_farmer(farmer: Node) -> int:
+	if not is_instance_valid(farmer) or not farmer.has_method("clear_assigned_tasks"):
+		return 0
+	var tasks_cleared: Array = farmer.clear_assigned_tasks()
+	var count: int = tasks_cleared.size()
+	for t in tasks_cleared:
+		var cost: int = int(t.get("cost", 0))
+		if cost > 0:
+			EconomyManager.add_cash(cost)
+	if count > 0:
+		tasks_changed.emit()
+	return count
+
+## Cancels tasks for currently selected farmers, or halts all active farmers if none selected.
+func cancel_active_or_selected_tasks() -> int:
+	var workers := get_selected_farmers()
+	var count: int = 0
+	if not workers.is_empty():
+		for w in workers:
+			count += cancel_tasks_for_farmer(w)
+	else:
+		count += cancel_all_tasks()
+	return count
+
+## Cancels ALL tasks globally and across all workers. Refunds prepaid costs.
+func cancel_all_tasks() -> int:
+	var count: int = task_queue.size()
+	for t in task_queue:
+		var cost: int = int(t.get("cost", 0))
+		if cost > 0:
+			EconomyManager.add_cash(cost)
+	task_queue.clear()
+
+	var all_farmers := get_tree().get_nodes_in_group("farmers")
+	for f in all_farmers:
+		if is_instance_valid(f):
+			var tasks_cleared: Array = f.clear_assigned_tasks()
+			count += tasks_cleared.size()
+			for t in tasks_cleared:
+				var cost: int = int(t.get("cost", 0))
+				if cost > 0:
+					EconomyManager.add_cash(cost)
+
+	if count > 0:
+		tasks_changed.emit()
+	return count

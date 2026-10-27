@@ -25,6 +25,8 @@ extends Resource
 @export var bare_soil_variants:    Array[Texture2D] = []
 @export var drought_soil_variants: Array[Texture2D] = []
 @export var walk_soil_variants:    Array[Texture2D] = []
+@export var sand_variants:         Array[Texture2D] = []
+@export var wet_sand_variants:     Array[Texture2D] = []
 
 # Backwards-compatibility aliases for existing systems
 @export var light_grass_variants:  Array[Texture2D] = []
@@ -35,6 +37,17 @@ extends Resource
 @export var infected: Texture2D = null
 
 var world_seed: int = 0
+
+## Returns true if the grid coordinate lies on the eastern coastal beach side
+static func is_beach_tile(pos: Vector2i) -> bool:
+	# Easternmost coastal line touching the sea is x == 23 (for y in 0..23)
+	if pos.x == 23:
+		return true
+	# Organic undulating coastal dune line along x == 22
+	if pos.x == 22:
+		var wave: int = (pos.y * 7 + 3) % 11
+		return wave < 7 # ~64% of x == 22 tiles are sandy beach dunes
+	return false
 
 func _init() -> void:
 	randomize()
@@ -107,6 +120,24 @@ func _ensure_variants_loaded() -> void:
 				if tex:
 					walk_soil_variants.append(tex)
 
+	# 6. Sand Variants (Sand-01..03)
+	if sand_variants.is_empty():
+		for i in range(1, 4):
+			var path := "res://assets/sprites/ground/SAND/Sand-%02d.png" % i
+			if ResourceLoader.exists(path):
+				var tex := load(path) as Texture2D
+				if tex:
+					sand_variants.append(tex)
+
+	# 7. Wet Sand Variants (WSand-01..03)
+	if wet_sand_variants.is_empty():
+		for i in range(1, 4):
+			var path := "res://assets/sprites/ground/SAND/WSand-%02d.png" % i
+			if ResourceLoader.exists(path):
+				var tex := load(path) as Texture2D
+				if tex:
+					wet_sand_variants.append(tex)
+
 	# Sync backwards-compatibility arrays
 	if light_grass_variants.is_empty():
 		light_grass_variants = normal_grass_variants
@@ -145,6 +176,7 @@ func get_variant_index(pos: Vector2i, salt: int, count: int) -> int:
 ## Main API: Returns the procedural texture for a given tile and grid position
 func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 	_ensure_variants_loaded()
+	var is_beach := is_beach_tile(pos)
 
 	match tile.state:
 		# Cultivated soil state: Plowed
@@ -158,7 +190,7 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 				return bare_soil_variants[idx]
 			return null
 
-		# Building foundations: Compacted walk soil during construction, lush green grass once done
+		# Building foundations: Compacted walk soil during construction, lush grass or beach sand once done
 		FarmTile.TileState.BUILDING:
 			# If the building is actively under construction, show compacted construction earth
 			if tile.building_ref and "state" in tile.building_ref and tile.building_ref.state == 0:
@@ -169,8 +201,11 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 					var idx := get_variant_index(pos, 101, bare_soil_variants.size())
 					return bare_soil_variants[idx]
 
-			# When the building is done (ACTIVE), the ground regrows to lush green grass!
-			if not normal_grass_variants.is_empty():
+			# When the building is done (ACTIVE), if on the coast, returns to clean coastal sand!
+			if is_beach and not sand_variants.is_empty():
+				var idx := get_variant_index(pos, 350, sand_variants.size())
+				return sand_variants[idx]
+			elif not normal_grass_variants.is_empty():
 				var idx := get_variant_index(pos, 303, normal_grass_variants.size())
 				return normal_grass_variants[idx]
 			elif not walk_soil_variants.is_empty():
@@ -190,8 +225,16 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 				return bare_soil_variants[idx]
 			return null
 
-		# Natural uncultivated plots (homestead)
+		# Natural uncultivated plots (homestead / coast)
 		FarmTile.TileState.EMPTY:
+			if is_beach:
+				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+					var idx := get_variant_index(pos, 250, wet_sand_variants.size())
+					return wet_sand_variants[idx]
+				elif not sand_variants.is_empty():
+					var idx := get_variant_index(pos, 260, sand_variants.size())
+					return sand_variants[idx]
+
 			# Arid soil patch during severe drought (< 25% moisture)
 			if tile.soil_moisture < 25.0 and not drought_soil_variants.is_empty():
 				var idx := get_variant_index(pos, 105, drought_soil_variants.size())
@@ -210,6 +253,14 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 
 		# Unbought wilderness parcels
 		FarmTile.TileState.LOCKED:
+			if is_beach:
+				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+					var idx := get_variant_index(pos, 450, wet_sand_variants.size())
+					return wet_sand_variants[idx]
+				elif not sand_variants.is_empty():
+					var idx := get_variant_index(pos, 460, sand_variants.size())
+					return sand_variants[idx]
+
 			# Wet grass during rain
 			if tile.soil_moisture > 70.0 and not wet_grass_variants.is_empty():
 				var idx := get_variant_index(pos, 404, wet_grass_variants.size())
@@ -219,8 +270,16 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 				return normal_grass_variants[idx]
 			return null
 
-		# Natural obstacles (trees, rocks) resting on natural grass
+		# Natural obstacles (trees, rocks) resting on natural grass / beach dunes
 		FarmTile.TileState.OBSTACLE:
+			if is_beach:
+				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+					var idx := get_variant_index(pos, 650, wet_sand_variants.size())
+					return wet_sand_variants[idx]
+				elif not sand_variants.is_empty():
+					var idx := get_variant_index(pos, 660, sand_variants.size())
+					return sand_variants[idx]
+
 			if tile.soil_moisture > 70.0 and not wet_grass_variants.is_empty():
 				var idx := get_variant_index(pos, 606, wet_grass_variants.size())
 				return wet_grass_variants[idx]
@@ -232,6 +291,10 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 		FarmTile.TileState.FLOODED:
 			if flooded:
 				return flooded
+			# Flooded beach uses wet sand
+			if is_beach and not wet_sand_variants.is_empty():
+				var idx := get_variant_index(pos, 850, wet_sand_variants.size())
+				return wet_sand_variants[idx]
 			# Flooded plots are water-soaked: use wet grass
 			if not wet_grass_variants.is_empty():
 				var idx := get_variant_index(pos, 808, wet_grass_variants.size())

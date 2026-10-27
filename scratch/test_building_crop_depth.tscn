@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://chr0fd72jbas4"]
+
+[ext_resource type="Script" path="res://scratch/test_building_crop_depth.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

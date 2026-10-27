@@ -30,6 +30,8 @@ const WORK_TIME: Dictionary = {
 }
 const RESCAN_SECONDS: float = 1.5
 const SPRITE_PATH: String = "res://assets/sprites/drone/drone.png"
+const SPRITE_SHEET_PATH: String = "res://assets/sprites/Machine/Drones.png"
+static var _sheet_tex: Texture2D = null
 const SPRITE_SCALE: float = 3.0
 
 const BODY_BLACK := Color(0.04, 0.05, 0.07)
@@ -66,6 +68,13 @@ var auto_water: bool = true
 var auto_spray: bool = true
 var auto_harvest: bool = true
 var auto_clear: bool = false
+var ipm_method: String = "chemical"
+
+var drone_index: int = 1
+var hangar_ref: Node = null
+var berth_offset: Vector2 = Vector2.ZERO
+var is_selected: bool = false
+var zone_center_pos: Vector2 = Vector2.ZERO
 
 var farm_grid: Node2D = null
 var zone: Array[Vector2i] = []
@@ -89,6 +98,63 @@ var _blocked_reason: String = ""
 var _custom_tex: Texture2D = null
 var _zone_layer: Node2D = null
 var _home_set: bool = false
+
+func set_directive_mode(mode: String) -> void:
+	match mode:
+		"auto_loop":
+			auto_plow = true
+			auto_plant = true
+			auto_water = true
+			auto_spray = true
+			auto_harvest = true
+			auto_clear = false
+		"plow":
+			auto_plow = true
+			auto_plant = false
+			auto_water = false
+			auto_spray = false
+			auto_harvest = false
+			auto_clear = false
+		"plant":
+			auto_plow = false
+			auto_plant = true
+			auto_water = false
+			auto_spray = false
+			auto_harvest = false
+			auto_clear = false
+		"water":
+			auto_plow = false
+			auto_plant = false
+			auto_water = true
+			auto_spray = false
+			auto_harvest = false
+			auto_clear = false
+		"harvest":
+			auto_plow = false
+			auto_plant = false
+			auto_water = false
+			auto_spray = false
+			auto_harvest = true
+			auto_clear = false
+	_scan_cooldown = 0.0
+
+func set_ipm_method(method: String) -> void:
+	if method == "spray_biological" or method == "biological":
+		ipm_method = "biological"
+	else:
+		ipm_method = "chemical"
+
+func get_drone_name() -> String:
+	return "Drone #%d" % drone_index
+
+func set_crop(new_crop: String) -> void:
+	if Data.CROPS.has(new_crop):
+		crop_type = new_crop
+		_scan_cooldown = 0.0
+		var disp: String = str(Data.get_crop(crop_type).get("display_name", crop_type))
+		LogManager.log_event("crops", "🛸 Drone #%d assigned crop set to %s." % [drone_index, disp], "🛸", Color(0.40, 0.85, 1.0))
+		if is_instance_valid(_zone_layer):
+			_zone_layer.queue_redraw()
 
 func _ready() -> void:
 	name = "FarmDrone"
@@ -130,29 +196,45 @@ func deploy(tiles: Array, crop: String) -> void:
 	if zone.is_empty():
 		return
 	zone_rect = Rect2i(min_p, max_p - min_p + Vector2i.ONE)
-	crop_type = crop if not crop.is_empty() else "palay"
+	if not crop.is_empty() and Data.CROPS.has(crop):
+		crop_type = crop
+	elif crop_type.is_empty():
+		crop_type = "palay"
+
+	# Calculate center position in isometric world coordinates
+	var center_gx: float = float(min_p.x + max_p.x) * 0.5
+	var center_gy: float = float(min_p.y + max_p.y) * 0.5
+	zone_center_pos = Vector2(
+		FarmerMovement.ORIGIN_OFFSET.x + (center_gx - center_gy) * FarmerMovement.HALF_W,
+		FarmerMovement.ORIGIN_OFFSET.y + (center_gx + center_gy) * FarmerMovement.HALF_H
+	)
+
 	job = {}
 	state = State.IDLE
 	_scan_cooldown = 0.0
 	_work_timer = 0.0
 	status_text = "Zone received"
-	var tasks_desc: String = ["", "plow", "plow + plant", "plow + plant + harvest"][clampi(_level, 0, 3)]
+	var cur_lvl: int = get_level()
+	var tasks_desc: String = ["", "plow", "plow + plant", "plow + plant + harvest"][clampi(cur_lvl, 0, 3)]
 	var crop_name: String = str(Data.get_crop(crop_type).get("display_name", crop_type))
-	var crop_note: String = (" • crop: %s" % crop_name) if _level >= 2 else ""
-	LogManager.log_event("crops", "🛸 Farm Drone deployed to a %d×%d zone (%d plots) — auto %s%s." % [zone_rect.size.x, zone_rect.size.y, zone.size(), tasks_desc, crop_note], "🛸", Color(0.45, 0.85, 1.0))
+	var crop_note: String = (" • crop: %s" % crop_name) if cur_lvl >= 2 else ""
+	LogManager.log_event("crops", "🛸 Drone #%d deployed to %d×%d field (%d plots) — auto %s%s." % [drone_index, zone_rect.size.x, zone_rect.size.y, zone.size(), tasks_desc, crop_note], "🛸", Color(0.45, 0.85, 1.0))
 	AudioManager.play_ui("click")
+	if is_instance_valid(_zone_layer):
+		_zone_layer.queue_redraw()
 
 func recall() -> void:
 	var had_zone: bool = not zone.is_empty()
 	zone.clear()
 	zone_set.clear()
 	zone_rect = Rect2i()
+	zone_center_pos = Vector2.ZERO
 	job = {}
 	state = State.IDLE
 	_work_timer = 0.0
 	status_text = "Standing by"
 	if had_zone:
-		LogManager.log_event("crops", "🛸 Farm Drone recalled — zone cleared (%d jobs completed)." % jobs_done, "🛸", Color(0.45, 0.85, 1.0))
+		LogManager.log_event("crops", "🛸 Drone #%d recalled to Hangar — field cleared (%d jobs completed)." % [drone_index, jobs_done], "🛸", Color(0.45, 0.85, 1.0))
 	if is_instance_valid(_zone_layer):
 		_zone_layer.queue_redraw()
 
@@ -215,46 +297,48 @@ func has_zone() -> bool:
 	return not zone.is_empty()
 
 func get_level() -> int:
-	return _level
+	if Data.game_mode == "sandbox":
+		return 3
+	return BuildingManager.get_drone_level()
 
 func get_status_line() -> String:
-	if _level <= 0 or BuildingManager.active_drones <= 0:
-		if not BuildingManager.has_drone_station():
-			return "No Drone Hangar built — Build one in Shop > Machinery & Drones"
-		return "Commission drones in Agri-Shop (Labor tab)"
+	if get_level() <= 0 or BuildingManager.active_drones < drone_index:
+		return "Drone Hangar inactive"
 	if zone.is_empty():
-		return "Standing by — drag a zone on your farm"
+		return "Standing by at Hangar — drag a field on your farm"
 	var s: String = status_text
 	if not _blocked_reason.is_empty() and state == State.IDLE:
 		s = _blocked_reason
-	return "%s • zone %d×%d • %d jobs done" % [s, zone_rect.size.x, zone_rect.size.y, jobs_done]
+	return "%s • %d×%d field • %d jobs done" % [s, zone_rect.size.x, zone_rect.size.y, jobs_done]
 
 # ---------------------------------------------------------------------------
 # Simulation
 # ---------------------------------------------------------------------------
 func _refresh_level() -> void:
-	_level = BuildingManager.get_drone_level()
-	visible = (_level > 0 and BuildingManager.active_drones > 0)
+	if Data.game_mode == "sandbox":
+		_level = 3
+	else:
+		_level = BuildingManager.get_drone_level()
+	visible = (_level > 0 and BuildingManager.active_drones >= drone_index)
+
 	if _level > 0 and not _home_set and farm_grid:
 		_home_set = true
-		var station = BuildingManager.get_drone_station()
-		if station and is_instance_valid(station):
-			var idx: int = 0
-			if "drones" in farm_grid:
-				idx = farm_grid.drones.find(self)
-				if idx < 0:
-					idx = 0
-			var offset_x: float = float((idx % 3) - 1) * 16.0
-			var offset_y: float = float(idx / 3) * 12.0 - 12.0
-			position = station.position + Vector2(offset_x, offset_y)
+		var b_off: Vector2 = berth_offset if berth_offset != Vector2.ZERO else Vector2(0, -14.0)
+		if is_instance_valid(hangar_ref):
+			position = hangar_ref.position + b_off
 		else:
-			var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(Vector2i(5, 5), Vector2i(1, 1))
-			position = (poly[0] + poly[2]) * 0.5
+			var station = BuildingManager.get_drone_station()
+			if station and is_instance_valid(station):
+				position = station.position + b_off
+			else:
+				var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(Vector2i(5, 5), Vector2i(1, 1))
+				position = (poly[0] + poly[2]) * 0.5
 
 func _process(delta: float) -> void:
 	if farm_grid == null:
 		return
-	if BuildingManager.get_drone_level() != _level:
+	var cur_lvl := get_level()
+	if cur_lvl != _level:
 		_refresh_level()
 	if _level <= 0:
 		return
@@ -267,17 +351,35 @@ func _process(delta: float) -> void:
 		State.IDLE:
 			_claw_open = move_toward(_claw_open, 0.0, delta * 4.0)
 			if not zone.is_empty():
+				# Smoothly hover and patrol over the center of its designated field
+				if zone_center_pos != Vector2.ZERO:
+					var hover_sway := Vector2(cos(_bob * 0.7) * 12.0, sin(_bob * 0.5) * 6.0)
+					var target_hover: Vector2 = zone_center_pos + hover_sway
+					position = position.move_toward(target_hover, FLY_SPEED * 0.5 * sim_delta)
+
 				_scan_cooldown -= sim_delta
 				if _scan_cooldown <= 0.0:
 					var next_job: Dictionary = _scan_for_job()
 					if next_job.is_empty():
 						_scan_cooldown = RESCAN_SECONDS
-						status_text = _blocked_reason if not _blocked_reason.is_empty() else "Zone idle — waiting for crops"
+						var crop_disp := str(Data.get_crop(crop_type).get("display_name", crop_type))
+						status_text = _blocked_reason if not _blocked_reason.is_empty() else "Hovering & Monitoring (%s)" % crop_disp
 					else:
 						job = next_job
 						_target = _job_target_local(job)
 						state = State.FLYING
 						status_text = "En route"
+			else:
+				# No zone assigned: gently hover over its hangar helipad
+				var home_target := Vector2.ZERO
+				var b_off: Vector2 = berth_offset if berth_offset != Vector2.ZERO else Vector2(0, -14.0)
+				if is_instance_valid(hangar_ref):
+					home_target = hangar_ref.position + b_off
+				elif BuildingManager.get_drone_station():
+					home_target = BuildingManager.get_drone_station().position + b_off
+				if home_target != Vector2.ZERO:
+					var home_sway := Vector2(cos(_bob * 0.5) * 4.0, sin(_bob * 0.4) * 2.0)
+					position = position.move_toward(home_target + home_sway, FLY_SPEED * 0.4 * sim_delta)
 		State.FLYING:
 			var to_target: Vector2 = _target - position
 			var step: float = FLY_SPEED * sim_delta
@@ -380,7 +482,9 @@ func _scan_for_job() -> Dictionary:
 
 		# 4. Lv.2+ — Plant designated crop on plowed soil (Tier 3: 3000 base)
 		if auto_plant and _level >= 2 and tile.state == FarmTile.TileState.PLOWED and farm_grid.can_plant_crop(p, crop_type) and _footprint_in_zone(p, crop_fp):
-			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
+			if not BuildingManager.is_crop_unlocked(crop_type):
+				_blocked_reason = "Designated crop %s locked (Agri-Shop)" % crop_type.capitalize()
+			elif farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):
 				pass
 			elif not can_afford_seeds:
 				_blocked_reason = "Waiting for funds (₱%d seed)" % seed_cost
@@ -411,6 +515,21 @@ func _scan_for_job() -> Dictionary:
 				if score < best_score:
 					best_score = score
 					best = {"type": "clear", "pos": p, "fp": Vector2i(1, 1), "crop": ""}
+
+	# If no jobs found, check if work is blocked by hangar capability level
+	if best.is_empty() and _blocked_reason.is_empty():
+		var has_plowed: bool = false
+		var has_harvestable: bool = false
+		for p in zone:
+			var t_state = farm_grid.tiles[p.x][p.y].state
+			if t_state == FarmTile.TileState.PLOWED:
+				has_plowed = true
+			elif t_state == FarmTile.TileState.HARVESTABLE:
+				has_harvestable = true
+		if _level < 2 and has_plowed:
+			_blocked_reason = "🔒 Sowing locked: Drone is Lv.1 (Hangar Lv.2 required in Shop)"
+		elif _level < 3 and has_harvestable:
+			_blocked_reason = "🔒 Harvesting locked: Drone is Lv.%d (Hangar Lv.3 required in Shop)" % _level
 
 	return best
 
@@ -450,7 +569,7 @@ func _complete_job() -> void:
 			farm_grid.water_tile(job.pos, 25.0)
 			AudioManager.play_farmer("water")
 		"spray":
-			var method: String = "biological" if EconomyManager.cash >= 45 else "chemical"
+			var method: String = ipm_method if (ipm_method == "biological" and EconomyManager.cash >= 45) else "chemical"
 			farm_grid.spray_pest(job.pos, method)
 			AudioManager.play_farmer("spray")
 		"harvest":
@@ -471,11 +590,6 @@ func _job_target_local(j: Dictionary) -> Vector2:
 func _draw() -> void:
 	if _level <= 0:
 		return
-
-	# Ground shadow
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, 0.45))
-	draw_circle(Vector2.ZERO, 17.0, Color(0, 0, 0, 0.26))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	var body: Vector2 = Vector2(0.0, -HOVER_HEIGHT + sin(_bob) * 3.0)
 
@@ -522,6 +636,18 @@ func _draw() -> void:
 ## Shared pixel-art drone renderer (also used for the hotbar icon so both always match).
 ## center: drone center in the canvas item's local space, px: size of one art pixel.
 static func draw_drone_art(ci: CanvasItem, center: Vector2, px: float, level: int, rotor_phase: float, claw_open: float) -> void:
+	if _sheet_tex == null and ResourceLoader.exists(SPRITE_SHEET_PATH):
+		_sheet_tex = load(SPRITE_SHEET_PATH) as Texture2D
+	
+	if _sheet_tex != null:
+		var col: int = clampi(level - 1, 0, 2)
+		var row: int = 0 if fmod(rotor_phase, TAU) < PI else 1
+		var src_rect := Rect2(float(col * 64), float(row * 48), 64.0, 48.0)
+		var s: float = px / 3.0
+		var dest_rect := Rect2(center - Vector2(32.0, 24.0) * s, Vector2(64.0, 48.0) * s)
+		ci.draw_texture_rect_region(_sheet_tex, dest_rect, src_rect)
+		return
+
 	var accent: Color = LEVEL_ACCENT[clampi(level, 0, 3)]
 	var r := func(x: float, y: float, w: float, h: float, c: Color) -> void:
 		ci.draw_rect(Rect2(center + Vector2(x, y) * px, Vector2(w, h) * px), c)
@@ -589,6 +715,9 @@ class ZoneOverlay extends Node2D:
 	func _draw() -> void:
 		if drone == null or not is_instance_valid(drone) or drone.zone.is_empty():
 			return
+		# Only show highlights for the drone the player is currently using/controlling!
+		if not drone.is_selected:
+			return
 		var rc: Rect2i = drone.zone_rect
 		var x0: float = float(rc.position.x)
 		var y0: float = float(rc.position.y)
@@ -596,26 +725,64 @@ class ZoneOverlay extends Node2D:
 		var y1: float = float(rc.position.y + rc.size.y)
 		var pts := PackedVector2Array([_iso(x0, y0), _iso(x1, y0), _iso(x1, y1), _iso(x0, y1)])
 
+		var base_colors: Array[Color] = [
+			Color(0.28, 0.82, 1.0),   # Drone 1: Cyan
+			Color(1.00, 0.78, 0.25),   # Drone 2: Amber
+			Color(0.35, 0.95, 0.55),   # Drone 3: Emerald
+			Color(0.85, 0.45, 1.00),   # Drone 4: Purple
+			Color(1.00, 0.45, 0.45),   # Drone 5: Coral
+		]
+		var d_idx: int = maxi(drone.drone_index - 1, 0)
+		var c_main: Color = base_colors[d_idx % base_colors.size()]
+		var is_sel: bool = drone.is_selected
+
 		var t: float = float(Time.get_ticks_msec()) / 1000.0
-		var pulse: float = 0.5 + 0.5 * sin(t * 3.0)
-		draw_colored_polygon(pts, Color(0.30, 0.80, 1.0, 0.06 + 0.04 * pulse))
+		var pulse: float = 0.5 + 0.5 * sin(t * 4.0)
+		var bg_alpha: float = 0.10 + 0.08 * pulse
+		draw_colored_polygon(pts, Color(c_main.r, c_main.g, c_main.b, bg_alpha))
 
 		var closed := PackedVector2Array(pts)
 		closed.append(pts[0])
-		draw_polyline(closed, Color(0.40, 0.88, 1.0, 0.55 + 0.35 * pulse), 2.5)
+		var border_w: float = 3.2
+		var border_alpha: float = 0.80 + 0.20 * pulse
+		draw_polyline(closed, Color(c_main.r, c_main.g, c_main.b, border_alpha), border_w)
 
-		# Corner brackets so the zone reads as a "drone zone"
+		# Corner brackets so the zone reads as a high-tech precision zone
 		for p in pts:
-			draw_circle(p, 4.0, Color(0.55, 0.95, 1.0, 0.95))
-			draw_circle(p, 2.0, Color(0.05, 0.15, 0.25, 1.0))
+			draw_circle(p, 4.5, c_main)
+			draw_circle(p, 2.0, Color(0.04, 0.08, 0.12, 1.0))
 
-		# Highlight the tile(s) currently being worked
+		# Floating Field Identification Tag at top vertex
+		var crop_disp: String = str(Data.get_crop(drone.crop_type).get("display_name", drone.crop_type))
+		var tag: String = "🛸 %s: %s (Lv.%d)" % [drone.get_drone_name(), crop_disp, drone.get_level()]
+		var font: Font = ThemeDB.fallback_font
+		var fsz: int = 11
+		var tag_w: float = font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x
+		var tag_pos: Vector2 = pts[0] + Vector2(-tag_w * 0.5, -20.0)
+		draw_rect(Rect2(tag_pos + Vector2(-6, -11), Vector2(tag_w + 12, 16)), Color(0.05, 0.07, 0.12, 0.88))
+		draw_rect(Rect2(tag_pos + Vector2(-6, -11), Vector2(tag_w + 12, 16)), c_main, false, 1.2)
+		draw_string(font, tag_pos, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, c_main)
+
+		# Highlight the tile(s) currently being hovered / worked with high-contrast task badge
 		if not drone.job.is_empty() and drone.state != FarmDrone.State.IDLE:
 			var j: Dictionary = drone.job
 			var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(j.pos, j.fp)
 			var col: Color = FarmDrone.JOB_COLORS.get(j.type, Color.WHITE)
 			var working: bool = drone.state == FarmDrone.State.WORKING
-			draw_colored_polygon(poly, Color(col.r, col.g, col.b, 0.22 + (0.18 * pulse if working else 0.0)))
+			draw_colored_polygon(poly, Color(col.r, col.g, col.b, 0.24 + (0.16 * pulse if working else 0.0)))
 			var edge := PackedVector2Array(poly)
 			edge.append(poly[0])
 			draw_polyline(edge, Color(col.r, col.g, col.b, 0.95), 2.5)
+
+			# Crisp in-field task pill over the specific tile
+			var job_label: String = str(FarmDrone.JOB_LABELS.get(j.type, "WORKING"))
+			if j.type == "plant":
+				job_label = "SOWING %s" % crop_disp.to_upper()
+			var task_str: String = "⚡ %s" % job_label
+			var task_fsz: int = 10
+			var task_w: float = font.get_string_size(task_str, HORIZONTAL_ALIGNMENT_CENTER, -1, task_fsz).x
+			var tile_center: Vector2 = FarmerMovement.grid_to_pixel_center(j.pos, drone.farm_grid)
+			var pill_pos: Vector2 = tile_center + Vector2(-task_w * 0.5, -20.0)
+			draw_rect(Rect2(pill_pos + Vector2(-5, -9), Vector2(task_w + 10, 14)), Color(0.04, 0.06, 0.10, 0.90))
+			draw_rect(Rect2(pill_pos + Vector2(-5, -9), Vector2(task_w + 10, 14)), col, false, 1.2)
+			draw_string(font, pill_pos, task_str, HORIZONTAL_ALIGNMENT_CENTER, -1, task_fsz, Color(1.0, 1.0, 0.85))

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ci84md8201mf"]
+
+[ext_resource type="Script" path="res://scratch/test_wav_node.gd" id="1_node"]
+
+[node name="TestWavNode" type="Node"]
+script = ExtResource("1_node")

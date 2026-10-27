@@ -35,10 +35,22 @@ static func set_selected_tool(tool_id: String) -> void:
 
 static func get_selected_crop() -> String:
 	if selected_tool in CROP_KEYS:
+		var loop = Engine.get_main_loop()
+		if loop and "root" in loop and loop.root:
+			var bm = loop.root.get_node_or_null("BuildingManager")
+			if bm and bm.has_method("is_crop_unlocked"):
+				if not bm.is_crop_unlocked(selected_tool):
+					return "palay"
 		return selected_tool
 	return "palay"
 
 static func set_selected_crop(crop_name: String) -> void:
+	var loop = Engine.get_main_loop()
+	if loop and "root" in loop and loop.root:
+		var bm = loop.root.get_node_or_null("BuildingManager")
+		if bm and bm.has_method("is_crop_unlocked") and not bm.is_crop_unlocked(crop_name):
+			selected_tool = "palay"
+			return
 	selected_tool = crop_name
 
 const CROP_KEYS: Array[String] = [
@@ -57,19 +69,23 @@ const CROP_ICONS: Dictionary = {
 	"yellow_corn": "res://assets/icons/Plants/Corn.png",
 	"sugarcane": "res://assets/icons/Plants/Sugarcane.png",
 	"pineapple": "res://assets/icons/Plants/Pineapple.png",
-	"arabica_coffee": "res://assets/icons/Plants/Coffee.png",
+	"arabica_coffee": "res://assets/icons/Plants/coffee.png",
 	"banana": "res://assets/icons/Plants/Banana.png",
 	"coconut": "res://assets/icons/Plants/Coconut.png"
 }
 
 # Dedicated UI tool icons in assets/icons/Tools/
 const TOOL_ICONS: Dictionary = {
+	"inspect": "res://assets/icons/Tools/Magnify.png",
 	"plow": "res://assets/icons/Tools/Pick.png",
 	"water": "res://assets/icons/Tools/watering.png",
 	"harvest": "res://assets/icons/Tools/Basket.png",
 	"clear": "res://assets/icons/Tools/Axe.png",
+	"cancel_task": "res://assets/icons/Tools/Cancel.png",
 	"spray_chemical": "res://assets/icons/Tools/Chem.png",
-	"spray_biological": "res://assets/icons/Tools/duck.png"
+	"spray_biological": "res://assets/icons/Tools/duck.png",
+	"auto_loop": "res://assets/icons/HUD/Drone.png",
+	"drone_zone": "res://assets/icons/Tools/Magnify.png"
 }
 
 static func get_tool_sprite_texture(tool_id: String) -> Texture2D:
@@ -103,10 +119,12 @@ const CATEGORY_DATA: Dictionary = {
 		"key_num": 2,
 		"default_item": "plow",
 		"items": [
+			{"id": "inspect", "name": "Investigate / Soil Check", "cost": 0, "icon": "🔍", "desc": "Inspect soil diagnostics, moisture, nutrients, and crop progress without issuing farm labor tasks."},
 			{"id": "plow", "name": "Plow & Hoe", "cost": 0, "icon": "⛏️", "desc": "Tills untilled earth, cleared land, or receded floodplains."},
 			{"id": "water", "name": "Watering Can", "cost": 0, "icon": "💧", "desc": "Hydrates parched crops (+25% soil moisture)."},
 			{"id": "harvest", "name": "Harvest Basket", "cost": 0, "icon": "🧺", "desc": "Gathers mature ripe crops or salvages flooded plots."},
-			{"id": "clear", "name": "Clear Obstacle", "cost": 50, "icon": "🪓", "desc": "Excavates timber trees, pine stumps, and rocks."}
+			{"id": "clear", "name": "Clear Obstacle", "cost": 50, "icon": "🪓", "desc": "Excavates timber trees, pine stumps, and rocks."},
+			{"id": "cancel_task", "name": "Stop / Cancel Action", "cost": 0, "icon": "🛑", "desc": "Cancels pending or active tasks on clicked plots and orders workers to halt immediately. [X]"}
 		]
 	},
 	"treatments": {
@@ -119,21 +137,57 @@ const CATEGORY_DATA: Dictionary = {
 			{"id": "spray_chemical", "name": "Chemical Spray", "cost": 30, "icon": "🧪", "desc": "Rapid pest knockdown against Golden Apple Snails and Armyworms."},
 			{"id": "spray_biological", "name": "Biological IPM", "cost": 45, "icon": "🦆", "desc": "Organic biocontrol with ducks and fungi; protects crop grade."}
 		]
-	},
-	"drone": {
-		"id": "drone",
-		"title": "DRONE",
-		"icon": "🛸",
-		"key_num": 4,
-		"default_item": "drone_zone",
+	}
+}
+
+const DRONE_CATEGORY_DATA: Dictionary = {
+	"seeds": {
+		"id": "seeds",
+		"title": "CROP",
+		"icon": "🌱",
+		"key_num": 1,
+		"default_item": "palay",
 		"items": [
-			{"id": "drone_zone", "name": "Drone Remote (Set Zone)", "cost": 0, "icon": "🛸", "desc": "Deploy precision farm drone to an automated zone. Left-click or drag to designate."},
-			{"id": "drone_recall", "name": "Recall Drone", "cost": 0, "icon": "📡", "desc": "Wipe active zone and return drone to standby."}
+			{"id": "palay", "name": "Palay (Rice)", "cost": 25, "icon": "🌾", "fp": Vector2i(1, 1), "desc": "Fast-growing wetland grain. Drone auto-sows on plowed plots."},
+			{"id": "yellow_corn", "name": "Yellow Corn", "cost": 30, "icon": "🌽", "fp": Vector2i(1, 1), "desc": "Hardy cereal crop resilient against dry upland spells."},
+			{"id": "sugarcane", "name": "Sugar Cane", "cost": 30, "icon": "🎋", "fp": Vector2i(1, 1), "desc": "High-yield cash crop favored in fertile river valleys."},
+			{"id": "pineapple", "name": "Smooth Cayenne Pineapple", "cost": 40, "icon": "🍍", "fp": Vector2i(1, 1), "desc": "High market value fruit tailored for volcanic upland soils."},
+			{"id": "arabica_coffee", "name": "Arabica Coffee", "cost": 50, "icon": "☕", "fp": Vector2i(1, 1), "desc": "Living perennial shrub. Regrows every 14 days without re-buying."},
+			{"id": "banana", "name": "Cavendish Banana", "cost": 140, "icon": "🍌", "fp": Vector2i(2, 2), "desc": "Perennial 2×2 plantation grove. Yields 400 units every 18 days."},
+			{"id": "coconut", "name": "Tall Coconut Palm", "cost": 160, "icon": "🥥", "fp": Vector2i(2, 2), "desc": "Durable perennial 2×2 palm tree. Regrows fresh buko nuts every 16 days."}
+		]
+	},
+	"tools": {
+		"id": "tools",
+		"title": "MODE",
+		"icon": "🛸",
+		"key_num": 2,
+		"default_item": "auto_loop",
+		"items": [
+			{"id": "auto_loop", "name": "Auto-Farm Loop", "cost": 0, "icon": "🌀", "desc": "Full autonomous cycle: Plow soil ➜ Sow assigned seeds ➜ Water parched crops ➜ Spray pests ➜ Harvest & deliver to Bodega!"},
+			{"id": "plow", "name": "Plow Ground Only", "cost": 0, "icon": "⛏️", "desc": "Drone only tills untilled earth and flood-receded plots within its zone."},
+			{"id": "plant", "name": "Sow Crop Only", "cost": 0, "icon": "🌱", "desc": "Drone only plants designated seeds on furrowed soil within its zone."},
+			{"id": "water", "name": "Water Soil Only", "cost": 0, "icon": "💧", "desc": "Drone only hydrates thirsty crops (<50% soil moisture) within its zone."},
+			{"id": "harvest", "name": "Harvest Crops Only", "cost": 0, "icon": "🧺", "desc": "Drone only reaps mature ripe crops and delivers them directly to storage."},
+			{"id": "drone_zone", "name": "Designate Field Zone", "cost": 0, "icon": "🎯", "desc": "Click and drag a box across your farm to set this drone's operating zone."},
+			{"id": "drone_whole_farm", "name": "Patrol Whole Farm", "cost": 0, "icon": "🌐", "desc": "1-Click deploy: Orders this drone to automatically patrol and maintain all unlocked farmland!"},
+			{"id": "drone_recall", "name": "Return & Dock", "cost": 0, "icon": "🏠", "desc": "Recalls this drone back to its landing pad to dock and recharge."}
+		]
+	},
+	"treatments": {
+		"id": "treatments",
+		"title": "IPM",
+		"icon": "🧪",
+		"key_num": 3,
+		"default_item": "spray_chemical",
+		"items": [
+			{"id": "spray_chemical", "name": "Chemical Spray", "cost": 30, "icon": "🧪", "desc": "Fast chemical insecticide knockdown. Eliminates snails and worms automatically."},
+			{"id": "spray_biological", "name": "Biological IPM", "cost": 45, "icon": "🦆", "desc": "Organic biocontrol with ducks and fungi; protects crop grade."}
 		]
 	}
 }
 
-const CATEGORY_ORDER: Array[String] = ["seeds", "tools", "treatments", "drone"]
+const CATEGORY_ORDER: Array[String] = ["seeds", "tools", "treatments"]
 
 # Snappy hover delay (short pause before tooltip appears)
 const HOVER_DELAY: float = 0.25
@@ -143,8 +197,7 @@ var active_category: String = "tools"
 var selected_category_items: Dictionary = {
 	"seeds": "palay",
 	"tools": "plow",
-	"treatments": "spray_chemical",
-	"drone": "drone_zone"
+	"treatments": "spray_chemical"
 }
 var open_flyout_category: String = ""
 
@@ -159,6 +212,12 @@ var flyout_drawer: PanelContainer = null
 var flyout_header_label: Label = null
 var flyout_items_vbox: BoxContainer = null # HBoxContainer of square items
 var flyout_item_buttons: Dictionary = {} # item_id -> Button
+
+# Unit Switcher UI (Switch between human workers and autonomous drones seamlessly!)
+var _unit_prev_btn: Button = null
+var _unit_pill_btn: Button = null
+var _unit_next_btn: Button = null
+var _unit_switch_type_btn: Button = null
 
 var hover_card: PanelContainer = null
 var hover_timer: Timer = null
@@ -215,15 +274,112 @@ func _ready() -> void:
 	if TaskManager.has_signal("selection_changed"):
 		TaskManager.selection_changed.connect(_on_worker_selection_changed)
 
-	if BuildingManager.has_signal("tech_unlocked"):
-		BuildingManager.tech_unlocked.connect(func(_t): _update_drone_slot_visibility())
-	if BuildingManager.has_signal("building_placed"):
-		BuildingManager.building_placed.connect(func(_b): _update_drone_slot_visibility())
-	if BuildingManager.has_signal("drone_commissioned"):
-		BuildingManager.drone_commissioned.connect(func(_d): _update_drone_slot_visibility())
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	if fg and fg.has_signal("drone_selected"):
+		fg.drone_selected.connect(func(_idx): _update_visibility_from_selection())
+
+	if BuildingManager.has_signal("crop_unlocked"):
+		BuildingManager.crop_unlocked.connect(func(_c):
+			_update_category_slots_display()
+			if flyout_drawer and flyout_drawer.visible and active_category == "seeds":
+				_open_flyout_for_category("seeds")
+		)
 
 	_update_visibility_from_selection()
-	_update_drone_slot_visibility()
+
+func _is_drone_mode() -> bool:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	return farm_grid != null and farm_grid.has_method("get_selected_drone") and farm_grid.get_selected_drone() != null
+
+func _get_selected_drone() -> FarmDrone:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if farm_grid and farm_grid.has_method("get_selected_drone"):
+		return farm_grid.get_selected_drone()
+	return null
+
+func _get_active_category_data(cat_id: String) -> Dictionary:
+	if _is_drone_mode() and DRONE_CATEGORY_DATA.has(cat_id):
+		return DRONE_CATEGORY_DATA[cat_id]
+	return CATEGORY_DATA.get(cat_id, {})
+
+func _style_mini_button(btn: Button, text_color: Color = Color(0.92, 0.88, 0.82)) -> void:
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.add_theme_font_size_override("font_size", 9)
+	btn.add_theme_color_override("font_color", text_color)
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.6))
+	var s_norm := StyleBoxFlat.new()
+	s_norm.bg_color = Color(0.12, 0.09, 0.06, 0.92)
+	s_norm.border_color = Color(0.65, 0.50, 0.25, 0.80)
+	s_norm.border_width_left = 1
+	s_norm.border_width_top = 1
+	s_norm.border_width_right = 1
+	s_norm.border_width_bottom = 1
+	s_norm.corner_radius_top_left = 3
+	s_norm.corner_radius_top_right = 3
+	s_norm.corner_radius_bottom_left = 3
+	s_norm.corner_radius_bottom_right = 3
+	s_norm.content_margin_left = 4
+	s_norm.content_margin_right = 4
+	s_norm.content_margin_top = 1
+	s_norm.content_margin_bottom = 1
+	btn.add_theme_stylebox_override("normal", s_norm)
+	var s_hov := s_norm.duplicate()
+	s_hov.bg_color = Color(0.24, 0.18, 0.10, 0.95)
+	s_hov.border_color = Color(0.95, 0.80, 0.35, 1.0)
+	btn.add_theme_stylebox_override("hover", s_hov)
+	btn.add_theme_stylebox_override("pressed", s_hov)
+
+func _on_cycle_unit_next() -> void:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if _is_drone_mode():
+		if farm_grid and not farm_grid.drones.is_empty():
+			var total: int = farm_grid.drones.size()
+			var cur: int = maxi(farm_grid.selected_drone_index, 1)
+			var nxt: int = (cur % total) + 1
+			farm_grid.select_drone_by_index(nxt)
+	else:
+		var hud = get_tree().root.find_child("HUD", true, false)
+		if hud and hud.has_method("_cycle_idle_worker"):
+			hud._cycle_idle_worker()
+
+func _on_cycle_unit_prev() -> void:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if _is_drone_mode():
+		if farm_grid and not farm_grid.drones.is_empty():
+			var total: int = farm_grid.drones.size()
+			var cur: int = maxi(farm_grid.selected_drone_index, 1)
+			var prev: int = (cur - 2 + total) % total + 1
+			farm_grid.select_drone_by_index(prev)
+	else:
+		var hud = get_tree().root.find_child("HUD", true, false)
+		if hud and hud.has_method("_cycle_idle_worker"):
+			hud._cycle_idle_worker()
+
+func _on_switch_unit_type() -> void:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	if _is_drone_mode():
+		# Switch to human farm workers
+		var workers := get_tree().get_nodes_in_group("farmers")
+		if not workers.is_empty() and is_instance_valid(workers[0]):
+			if farm_grid:
+				farm_grid.deselect_all_drones()
+			TaskManager.select_farmer(workers[0])
+			AudioManager.play_farmer("select")
+	else:
+		# Switch to autonomous drone fleet
+		if farm_grid and not farm_grid.drones.is_empty():
+			TaskManager.deselect_all_farmers()
+			farm_grid.select_drone_by_index(1)
+		else:
+			AudioManager.play_ui("error")
+			LogManager.log_event("buildings", "Build a Drone Landing Pad in Agri-Shop to get drones!", "🛸", Color(1.0, 0.4, 0.4))
+
+func show_hotbar_feedback(msg: String, col: Color = Color.WHITE) -> void:
+	if worker_header_label:
+		worker_header_label.text = msg
+	LogManager.log_event("general", msg, "🛸", col)
+	AudioManager.play_ui("click")
 
 var is_tray_open: bool:
 	get:
@@ -234,48 +390,75 @@ func _on_worker_selection_changed(_selected_workers: Array) -> void:
 
 func _update_visibility_from_selection() -> void:
 	var selected: Array = TaskManager.get_selected_farmers()
-	var has_selection: bool = (selected.size() > 0)
+	var sel_drone: FarmDrone = _get_selected_drone()
+	var has_selection: bool = (selected.size() > 0) or (sel_drone != null)
 	visible = has_selection
 	if has_selection:
-		_update_drone_slot_visibility()
-		_update_worker_header(selected)
+		_update_unit_header(selected, sel_drone)
+		_update_category_slots_display()
 		_highlight_active_selection()
 		_update_affordability()
 	else:
 		_close_flyout()
+		Input.set_custom_mouse_cursor(null)
 		if hover_card and hover_card.visible:
 			hover_card.visible = false
 		if hover_timer and not hover_timer.is_stopped():
 			hover_timer.stop()
 
-func _update_worker_header(selected: Array) -> void:
-	if not worker_header_label:
+func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
+	if not _unit_pill_btn:
 		return
-	if selected.is_empty():
-		worker_header_label.text = "👨‍🌾 Worker Tools & Crops"
-		return
-	if selected.size() == 1:
-		var w = selected[0]
-		var w_name: String = "Worker 1"
-		if is_instance_valid(w):
-			if "worker_name" in w:
-				w_name = str(w.worker_name)
-			elif "worker_id" in w:
-				w_name = "Worker %d" % int(w.worker_id)
-			elif w.has_method("get") and w.get("name"):
-				w_name = str(w.name)
-		worker_header_label.text = "👨‍🌾 %s Ready • Click Slot to Choose & Click/Drag Field" % w_name
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	var active_drone_count: int = farm_grid.drones.size() if (farm_grid and "drones" in farm_grid) else 0
+
+	if sel_drone != null:
+		var crop_disp: String = str(Data.get_crop(sel_drone.crop_type).get("display_name", sel_drone.crop_type))
+		_unit_pill_btn.text = "🛸 %s (Lv.%d)" % [sel_drone.get_drone_name(), sel_drone.get_level()]
+		_unit_pill_btn.tooltip_text = "%s assigned to %s\nClick to cycle to next drone" % [sel_drone.get_drone_name(), crop_disp]
+		_unit_switch_type_btn.text = "👨‍🌾 Workers"
+		_unit_switch_type_btn.tooltip_text = "Switch command to human farm workers"
+		_unit_switch_type_btn.visible = true
+		if worker_header_label:
+			worker_header_label.text = "🛸 %s Ready • Assigned: %s • Field: %s" % [
+				sel_drone.get_drone_name(),
+				crop_disp,
+				("%d Plots" % sel_drone.zone.size()) if not sel_drone.zone.is_empty() else "None (Drag Box on Farm)"
+			]
 	else:
-		worker_header_label.text = "👨‍🌾 Squad Selected (%d Workers) • Click Slot to Choose & Click/Drag Field" % selected.size()
+		var w_name: String = "Worker 1"
+		if selected.size() == 1:
+			var w = selected[0]
+			if is_instance_valid(w):
+				if "worker_name" in w:
+					w_name = str(w.worker_name)
+				elif "worker_id" in w:
+					w_name = "Worker %d" % int(w.worker_id)
+				elif w.has_method("get") and w.get("name"):
+					w_name = str(w.name)
+			_unit_pill_btn.text = "👨‍🌾 %s" % w_name
+			_unit_pill_btn.tooltip_text = "Click to cycle to next worker"
+		else:
+			_unit_pill_btn.text = "👨‍🌾 Squad (%d)" % selected.size()
+			_unit_pill_btn.tooltip_text = "Click to cycle workers"
+
+		_unit_switch_type_btn.text = "🛸 Drones"
+		_unit_switch_type_btn.visible = (active_drone_count > 0)
+		_unit_switch_type_btn.tooltip_text = "Switch command to autonomous drone fleet"
+		if worker_header_label:
+			worker_header_label.text = "👨‍🌾 %s Ready • Click Slot to Choose & Click/Drag Field" % w_name
+
+func _update_worker_header(selected: Array) -> void:
+	_update_unit_header(selected, _get_selected_drone())
 
 func open_tray() -> void:
 	visible = true
 	var selected: Array = TaskManager.get_selected_farmers()
-	if selected.size() > 0:
-		_update_worker_header(selected)
+	_update_unit_header(selected, _get_selected_drone())
 
 func close_tray() -> void:
 	_close_flyout()
+	Input.set_custom_mouse_cursor(null)
 	TaskManager.deselect_all_farmers()
 
 func _setup_ui() -> void:
@@ -335,6 +518,50 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 	close_btn.pressed.connect(func(): close_tray())
 	tray_vbox.add_child(close_btn)
 
+	# Unit Switcher Bar (Switch between workers and individual drones seamlessly!)
+	var unit_bar := HBoxContainer.new()
+	unit_bar.name = "UnitSwitcherBar"
+	unit_bar.add_theme_constant_override("separation", 3)
+	unit_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	unit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tray_vbox.add_child(unit_bar)
+
+	_unit_prev_btn = Button.new()
+	_unit_prev_btn.name = "UnitPrevBtn"
+	_unit_prev_btn.text = "◀"
+	_unit_prev_btn.custom_minimum_size = Vector2(18, 20)
+	_style_mini_button(_unit_prev_btn)
+	_unit_prev_btn.pressed.connect(_on_cycle_unit_prev)
+	unit_bar.add_child(_unit_prev_btn)
+
+	_unit_pill_btn = Button.new()
+	_unit_pill_btn.name = "UnitPillBtn"
+	_unit_pill_btn.text = "👨‍🌾 Worker 1"
+	_unit_pill_btn.custom_minimum_size = Vector2(104, 20)
+	_style_mini_button(_unit_pill_btn, Color(1.0, 0.88, 0.45))
+	_unit_pill_btn.pressed.connect(_on_cycle_unit_next)
+	unit_bar.add_child(_unit_pill_btn)
+
+	_unit_next_btn = Button.new()
+	_unit_next_btn.name = "UnitNextBtn"
+	_unit_next_btn.text = "▶"
+	_unit_next_btn.custom_minimum_size = Vector2(18, 20)
+	_style_mini_button(_unit_next_btn)
+	_unit_next_btn.pressed.connect(_on_cycle_unit_next)
+	unit_bar.add_child(_unit_next_btn)
+
+	_unit_switch_type_btn = Button.new()
+	_unit_switch_type_btn.name = "UnitSwitchTypeBtn"
+	_unit_switch_type_btn.text = "🛸 Drones"
+	_unit_switch_type_btn.custom_minimum_size = Vector2(64, 20)
+	_style_mini_button(_unit_switch_type_btn, Color(0.4, 0.88, 1.0))
+	_unit_switch_type_btn.pressed.connect(_on_switch_unit_type)
+	unit_bar.add_child(_unit_switch_type_btn)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 3)
+	tray_vbox.add_child(spacer)
+
 	# Minecraft-style Hotbar Slots Row
 	var slots_hbox := HBoxContainer.new()
 	slots_hbox.name = "CategorySlotsHBox"
@@ -346,8 +573,6 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 	for cat_id in CATEGORY_ORDER:
 		var c_data: Dictionary = CATEGORY_DATA[cat_id]
 		var slot_btn := _create_category_slot_button(c_data)
-		if cat_id == "drone":
-			slot_btn.visible = (BuildingManager.get_drone_level() > 0 and BuildingManager.active_drones > 0)
 		slots_hbox.add_child(slot_btn)
 		category_slots[cat_id] = slot_btn
 
@@ -697,12 +922,6 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 # Category Slot Interactions & Flyout Populating
 # ---------------------------------------------------------------------------
 func _on_category_slot_pressed(cat_id: String) -> void:
-	if cat_id == "drone":
-		var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
-		if deck and deck.has_method("open"):
-			deck.open()
-			return
-
 	if open_flyout_category == cat_id:
 		_close_flyout()
 	else:
@@ -720,20 +939,33 @@ func _close_flyout() -> void:
 		flyout_drawer.visible = false
 
 func _open_flyout_for_category(cat_id: String) -> void:
-	if not CATEGORY_DATA.has(cat_id):
+	var c_data: Dictionary = _get_active_category_data(cat_id)
+	if c_data.is_empty():
 		return
-	var c_data: Dictionary = CATEGORY_DATA[cat_id]
-	flyout_header_label.text = "%s SELECT %s" % [c_data.icon, c_data.title]
+	flyout_header_label.text = "%s SELECT %s" % [c_data.get("icon", "🌱"), c_data.get("title", cat_id.to_upper())]
 
 	# Clear previous items
 	for ch in flyout_items_vbox.get_children():
+		flyout_items_vbox.remove_child(ch)
 		ch.queue_free()
 	flyout_item_buttons.clear()
 
-	var cur_sel: String = selected_category_items.get(cat_id, "")
+	var sel_drone: FarmDrone = _get_selected_drone() if _is_drone_mode() else null
+	var cur_sel: String = ""
+	if sel_drone != null:
+		if cat_id == "seeds":
+			cur_sel = sel_drone.crop_type
+		elif cat_id == "tools":
+			cur_sel = selected_category_items.get("tools", "auto_loop")
+		elif cat_id == "treatments":
+			cur_sel = selected_category_items.get("treatments", "spray_chemical")
+	else:
+		cur_sel = selected_category_items.get(cat_id, "")
 
-	for item in c_data.items:
+	for item in c_data.get("items", []):
 		var item_id: String = item.id
+		if cat_id == "seeds" and not BuildingManager.is_crop_unlocked(item_id):
+			continue
 		var btn := Button.new()
 		btn.name = "FlyoutItem_" + item_id
 		btn.custom_minimum_size = Vector2(40, 40) # Pure square box like Minecraft!
@@ -785,15 +1017,6 @@ func _open_flyout_for_category(cat_id: String) -> void:
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			center_box.add_child(tr)
-		elif cat_id == "drone" and item_id == "drone_zone":
-			var drone_ctrl := Control.new()
-			drone_ctrl.custom_minimum_size = Vector2(26, 26)
-			drone_ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			drone_ctrl.draw.connect(func():
-				var lvl: int = BuildingManager.get_drone_level()
-				FarmDrone.draw_drone_art(drone_ctrl, Vector2(13, 13), 1.4, lvl, 0.0, 0.0)
-			)
-			center_box.add_child(drone_ctrl)
 		else:
 			var ic := Label.new()
 			ic.text = item.icon
@@ -829,40 +1052,122 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		flyout_items_vbox.add_child(btn)
 		flyout_item_buttons[item_id] = btn
 
+	# If there are still locked crops, display an expansion shortcut to the Agri-Shop Seeds tab!
+	if cat_id == "seeds" and BuildingManager.get_unlocked_crops().size() < Data.CROPS.size():
+		var shop_btn := Button.new()
+		shop_btn.name = "FlyoutItem_ShopSeeds"
+		shop_btn.custom_minimum_size = Vector2(40, 40)
+		shop_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		shop_btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		shop_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		shop_btn.tooltip_text = "Unlock more seed varieties in the Agri-Shop!"
+
+		var s_item := _create_stylebox_from_texture(tex_dark_box, false, false)
+		var s_item_hov := _create_stylebox_from_texture(tex_light_box, false, true)
+		shop_btn.add_theme_stylebox_override("normal", s_item)
+		shop_btn.add_theme_stylebox_override("hover", s_item_hov)
+		shop_btn.add_theme_stylebox_override("pressed", s_item_hov)
+
+		var center_box := CenterContainer.new()
+		center_box.name = "CenterContainer"
+		center_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		shop_btn.add_child(center_box)
+
+		var vb := VBoxContainer.new()
+		vb.alignment = BoxContainer.ALIGNMENT_CENTER
+		vb.add_theme_constant_override("separation", -2)
+		vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		center_box.add_child(vb)
+
+		var lock_lbl := Label.new()
+		lock_lbl.text = "🔒"
+		lock_lbl.add_theme_font_size_override("font_size", 13)
+		lock_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lock_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vb.add_child(lock_lbl)
+
+		var txt_lbl := Label.new()
+		txt_lbl.text = "+Shop"
+		txt_lbl.add_theme_font_size_override("font_size", 8)
+		txt_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+		txt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		txt_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vb.add_child(txt_lbl)
+
+		shop_btn.pressed.connect(func():
+			_close_flyout()
+			var shop_panel = get_tree().root.find_child("ShopPanel", true, false)
+			if shop_panel:
+				if shop_panel.has_method("open_to_tab"):
+					shop_panel.open_to_tab("Seeds")
+				else:
+					shop_panel.visible = true
+		)
+		flyout_items_vbox.add_child(shop_btn)
+
 	flyout_drawer.visible = true
 
 func _on_flyout_item_selected(cat_id: String, item_id: String) -> void:
-	if cat_id == "drone" and item_id == "drone_recall":
-		var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
-		if farm_grid:
-			if farm_grid.has_method("recall_all_drones"):
-				farm_grid.recall_all_drones()
-			elif farm_grid.drone:
-				farm_grid.drone.recall()
-		selected_category_items["drone"] = "drone_zone"
-		active_category = "drone"
-		select_tool("drone_zone")
-		_update_category_slots_display()
-		_highlight_active_selection()
-		_close_flyout()
-		return
-	elif cat_id == "drone" and item_id == "drone_zone":
-		var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
-		if deck and deck.has_method("open"):
-			deck.open()
-			_close_flyout()
-			return
-
 	selected_category_items[cat_id] = item_id
 	active_category = cat_id
-	select_tool(item_id)
+
+	if _is_drone_mode():
+		var sel_d: FarmDrone = _get_selected_drone()
+		if sel_d:
+			if cat_id == "seeds":
+				sel_d.set_crop(item_id)
+				select_tool(item_id)
+				var c_info := Data.get_crop(item_id)
+				show_hotbar_feedback("🛸 %s crop set to %s!" % [sel_d.get_drone_name(), c_info.get("display_name", item_id)], Color(0.4, 0.9, 0.5))
+			elif cat_id == "tools":
+				match item_id:
+					"auto_loop", "plow", "plant", "water", "harvest":
+						sel_d.set_directive_mode(item_id)
+						match item_id:
+							"auto_loop": show_hotbar_feedback("🛸 %s set to Auto-Farm Loop!" % sel_d.get_drone_name(), Color(0.3, 0.8, 1.0))
+							"plow": show_hotbar_feedback("🛸 %s set to Plow Ground Only!" % sel_d.get_drone_name(), Color(0.9, 0.7, 0.3))
+							"plant": show_hotbar_feedback("🛸 %s set to Sow Crops Only!" % sel_d.get_drone_name(), Color(0.4, 0.9, 0.4))
+							"water": show_hotbar_feedback("🛸 %s set to Water Soil Only!" % sel_d.get_drone_name(), Color(0.4, 0.7, 1.0))
+							"harvest": show_hotbar_feedback("🛸 %s set to Harvest Crops Only!" % sel_d.get_drone_name(), Color(1.0, 0.8, 0.2))
+					"drone_zone":
+						show_hotbar_feedback("🎯 Drag a box across the farm to set %s's zone!" % sel_d.get_drone_name(), Color(1.0, 0.9, 0.4))
+					"drone_whole_farm":
+						var fg = get_tree().root.find_child("FarmGrid", true, false)
+						if fg:
+							var all_unlocked: Array[Vector2i] = fg.get_unlocked_tiles()
+							sel_d.deploy(all_unlocked, sel_d.crop_type)
+							show_hotbar_feedback("🌐 %s deployed to Whole Farm (%d plots)!" % [sel_d.get_drone_name(), all_unlocked.size()], Color(0.3, 1.0, 0.6))
+					"drone_recall":
+						sel_d.recall()
+						show_hotbar_feedback("🏠 %s returning to dock..." % sel_d.get_drone_name(), Color(0.8, 0.8, 0.8))
+				select_tool(item_id)
+			elif cat_id == "treatments":
+				sel_d.set_ipm_method(item_id)
+				select_tool(item_id)
+				show_hotbar_feedback("🛸 %s IPM set to %s" % [sel_d.get_drone_name(), item_id], Color(0.7, 0.5, 1.0))
+	else:
+		select_tool(item_id)
+
 	_update_category_slots_display()
 	_highlight_active_selection()
 	_close_flyout()
 
 func _update_category_slots_display() -> void:
+	var sel_drone: FarmDrone = _get_selected_drone() if _is_drone_mode() else null
 	for cat_id in CATEGORY_ORDER:
-		var cur_item_id: String = selected_category_items.get(cat_id, "")
+		var c_data: Dictionary = _get_active_category_data(cat_id)
+		var cur_item_id: String = ""
+		if sel_drone != null:
+			if cat_id == "seeds":
+				cur_item_id = sel_drone.crop_type
+			elif cat_id == "tools":
+				cur_item_id = selected_category_items.get("tools", "auto_loop")
+			elif cat_id == "treatments":
+				cur_item_id = selected_category_items.get("treatments", "spray_chemical")
+		else:
+			cur_item_id = selected_category_items.get(cat_id, "")
+
 		var icon_container: Control = category_icons.get(cat_id, null)
 		if not is_instance_valid(icon_container):
 			continue
@@ -878,9 +1183,8 @@ func _update_category_slots_display() -> void:
 		for ch in icon_container.get_children():
 			ch.queue_free()
 
-		var c_data: Dictionary = CATEGORY_DATA[cat_id]
 		var item_data: Dictionary = {}
-		for it in c_data.items:
+		for it in c_data.get("items", []):
 			if it.id == cur_item_id:
 				item_data = it
 				break
@@ -914,15 +1218,6 @@ func _update_category_slots_display() -> void:
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			icon_container.add_child(tr)
-		elif cat_id == "drone" and cur_item_id == "drone_zone":
-			var drone_ctrl := Control.new()
-			drone_ctrl.custom_minimum_size = Vector2(28, 28)
-			drone_ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			drone_ctrl.draw.connect(func():
-				var lvl: int = BuildingManager.get_drone_level()
-				FarmDrone.draw_drone_art(drone_ctrl, Vector2(14, 14), 1.6, lvl, 0.0, 0.0)
-			)
-			icon_container.add_child(drone_ctrl)
 		else:
 			var ic := Label.new()
 			ic.text = item_data.get("icon", "⛏️")
@@ -955,9 +1250,9 @@ func _highlight_active_selection() -> void:
 func select_tool(tool_id: String) -> void:
 	selected_tool = tool_id
 
-	for cat_id in CATEGORY_DATA:
-		var c_data: Dictionary = CATEGORY_DATA[cat_id]
-		for it in c_data.items:
+	for cat_id in CATEGORY_ORDER:
+		var c_data: Dictionary = _get_active_category_data(cat_id)
+		for it in c_data.get("items", []):
 			if it.id == tool_id:
 				active_category = cat_id
 				selected_category_items[cat_id] = tool_id
@@ -969,6 +1264,17 @@ func select_tool(tool_id: String) -> void:
 	if tool_id in CROP_KEYS:
 		crop_selected.emit(tool_id)
 
+	if tool_id == "inspect":
+		var tex := get_tool_sprite_texture("inspect")
+		if tex:
+			Input.set_custom_mouse_cursor(tex, Input.CURSOR_ARROW, Vector2(19, 11))
+	elif tool_id == "cancel_task":
+		var tex := get_tool_sprite_texture("cancel_task")
+		if tex:
+			Input.set_custom_mouse_cursor(tex, Input.CURSOR_ARROW, Vector2(16, 16))
+	else:
+		Input.set_custom_mouse_cursor(null)
+
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
 	if farm_grid and farm_grid.drag_overlay:
 		farm_grid.drag_overlay.queue_redraw()
@@ -978,9 +1284,9 @@ func select_crop(crop_key: String) -> void:
 
 func _update_affordability() -> void:
 	var cur_cash: int = EconomyManager.cash
-	for cat_id in CATEGORY_DATA:
-		var c_data: Dictionary = CATEGORY_DATA[cat_id]
-		for it in c_data.items:
+	for cat_id in CATEGORY_ORDER:
+		var c_data: Dictionary = _get_active_category_data(cat_id)
+		for it in c_data.get("items", []):
 			var btn: Button = flyout_item_buttons.get(it.id, null)
 			if is_instance_valid(btn):
 				if it.cost > cur_cash:
@@ -1037,6 +1343,14 @@ func _populate_tool_or_treatment_hover(tool_id: String) -> void:
 	card_debuffs.visible = false
 
 	match tool_id:
+		"inspect":
+			card_icon.text = "🔍"
+			card_title.text = "Investigate & Soil Diagnostics"
+			if card_price: card_price.text = "Free Action"
+			card_type.text = "Farmer Diagnostic • Non-Destructive"
+			card_stats.text = "Targets: Any Farm Plot or Standing Crop"
+			card_desc.text = "Examines live soil diagnostics, moisture levels, crop growth stages, and pest infestations in the Tile Inspector without issuing labor commands."
+
 		"plow":
 			card_icon.text = "⛏️"
 			card_title.text = "Farm Plow & Hoe"
@@ -1085,31 +1399,45 @@ func _populate_tool_or_treatment_hover(tool_id: String) -> void:
 			card_stats.text = "Targets: Natural Biological Predators"
 			card_desc.text = "Eco-friendly biocontrol deploying ducks and Trichoderma fungi. Completely preserves Grade A organic status."
 
+		"auto_loop":
+			card_icon.text = "🌀"
+			card_title.text = "Auto-Farm Loop"
+			if card_price: card_price.text = "Autonomous"
+			card_type.text = "Drone Command • Full Automation"
+			card_stats.text = "Plow ➜ Sow ➜ Water ➜ Treat ➜ Harvest"
+			card_desc.text = "Orders this drone to continuously maintain its field zone: auto-plowing soil, planting designated seeds, watering dry plots, spraying pests, and harvesting mature crops to storage."
+
+		"plant":
+			card_icon.text = "🌱"
+			card_title.text = "Sow Seeds Only"
+			if card_price: card_price.text = "Drone Command"
+			card_type.text = "Planting Automation"
+			card_stats.text = "Targets: Furrowed Plots in Field Zone"
+			card_desc.text = "Drone focuses solely on planting designated seeds on plowed plots within its zone without performing other farming tasks."
+
 		"drone_zone":
-			card_icon.text = "🛸"
-			var lvl: int = BuildingManager.get_drone_level()
-			var lvl_names: Array = ["", "Lv.1 Plow Drone", "Lv.2 Seeder Drone", "Lv.3 Harvester Drone"]
-			var cur_title: String = lvl_names[clampi(lvl, 0, 3)] if lvl > 0 else "Farm Drone (Unpurchased)"
-			card_title.text = cur_title
-			if card_price: card_price.text = "Remote Control"
-			card_type.text = "Automated Precision Agriculture"
-			var auto_tasks: String = ["None", "Auto-Plows", "Auto-Plows & Plants", "Auto-Plows, Plants & Harvests"][clampi(lvl, 0, 3)]
-			var seed_crop: String = selected_category_items.get("seeds", "palay")
-			var crop_display: String = str(Data.get_crop(seed_crop).get("display_name", seed_crop.capitalize()))
-			var d_act: int = BuildingManager.active_drones
-			var d_cap: int = BuildingManager.active_workers
-			card_stats.text = "Capability: %s • Fleet: %d/%d Drones • Seed: %s" % [auto_tasks, d_act, d_cap, crop_display]
-			var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
-			var status: String = farm_grid.drone.get_status_line() if farm_grid and farm_grid.drone else "Drag a zone to automate"
-			card_desc.text = "Drag a rectangular zone on the farm. Autonomous drones patrol and execute field tasks. Status: %s." % status
+			card_icon.text = "🎯"
+			card_title.text = "Designate Field Zone"
+			if card_price: card_price.text = "Free Action"
+			card_type.text = "Zone Designation • Tactical"
+			card_stats.text = "Click & Drag Box Across Farmland"
+			card_desc.text = "Click and drag across your farm to set this specific drone's working area. Only this drone will operate within and highlight these plots."
+
+		"drone_whole_farm":
+			card_icon.text = "🌐"
+			card_title.text = "Patrol Whole Farmland"
+			if card_price: card_price.text = "1-Click Deploy"
+			card_type.text = "Autonomous Coverage • Whole Farm"
+			card_stats.text = "Targets: All Unlocked Farmland Plots"
+			card_desc.text = "1-Click deployment: Orders this drone to patrol and maintain all unlocked farmland plots across your entire farm!"
 
 		"drone_recall":
-			card_icon.text = "📡"
-			card_title.text = "Recall Drone"
-			if card_price: card_price.text = "Free Action"
-			card_type.text = "Remote Command"
-			card_stats.text = "Clears active zone and returns drone to standby"
-			card_desc.text = "Orders the precision drone to immediately clear its designated zone and return to standby hover."
+			card_icon.text = "🏠"
+			card_title.text = "Return & Dock Drone"
+			if card_price: card_price.text = "Standby"
+			card_type.text = "Drone Command • Pad Docking"
+			card_stats.text = "Returns to Drone Landing Pad"
+			card_desc.text = "Directs this drone to immediately conclude field actions and return to its landing pad to stand by."
 
 		_:
 			card_icon.text = "🛠️"
@@ -1295,18 +1623,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_category_slot_pressed("tools")
 			KEY_3:
 				_on_category_slot_pressed("treatments")
-			KEY_4:
-				if BuildingManager.get_drone_level() > 0 and BuildingManager.active_drones > 0:
-					_on_category_slot_pressed("drone")
 			KEY_ESCAPE:
 				if not open_flyout_category.is_empty():
 					_close_flyout()
 					get_viewport().set_input_as_handled()
-
-func _update_drone_slot_visibility() -> void:
-	var drone_btn: Button = category_slots.get("drone", null)
-	if is_instance_valid(drone_btn):
-		drone_btn.visible = (BuildingManager.get_drone_level() > 0 and BuildingManager.active_drones > 0)
 
 func get_drone_crop() -> String:
 	return selected_category_items.get("seeds", "palay")

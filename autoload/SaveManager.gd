@@ -73,7 +73,7 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 	var r_meta: Dictionary = Data.get_region(region_key)
 	var region_display: String = r_meta.get("display_name", region_key.capitalize())
 	var mode: String = Data.game_mode
-	var mode_title: String = "Career Tycoon" if mode == "career" else "Timed Campaign"
+	var mode_title: String = "Creative Sandbox" if mode == "sandbox" else ("Career Tycoon" if mode == "career" else "Timed Campaign")
 
 	var datetime_dict := Time.get_datetime_dict_from_system()
 	var date_str := "%04d-%02d-%02d %02d:%02d" % [
@@ -157,6 +157,7 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 		"worker_capacity": BuildingManager.worker_capacity,
 		"active_drones": BuildingManager.active_drones,
 		"unlocked_techs": BuildingManager.unlocked_techs.duplicate(),
+		"unlocked_crops": BuildingManager.unlocked_crops.duplicate(),
 		"buildings": buildings_array
 	}
 
@@ -318,7 +319,7 @@ func apply_pending_save(farm_grid: Node) -> void:
 	TimeManager.current_day = t_data.get("day", 1)
 	TimeManager.current_hour = t_data.get("hour", 7)
 	TimeManager._elapsed = t_data.get("elapsed_seconds", (float(TimeManager.current_hour) / 24.0) * TimeManager.DAY_SECONDS)
-	TimeManager.is_freeplay_mode = t_data.get("is_freeplay_mode", (Data.game_mode == "career"))
+	TimeManager.is_freeplay_mode = t_data.get("is_freeplay_mode", (Data.game_mode == "career" or Data.game_mode == "sandbox"))
 	TimeManager.day_changed.emit(TimeManager.current_day)
 	TimeManager.hour_changed.emit(TimeManager.current_hour)
 	TimeManager.set_speed_scale(t_data.get("speed_scale", 1.0))
@@ -395,13 +396,18 @@ func apply_pending_save(farm_grid: Node) -> void:
 			b.queue_free()
 
 	BuildingManager.unlocked_techs = bm_data.get("unlocked_techs", [])
+	if Data.game_mode == "sandbox":
+		BuildingManager.unlocked_crops = Data.CROPS.keys().duplicate()
+	else:
+		BuildingManager.unlocked_crops = Array(bm_data.get("unlocked_crops", ["palay", "yellow_corn"]))
 
 	# Re-instantiate saved buildings
 	var b_list: Array = bm_data.get("buildings", [])
 	for b_info in b_list:
 		var b_type: String = b_info.get("type", "")
 		var g_pos := Vector2i(b_info.get("grid_pos", [0, 0])[0], b_info.get("grid_pos", [0, 0])[1])
-		var fp := Vector2i(b_info.get("footprint", [2, 2])[0], b_info.get("footprint", [2, 2])[1])
+		var b_data: Dictionary = Data.get_building(b_type)
+		var fp: Vector2i = b_data.get("grid_size", Vector2i(b_info.get("footprint", [2, 2])[0], b_info.get("footprint", [2, 2])[1]))
 
 		var building := Building.new()
 		building.name = "Building_%s_%d_%d" % [b_type, g_pos.x, g_pos.y]

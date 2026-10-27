@@ -17,6 +17,12 @@ func add_cash(amount: int, play_sound: bool = true) -> void:
 	cash_changed.emit(cash)
 
 func deduct_cash(amount: int, play_sound: bool = true) -> bool:
+	if Data.game_mode == "sandbox":
+		cash = maxi(0, cash - amount)
+		if play_sound and amount > 0:
+			AudioManager.play_economy("spend")
+		cash_changed.emit(cash)
+		return true
 	if cash >= amount:
 		cash -= amount
 		if play_sound and amount > 0:

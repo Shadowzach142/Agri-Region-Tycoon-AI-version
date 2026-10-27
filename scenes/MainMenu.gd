@@ -70,6 +70,16 @@ const MODE_EXPLANATIONS: Dictionary = {
 		],
 		"tip": "👉 Click to choose region & start new career"
 	},
+	"sandbox": {
+		"title": "✨ CREATIVE / SANDBOX MODE",
+		"tagline": "[ UNLIMITED FUNDS • ALL UNLOCKED • INSTANT FREEDOM ]",
+		"sentences": [
+			"Unleash your creativity with zero restrictions! Start with ₱999,999 treasury and all 4 island territory parcels unlocked.",
+			"All advanced technologies, drones, sprinklers, and regional shipping hubs are unlocked from day 1.",
+			"Instant construction and upgrades let you design your dream plantation empire with endless time and full save/load support."
+		],
+		"tip": "👉 Click to choose region & start creative sandbox"
+	},
 	"saves": {
 		"title": "💾 SAVED EXPEDITIONS",
 		"tagline": "[ IN-GAME SAVE & LOAD MANAGEMENT ]",
@@ -102,7 +112,7 @@ var _hover_card_tween: Tween = null
 var _current_hovered_mode: String = ""
 
 # Game Mode Carousel UI
-var mode_keys: Array = ["campaign", "career"]
+var mode_keys: Array = ["campaign", "career", "sandbox"]
 var current_mode_idx: int = 0
 
 var _mode_index_label: Label = null
@@ -287,6 +297,7 @@ var _con_icons: Array = []
 var _con_labels: Array = []
 var _side_campaign_btn: Button = null
 var _side_career_btn: Button = null
+var _side_sandbox_btn: Button = null
 var _region_season_box: Control = null
 
 var _transition_tween: Tween = null
@@ -335,6 +346,11 @@ func _ready() -> void:
 
 	# Create Mode Select View
 	_build_mode_select_view()
+
+	# Start peaceful farming soundtrack
+	var audio_mgr = get_node_or_null("/root/AudioManager")
+	if audio_mgr and audio_mgr.has_method("play_soundtrack"):
+		audio_mgr.play_soundtrack("countryside_morning", 1.5)
 
 	# Optional CLI test suite
 	if "--test-menu" in OS.get_cmdline_args():
@@ -630,7 +646,7 @@ func _build_mode_select_view() -> void:
 	if _mode_start_btn:
 		_mode_start_btn.pressed.connect(func():
 			_hide_mode_hover_card_immediate()
-			_select_game_mode("campaign")
+			_select_game_mode(mode_keys[current_mode_idx])
 		)
 	if _mode_load_btn:
 		_mode_load_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["saves"]["sentences"])
@@ -659,6 +675,16 @@ func _build_mode_select_view() -> void:
 		_side_career_btn.pressed.connect(func():
 			_hide_mode_hover_card_immediate()
 			_select_game_mode("career")
+		)
+
+	_side_sandbox_btn = find_child("SideSandboxBtn", true, false) as Button
+	if _side_sandbox_btn:
+		_side_sandbox_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["sandbox"]["sentences"])
+		_side_sandbox_btn.mouse_entered.connect(func(): _on_mode_button_hovered("sandbox", _side_sandbox_btn))
+		_side_sandbox_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("sandbox"))
+		_side_sandbox_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_select_game_mode("sandbox")
 		)
 
 	# The single admin debug checkbox is located on the main menu left panel
@@ -703,38 +729,31 @@ func _select_mode_carousel(idx: int) -> void:
 	Data.game_mode = mode_id
 
 	# Update side button styles based on active mode
-	if _side_campaign_btn and _side_career_btn:
-		if mode_id == "campaign":
-			if style_gold_btn:
-				_side_campaign_btn.add_theme_stylebox_override("normal", style_gold_btn)
-				_side_campaign_btn.add_theme_stylebox_override("hover", style_gold_hov)
-				_side_campaign_btn.add_theme_stylebox_override("pressed", style_gold_press)
-			_side_campaign_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-			_side_campaign_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
-
-			if style_wood_btn:
-				_side_career_btn.add_theme_stylebox_override("normal", style_wood_btn)
-				_side_career_btn.add_theme_stylebox_override("hover", style_wood_hov)
-				_side_career_btn.add_theme_stylebox_override("pressed", style_wood_press)
-			_side_career_btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
-			_side_career_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
-		else:
-			if style_wood_btn:
-				_side_campaign_btn.add_theme_stylebox_override("normal", style_wood_btn)
-				_side_campaign_btn.add_theme_stylebox_override("hover", style_wood_hov)
-				_side_campaign_btn.add_theme_stylebox_override("pressed", style_wood_press)
-			_side_campaign_btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
-			_side_campaign_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
-
-			if style_gold_btn:
-				_side_career_btn.add_theme_stylebox_override("normal", style_gold_btn)
-				_side_career_btn.add_theme_stylebox_override("hover", style_gold_hov)
-				_side_career_btn.add_theme_stylebox_override("pressed", style_gold_press)
-			_side_career_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
-			_side_career_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
+	var side_buttons = [
+		{"btn": _side_campaign_btn, "id": "campaign"},
+		{"btn": _side_career_btn, "id": "career"},
+		{"btn": _side_sandbox_btn, "id": "sandbox"}
+	]
+	for sb in side_buttons:
+		var btn: Button = sb.btn
+		if btn:
+			if sb.id == mode_id:
+				if style_gold_btn:
+					btn.add_theme_stylebox_override("normal", style_gold_btn)
+					btn.add_theme_stylebox_override("hover", style_gold_hov)
+					btn.add_theme_stylebox_override("pressed", style_gold_press)
+				btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06, 1.0))
+				btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02, 1.0))
+			else:
+				if style_wood_btn:
+					btn.add_theme_stylebox_override("normal", style_wood_btn)
+					btn.add_theme_stylebox_override("hover", style_wood_hov)
+					btn.add_theme_stylebox_override("pressed", style_wood_press)
+				btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84, 1.0))
+				btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.60, 1.0))
 
 	if mode_id == "campaign":
-		if _mode_index_label: _mode_index_label.text = "GAME MODE 1 OF 2"
+		if _mode_index_label: _mode_index_label.text = "— GAME MODE 1 OF 3 —"
 		if _mode_name_label: _mode_name_label.text = "🏆 TIMED RTS CAMPAIGN"
 		if _mode_tagline_label: _mode_tagline_label.text = "[ COMPETITIVE SCORE ATTACK • 30–90 DAYS ]"
 		if _mode_desc_label: _mode_desc_label.text = "Race against the seasonal clock in a high-stakes agricultural sprint across Mindanao! Cultivate strategic crop rotations, optimize harvesting logistics, and fulfill export contracts through regional shipping hubs."
@@ -754,8 +773,8 @@ func _select_mode_carousel(idx: int) -> void:
 		_update_mode_season_buttons_ui()
 
 		if _mode_start_btn: _mode_start_btn.text = "PROCEED TO REGIONS  >"
-	else:
-		if _mode_index_label: _mode_index_label.text = "GAME MODE 2 OF 2"
+	elif mode_id == "career":
+		if _mode_index_label: _mode_index_label.text = "— GAME MODE 2 OF 3 —"
 		if _mode_name_label: _mode_name_label.text = "🌾 CAREER / ENDLESS TYCOON"
 		if _mode_tagline_label: _mode_tagline_label.text = "[ RELAXED ENDLESS SANDBOX • SAVE & LOAD ]"
 		if _mode_desc_label: _mode_desc_label.text = "Cultivate and expand your agricultural empire at your own relaxed pace with no time limits or countdown pressure. Clear dense wilderness, purchase all 4 island territory deeds, construct advanced drying infrastructure, and build thriving perennial groves with full save and load support anytime."
@@ -771,7 +790,45 @@ func _select_mode_carousel(idx: int) -> void:
 
 		if _mode_season_container: _mode_season_container.visible = false
 		if _mode_season_explain_label: _mode_season_explain_label.visible = false
-		if _career_perks_container: _career_perks_container.visible = true
+		if _career_perks_container:
+			_career_perks_container.visible = true
+			var p1 = _career_perks_container.find_child("Perk1", true, false) as Label
+			var p2 = _career_perks_container.find_child("Perk2", true, false) as Label
+			var p3 = _career_perks_container.find_child("Perk3", true, false) as Label
+			var p4 = _career_perks_container.find_child("Perk4", true, false) as Label
+			if p1: p1.text = "[ 💾 5 In-Game Save Slots ]"
+			if p2: p2.text = "[ 🌙 Midnight Autosave ]"
+			if p3: p3.text = "[ 🗺️ 24×24 Island Expansion ]"
+			if p4: p4.text = "[ 🌴 Long-Term Perennial Plantations ]"
+
+		if _mode_start_btn: _mode_start_btn.text = "PROCEED TO REGIONS  >"
+	elif mode_id == "sandbox":
+		if _mode_index_label: _mode_index_label.text = "— GAME MODE 3 OF 3 —"
+		if _mode_name_label: _mode_name_label.text = "✨ CREATIVE / SANDBOX MODE"
+		if _mode_tagline_label: _mode_tagline_label.text = "[ UNLIMITED FUNDS • ALL UNLOCKED • INSTANT FREEDOM ]"
+		if _mode_desc_label: _mode_desc_label.text = "Unleash your creativity with zero restrictions! Start with ₱999,999 in your treasury, all 4 island territory parcels unlocked, all technologies researched, all trade hubs available, and instant building placement to build your dream plantation."
+
+		if _pillar1_title: _pillar1_title.text = "💰 ₱999,999 Treasury"
+		if _pillar1_body: _pillar1_body.text = "• Massive starting treasury funds.\n• Instant building and instant upgrades.\n• 20 workers & 25,000 crop storage."
+
+		if _pillar2_title: _pillar2_title.text = "🗺️ Full 24×24 Island"
+		if _pillar2_body: _pillar2_body.text = "• All 4 parcels unlocked day 1.\n• No locked tiles or territory fees.\n• Full freedom to design layouts."
+
+		if _pillar3_title: _pillar3_title.text = "🔬 All Tech & Hubs"
+		if _pillar3_body: _pillar3_body.text = "• Diagnostic heatmap unlocked.\n• All 4 trade hubs ready for export.\n• Full save & load support anytime."
+
+		if _mode_season_container: _mode_season_container.visible = false
+		if _mode_season_explain_label: _mode_season_explain_label.visible = false
+		if _career_perks_container:
+			_career_perks_container.visible = true
+			var p1 = _career_perks_container.find_child("Perk1", true, false) as Label
+			var p2 = _career_perks_container.find_child("Perk2", true, false) as Label
+			var p3 = _career_perks_container.find_child("Perk3", true, false) as Label
+			var p4 = _career_perks_container.find_child("Perk4", true, false) as Label
+			if p1: p1.text = "[ 💰 ₱999k Unlimited Funds ]"
+			if p2: p2.text = "[ 🗺️ All 4 Parcels Unlocked ]"
+			if p3: p3.text = "[ 🔬 All Tech & Hubs Researched ]"
+			if p4: p4.text = "[ ⚡ Instant Build & Upgrade ]"
 
 		if _mode_start_btn: _mode_start_btn.text = "PROCEED TO REGIONS  >"
 
@@ -929,7 +986,7 @@ func _setup_region_back_navigation() -> void:
 
 func _select_game_mode(mode: String) -> void:
 	Data.game_mode = mode
-	if mode == "career":
+	if mode == "career" or mode == "sandbox":
 		TimeManager.is_freeplay_mode = true
 	else:
 		TimeManager.is_freeplay_mode = false
@@ -984,6 +1041,9 @@ func _show_region_select() -> void:
 		if Data.game_mode == "campaign":
 			_mode_badge_label.text = "[ TIMED CAMPAIGN: %d DAYS ]" % Data.selected_season_days
 			_mode_badge_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.40, 1.0))
+		elif Data.game_mode == "sandbox":
+			_mode_badge_label.text = "[ ✨ CREATIVE SANDBOX: ALL UNLOCKED ]"
+			_mode_badge_label.add_theme_color_override("font_color", Color(0.40, 0.85, 1.0, 1.0))
 		else:
 			_mode_badge_label.text = "[ CAREER: ENDLESS ]"
 			_mode_badge_label.add_theme_color_override("font_color", Color(0.45, 1.0, 0.55, 1.0))
@@ -992,6 +1052,10 @@ func _show_region_select() -> void:
 	if _career_notice_label:
 		if Data.game_mode == "campaign":
 			_career_notice_label.visible = false
+		elif Data.game_mode == "sandbox":
+			_career_notice_label.text = "✨ Creative Sandbox • ₱999k Treasury • All Land & Tech Unlocked"
+			_career_notice_label.add_theme_color_override("font_color", Color(0.50, 0.90, 1.0, 0.95))
+			_career_notice_label.visible = true
 		else:
 			_career_notice_label.text = "🌾 Endless Sandbox • Full Save & Load Enabled"
 			_career_notice_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.65, 0.95))
@@ -1159,6 +1223,8 @@ func _update_start_button_text() -> void:
 
 	if Data.game_mode == "campaign":
 		start_button.text = "START %d-DAY CAMPAIGN IN %s  >" % [Data.selected_season_days, short_name]
+	elif Data.game_mode == "sandbox":
+		start_button.text = "START SANDBOX IN %s  >" % short_name
 	else:
 		start_button.text = "START NEW CAREER IN %s  >" % short_name
 
@@ -1181,7 +1247,7 @@ func _on_start_pressed() -> void:
 	else:
 		Data.current_region = "cotabato"
 
-	if Data.game_mode == "career":
+	if Data.game_mode == "career" or Data.game_mode == "sandbox":
 		TimeManager.is_freeplay_mode = true
 	else:
 		TimeManager.is_freeplay_mode = false

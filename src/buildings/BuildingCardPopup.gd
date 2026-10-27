@@ -110,27 +110,34 @@ func refresh() -> void:
 
 	title_label.text = "%s %s" % [icon, b_name]
 
-	var stars := ""
-	for i in range(current_building.level):
-		stars += "⭐"
-	level_label.text = "%s Level %d / %d" % [stars, current_building.level, current_building.max_level]
+	var is_decor: bool = b_data.get("is_decoration", false)
+	if is_decor:
+		level_label.text = "Garden Flora • 1×1 Plot"
+		status_label.text = "🌸 Beautifying Farmstead"
+		status_label.modulate = Color.WHITE
+		status_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.90))
+	else:
+		var stars := ""
+		for i in range(current_building.level):
+			stars += "⭐"
+		level_label.text = "%s Level %d / %d" % [stars, current_building.level, current_building.max_level]
 
-	# Status text in right box
-	match current_building.state:
-		current_building.BuildingState.CONSTRUCTING:
-			var remain := int(ceil(max(0.0, current_building.duration - current_building.progress_timer)))
-			status_label.text = "🏗️ Under Construction (%ds remaining)" % remain
-			status_label.modulate = Color.WHITE
-			status_label.add_theme_color_override("font_color", Color(0.95, 0.75, 0.35))
-		current_building.BuildingState.UPGRADING:
-			var remain := int(ceil(max(0.0, current_building.duration - current_building.progress_timer)))
-			status_label.text = "⬆️ Upgrading to Level %d (%ds remaining)" % [current_building.level + 1, remain]
-			status_label.modulate = Color.WHITE
-			status_label.add_theme_color_override("font_color", Color(0.45, 0.80, 1.0))
-		current_building.BuildingState.ACTIVE:
-			status_label.text = "✅ Active & Operating"
-			status_label.modulate = Color.WHITE
-			status_label.add_theme_color_override("font_color", Color(0.45, 0.92, 0.55))
+		# Status text in right box
+		match current_building.state:
+			current_building.BuildingState.CONSTRUCTING:
+				var remain := int(ceil(max(0.0, current_building.duration - current_building.progress_timer)))
+				status_label.text = "🏗️ Under Construction (%ds remaining)" % remain
+				status_label.modulate = Color.WHITE
+				status_label.add_theme_color_override("font_color", Color(0.95, 0.75, 0.35))
+			current_building.BuildingState.UPGRADING:
+				var remain := int(ceil(max(0.0, current_building.duration - current_building.progress_timer)))
+				status_label.text = "⬆️ Upgrading to Level %d (%ds remaining)" % [current_building.level + 1, remain]
+				status_label.modulate = Color.WHITE
+				status_label.add_theme_color_override("font_color", Color(0.45, 0.80, 1.0))
+			current_building.BuildingState.ACTIVE:
+				status_label.text = "✅ Active & Operating"
+				status_label.modulate = Color.WHITE
+				status_label.add_theme_color_override("font_color", Color(0.45, 0.92, 0.55))
 
 	if flip_btn:
 		flip_btn.text = "🔄 Flipped (Left) [R]" if current_building.is_flipped else "🔄 Normal (Right) [R]"
@@ -149,60 +156,68 @@ func refresh() -> void:
 	else:
 		_refresh_generic_feature_section()
 
-	# Right Smaller Box: Building Explanation & Active Level Perks
-	var summary := _get_building_summary(current_building.building_type)
-	current_stats_label.text = "%s\n\nActive Perks (Lv.%d):\n%s" % [
-		summary,
-		current_building.level,
-		_format_stats(current_building.building_type, current_building.level)
-	]
-
-	if current_building.level < current_building.max_level:
-		var next_cost := BuildingManager.get_upgrade_cost(current_building.building_type, current_building.level)
-		var next_time := BuildingManager.get_upgrade_time(current_building.building_type, current_building.level)
-		next_stats_label.text = "Next Tier (Level %d):\n%s\n\n💰 Cost: ₱%d   ⏱️ Build Time: %.0fs" % [
-			current_building.level + 1,
-			_format_stats(current_building.building_type, current_building.level + 1),
-			next_cost,
-			next_time
-		]
-		next_stats_label.visible = true
-
-		upgrade_btn.text = "⬆️ Upgrade to Lv.%d (₱%d)" % [current_building.level + 1, next_cost]
-		var can_afford: bool = EconomyManager.cash >= next_cost
-		var is_active: bool = current_building.state == current_building.BuildingState.ACTIVE
-
-		if can_afford and is_active:
-			upgrade_btn.disabled = false
-			upgrade_btn.add_theme_stylebox_override("normal", STYLE_GOLD_NORMAL)
-			upgrade_btn.add_theme_stylebox_override("hover", STYLE_GOLD_HOVER)
-			upgrade_btn.add_theme_stylebox_override("pressed", STYLE_GOLD_PRESSED)
-			upgrade_btn.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1))
-			upgrade_btn.tooltip_text = "Upgrade this facility to Level %d" % (current_building.level + 1)
-		else:
-			upgrade_btn.disabled = false
-			upgrade_btn.add_theme_stylebox_override("normal", STYLE_DARK_WOOD)
-			upgrade_btn.add_theme_stylebox_override("hover", STYLE_BROWN_HOVER)
-			upgrade_btn.add_theme_stylebox_override("pressed", STYLE_BROWN_PRESSED)
-			upgrade_btn.add_theme_color_override("font_color", Color(0.75, 0.68, 0.58, 1))
-			if not is_active:
-				upgrade_btn.tooltip_text = "Facility must be active and operating before upgrading."
-			else:
-				upgrade_btn.tooltip_text = "Insufficient funds: Need ₱%d (Current cash: ₱%d)" % [next_cost, EconomyManager.cash]
-	else:
-		next_stats_label.text = "🏆 Maximum Level Reached!"
-		next_stats_label.visible = true
-		upgrade_btn.text = "🏆 Max Level Reached"
-		upgrade_btn.disabled = false
-		upgrade_btn.add_theme_stylebox_override("normal", STYLE_DARK_WOOD)
-		upgrade_btn.add_theme_stylebox_override("hover", STYLE_DARK_WOOD)
-		upgrade_btn.add_theme_stylebox_override("pressed", STYLE_DARK_WOOD)
-		upgrade_btn.add_theme_color_override("font_color", Color(0.65, 0.58, 0.48, 1))
-		upgrade_btn.tooltip_text = "This facility has achieved peak operational tier."
-
 	var base_cost: int = int(b_data.get("cost", 200))
 	var refund: int = int(base_cost * 0.5 * current_building.level)
-	demolish_btn.text = "🗑️ Demolish (+₱%d)" % refund
+
+	if is_decor:
+		current_stats_label.text = "%s\n\n🌸 Decorative Flora\nAdds visual charm and authentic character to your farm plots." % b_data.get("description", "")
+		next_stats_label.visible = false
+		upgrade_btn.visible = false
+		demolish_btn.text = "🗑️ Dig Up & Remove (+₱%d)" % refund
+	else:
+		upgrade_btn.visible = true
+		# Right Smaller Box: Building Explanation & Active Level Perks
+		var summary := _get_building_summary(current_building.building_type)
+		current_stats_label.text = "%s\n\nActive Perks (Lv.%d):\n%s" % [
+			summary,
+			current_building.level,
+			_format_stats(current_building.building_type, current_building.level)
+		]
+
+		if current_building.level < current_building.max_level:
+			var next_cost := BuildingManager.get_upgrade_cost(current_building.building_type, current_building.level)
+			var next_time := BuildingManager.get_upgrade_time(current_building.building_type, current_building.level)
+			next_stats_label.text = "Next Tier (Level %d):\n%s\n\n💰 Cost: ₱%d   ⏱️ Build Time: %.0fs" % [
+				current_building.level + 1,
+				_format_stats(current_building.building_type, current_building.level + 1),
+				next_cost,
+				next_time
+			]
+			next_stats_label.visible = true
+
+			upgrade_btn.text = "⬆️ Upgrade to Lv.%d (₱%d)" % [current_building.level + 1, next_cost]
+			var can_afford: bool = EconomyManager.cash >= next_cost
+			var is_active: bool = current_building.state == current_building.BuildingState.ACTIVE
+
+			if can_afford and is_active:
+				upgrade_btn.disabled = false
+				upgrade_btn.add_theme_stylebox_override("normal", STYLE_GOLD_NORMAL)
+				upgrade_btn.add_theme_stylebox_override("hover", STYLE_GOLD_HOVER)
+				upgrade_btn.add_theme_stylebox_override("pressed", STYLE_GOLD_PRESSED)
+				upgrade_btn.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1))
+				upgrade_btn.tooltip_text = "Upgrade this facility to Level %d" % (current_building.level + 1)
+			else:
+				upgrade_btn.disabled = false
+				upgrade_btn.add_theme_stylebox_override("normal", STYLE_DARK_WOOD)
+				upgrade_btn.add_theme_stylebox_override("hover", STYLE_BROWN_HOVER)
+				upgrade_btn.add_theme_stylebox_override("pressed", STYLE_BROWN_PRESSED)
+				upgrade_btn.add_theme_color_override("font_color", Color(0.75, 0.68, 0.58, 1))
+				if not is_active:
+					upgrade_btn.tooltip_text = "Facility must be active and operating before upgrading."
+				else:
+					upgrade_btn.tooltip_text = "Insufficient funds: Need ₱%d (Current cash: ₱%d)" % [next_cost, EconomyManager.cash]
+		else:
+			next_stats_label.text = "🏆 Maximum Level Reached!"
+			next_stats_label.visible = true
+			upgrade_btn.text = "🏆 Max Level Reached"
+			upgrade_btn.disabled = false
+			upgrade_btn.add_theme_stylebox_override("normal", STYLE_DARK_WOOD)
+			upgrade_btn.add_theme_stylebox_override("hover", STYLE_DARK_WOOD)
+			upgrade_btn.add_theme_stylebox_override("pressed", STYLE_DARK_WOOD)
+			upgrade_btn.add_theme_color_override("font_color", Color(0.65, 0.58, 0.48, 1))
+			upgrade_btn.tooltip_text = "This facility has achieved peak operational tier."
+
+		demolish_btn.text = "🗑️ Demolish (+₱%d)" % refund
 
 func _refresh_storage_section() -> void:
 	if not is_instance_valid(current_building) or not storage_section:
@@ -413,7 +428,9 @@ func _refresh_generic_feature_section() -> void:
 	var b_data: Dictionary = Data.get_building(b_type)
 
 	var recipe: Dictionary = b_data.get("recipe", {})
-	if not recipe.is_empty():
+	if b_data.get("is_decoration", false):
+		_populate_decoration_features(b_type, lvl, b_data)
+	elif not recipe.is_empty():
 		_populate_processing_features(b_type, lvl, b_data, recipe)
 	elif b_type == "water_tower" or b_data.get("irrigation_equipment", false):
 		_populate_water_tower_features(b_type, lvl, b_data)
@@ -431,6 +448,19 @@ func _refresh_generic_feature_section() -> void:
 		_populate_housing_features(b_type, lvl, b_data)
 	else:
 		_populate_default_features(b_type, lvl, b_data)
+
+func _populate_decoration_features(_b_type: String, _lvl: int, b_data: Dictionary) -> void:
+	if feature_title_label:
+		feature_title_label.text = "🌸 Farmstead Garden Decoration & Landscaping"
+
+	var c1 := _create_card("Botanical Flora Specimen", "🌿")
+	_add_card_line(c1, "Variety: %s" % str(b_data.get("display_name", "Decorative Flower")), Color(1.0, 0.88, 0.45))
+	_add_card_line(c1, str(b_data.get("description", "")), Color(0.95, 0.90, 0.82))
+
+	var c2 := _create_card("Aesthetic Landscaping & Placement", "📐")
+	_add_card_line(c2, "Footprint: Compact 1×1 diamond plot.", Color(0.85, 0.95, 0.85))
+	_add_card_line(c2, "Orientation: Press [R] key or click the Flip button to mirror horizontally.", Color(0.55, 0.95, 0.60))
+	_add_card_line(c2, "Pathways: Perfect for lining farm roads, perimeters, and kubo frontages.", Color(0.88, 0.82, 0.74))
 
 func _populate_processing_features(_b_type: String, _lvl: int, _b_data: Dictionary, recipe: Dictionary) -> void:
 	if feature_title_label:
@@ -574,27 +604,22 @@ func _populate_drone_features(_b_type: String, lvl: int, _b_data: Dictionary) ->
 
 	_add_card_line(c1, "• Obstacle & Terrain Immunity: Flies smoothly over obstacles, waterlogged paddies, and fences.", Color(0.55, 0.95, 0.60))
 
-	var c2 := _create_card("Fleet Operations & Solar Power", "🧑‍🌾")
+	var c2 := _create_card("Fleet Operations & Solar Power", "🛸")
 	var d_act: int = BuildingManager.active_drones
-	var d_cap: int = BuildingManager.get_drone_capacity()
-	_add_card_line(c2, "Remote Pilot Requirement: 1 Drone per Active Farmer on duty.", Color(0.95, 0.90, 0.82))
-	_add_card_line(c2, "Commissioned Fleet: %d Drones active (%d Farmer Pilots available)." % [d_act, d_cap], Color(1.0, 0.88, 0.45))
+	_add_card_line(c2, "Autonomous AI Fleet: 1..3 Drones per Landing Pad (0 Human Pilots Required).", Color(0.95, 0.90, 0.82))
+	_add_card_line(c2, "Deployed Fleet: %d Drone(s) stationed across active pads." % d_act, Color(1.0, 0.88, 0.45))
 	_add_card_line(c2, "Solar Charging Pads: Autonomous return-to-base docking & battery recharge.", Color(0.55, 0.95, 0.60))
 
 	var c3 := _create_card("Autonomous Drone Command", "📡")
-	_add_card_line(c3, "1. Open the Drone Command Deck via HUD button or hotkey [U].", Color(0.92, 0.86, 0.78))
-	_add_card_line(c3, "2. Toggle automation directives: Plow, Seed, Water, Spray, Harvest, Clear.", Color(0.92, 0.86, 0.78))
-	_add_card_line(c3, "3. Designate a custom patrol zone or 1-click deploy to the whole farm.", Color(0.92, 0.86, 0.78))
+	_add_card_line(c3, "1. Click any drone on the farm or press [U] to select it.", Color(0.92, 0.86, 0.78))
+	_add_card_line(c3, "2. Use the Hotbar slots to choose its crop (Palay, Corn, etc.) and farming mode.", Color(0.92, 0.86, 0.78))
+	_add_card_line(c3, "3. Drag a box across the farm to set its zone, or pick Whole Farm Patrol.", Color(0.92, 0.86, 0.78))
 
-	_add_card_action_button(c3, "🛸 Open Drone Command Deck (U)", func():
+	_add_card_action_button(c3, "🛸 Select Drone & Command (U)", func():
 		close()
-		var deck = get_tree().root.find_child("DroneCommandDeck", true, false)
-		if deck and deck.has_method("open"):
-			deck.open()
-		else:
-			var hotbar = get_tree().root.find_child("PlantHotbar", true, false)
-			if hotbar and hotbar.has_method("select_tool"):
-				hotbar.select_tool("drone_zone")
+		var fg = get_tree().root.find_child("FarmGrid", true, false)
+		if fg and not fg.drones.is_empty():
+			fg.select_drone_by_index(1)
 	)
 
 func _populate_bayanihan_features(_b_type: String, _lvl: int, _b_data: Dictionary) -> void:
@@ -850,7 +875,9 @@ func _get_building_summary(b_type: String) -> String:
 		"sprinkler":
 			return "Ground-mounted rotary sprinkler. Automates morning irrigation across surrounding plots."
 		"drone_station":
-			return "High-tech drone command hangar. Deploys autonomous precision agriculture drones to designated field zones for hands-free plowing, seeding, and automated harvesting."
+			return "Central flight avionics & telemetry command hangar. One-time purchase that unlocks autonomous drones and upgrades their capabilities fleet-wide (Lv.1 Plow & Water, Lv.2 Precision Seeder & IPM, Lv.3 Master Harvester)."
+		"drone_pad":
+			return "Individual landing dock and solar recharge berth for autonomous farm drones. Like the Bahay Kubo for drones: stores 1 drone at Lv.1, 2 at Lv.2, and 3 at Lv.3. Buy more pads to expand your fleet!"
 		"bayanihan_center":
 			return "Roadside trading post for the local biyahero (middleman). Improves farmgate sale payouts by +8% with instant, zero-rot, zero-fuel pickup."
 		"tacurong_mill":
@@ -866,10 +893,15 @@ func _get_building_summary(b_type: String) -> String:
 		"bahay_kubo":
 			return "Traditional farm shack living quarters. Expands housing capacity to hire more farm laborers."
 		_:
+			if Data.get_building(b_type).get("is_decoration", false):
+				return Data.get_building(b_type).get("description", "Ornamental farm flower decoration.")
 			return "Operational farm infrastructure facility."
 
 func _format_stats(b_type: String, lvl: int) -> String:
 	var b_data := Data.get_building(b_type)
+	if b_data.get("is_decoration", false):
+		return "🌸 Decorative Flora\n📐 Footprint: 1×1 plot\n🔄 Orientable: Press [R] to flip"
+
 	var lines: Array[String] = []
 
 	var base_storage: int = int(b_data.get("storage_limit", 0))
@@ -911,8 +943,13 @@ func _format_stats(b_type: String, lvl: int) -> String:
 		lines.append("🚢 Hub Markup: +%d%%" % h_bonus)
 
 	if b_type == "drone_station" or b_data.get("unlocks_drones", false):
-		var cap_desc: String = ["Plow Drone", "Seeder Drone", "Harvester Drone"][clampi(lvl - 1, 0, 2)]
-		lines.append("🛸 Automation Tier: %s" % cap_desc)
+		var cap_desc: String = ["Lv.1 Plow & Water", "Lv.2 Seeder & IPM Spray", "Lv.3 Master Harvester"][clampi(lvl - 1, 0, 2)]
+		lines.append("🛸 Fleet Avionics: %s" % cap_desc)
+		lines.append("⚡ Upgrades ALL drones fleet-wide")
+
+	if b_type == "drone_pad" or b_data.get("drone_capacity", 0) > 0:
+		lines.append("🛸 Drone Berths: %d / 3" % lvl)
+		lines.append("🏠 Houses %d autonomous drone%s" % [lvl, "s" if lvl > 1 else ""])
 
 	if b_type == "weather_station" or b_data.get("forecast_equipment", false):
 		var tier_desc: String = ["1-Day Radar (60%)", "3-Day Station (90%)", "7-Day Satellite (100%)"][clampi(lvl - 1, 0, 2)]
@@ -936,7 +973,7 @@ func _on_upgrade_pressed() -> void:
 		AudioManager.play_ui("error")
 		return
 	var up_cost := BuildingManager.get_upgrade_cost(current_building.building_type, current_building.level)
-	var up_time := BuildingManager.get_upgrade_time(current_building.building_type, current_building.level)
+	var up_time := 0.0 if Data.game_mode == "sandbox" else BuildingManager.get_upgrade_time(current_building.building_type, current_building.level)
 	if current_building.state != current_building.BuildingState.ACTIVE or EconomyManager.cash < up_cost:
 		AudioManager.play_ui("error")
 		return

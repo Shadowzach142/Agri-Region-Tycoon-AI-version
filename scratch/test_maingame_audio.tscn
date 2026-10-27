@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ci84md2a36mf"]
+
+[ext_resource type="Script" path="res://scratch/test_maingame_audio.gd" id="1_mga"]
+
+[node name="TestMainGameAudio" type="Node"]
+script = ExtResource("1_mga")
