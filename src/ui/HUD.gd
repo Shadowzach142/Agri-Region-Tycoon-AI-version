@@ -233,7 +233,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_3x_pressed()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_TAB:
-			_cycle_idle_worker()
+			_on_tab_pressed(event.shift_pressed)
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_H or event.keycode == KEY_HOME:
 			_center_camera_homestead()
@@ -1074,6 +1074,34 @@ func _toggle_pause_play() -> void:
 		_last_speed_before_pause = TimeManager.get_speed_scale()
 		_on_pause_pressed()
 
+func _on_tab_pressed(reverse: bool = false) -> void:
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	var workers := get_tree().get_nodes_in_group("farmers")
+	var is_drone_mode: bool = (fg != null and fg.selected_drone_index > 0 and not fg.drones.is_empty())
+
+	if is_drone_mode or (workers.is_empty() and fg != null and not fg.drones.is_empty()):
+		_cycle_drone(reverse)
+	else:
+		_cycle_idle_worker()
+
+func _cycle_drone(reverse: bool = false) -> void:
+	var fg = get_tree().root.find_child("FarmGrid", true, false)
+	if not fg or fg.drones.is_empty():
+		return
+	var total_drones: int = fg.drones.size()
+	var cur_idx: int = maxi(fg.selected_drone_index, 1)
+	var next_idx: int = 1
+	if reverse:
+		next_idx = (cur_idx - 2 + total_drones) % total_drones + 1
+	else:
+		next_idx = (cur_idx % total_drones) + 1
+	fg.select_drone_by_index(next_idx)
+	var sel_d = fg.get_selected_drone()
+	if is_instance_valid(sel_d):
+		var cam = get_tree().root.find_child("GameCamera", true, false)
+		if cam and cam.has_method("pan_to"):
+			cam.pan_to(sel_d.global_position)
+
 func _cycle_idle_worker() -> void:
 	var workers := get_tree().get_nodes_in_group("farmers")
 	if workers.is_empty():
@@ -1093,6 +1121,9 @@ func _cycle_idle_worker() -> void:
 		target_worker = workers[_last_cycled_farmer_idx]
 
 	if is_instance_valid(target_worker):
+		var fg = get_tree().root.find_child("FarmGrid", true, false)
+		if fg and fg.has_method("deselect_all_drones"):
+			fg.deselect_all_drones()
 		TaskManager.select_farmer(target_worker)
 		var cam = get_tree().root.find_child("GameCamera", true, false)
 		if cam and cam.has_method("pan_to"):

@@ -1736,10 +1736,20 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
       - Slot 1 (Seeds) and Slot 3 (IPM) unlock. Drone can now sow assigned seeds and spray treatments.
     - **At Level 3**:
       - Autonomous harvesting and full auto-farm loop unlock fleet-wide.
+  - **Tab Key Cycling & Non-Intrusive Switcher Dock (`src/ui/PlantHotbar.gd`, `src/ui/HUD.gd`)**:
+    - **Unimpeded Tab Key Navigation**: Set `focus_mode = Control.FOCUS_NONE` on all mode switcher tabs, arrow buttons, unit pill, hotbar slot boxes, and flyout buttons. This prevents Godot's UI system from trapping the `Tab` key in button focus traversal, allowing `Tab` and `Shift+Tab` to seamlessly cycle units everywhere in the game.
+    - **Mode-Aware Tab Routing**: Updated `HUD.gd` `_on_tab_pressed(reverse)`:
+      - When controlling drones (or when a drone is currently selected): Pressing `Tab` cycles to the next drone (`_cycle_drone(false)`), and `Shift+Tab` cycles backwards (`_cycle_drone(true)`).
+      - When controlling human workers: Pressing `Tab` cycles through idle workers (`_cycle_idle_worker()`).
+    - **Unit Switcher Dock & Segmented Mode Tabs**:
+      - Encased switcher controls in a dark-walnut chassis (`_switcher_dock`) with warm wood borders when in worker mode and cyber gunmetal with cyan trim when in drone mode.
+      - Integrated segmented mode buttons: `👨‍🌾 Workers` and `🛸 Drones [count]` for single-click toggling between human and drone commands.
+      - Fitted authentic pixel-art arrow buttons (`tab_arrow_left_normal.png` / `tab_arrow_right_normal.png`) with responsive hover states.
   - **Automated & Visual Verification**:
     - `scratch/run_test_drone_hangar_and_hotbar.tscn`: 14/14 automated assertions passed covering hangar/pad data, level calculations, capacity scaling, silver texture swapping, and capability lockouts.
+    - `scratch/run_test_tab_and_switcher_ui.tscn`: 10/10 automated assertions passed covering switcher dock creation, FOCUS_NONE verification, Tab key mode routing, next/prev cycling, and wrap-around.
     - `scratch/run_capture_drone_silver_hotbar.tscn`: Rendered and visually inspected screenshots:
-      - `scratch/capture_worker_wood_hotbar.png`: Classic wood hotbar with pixel-art arrow buttons and worker capsule.
-      - `scratch/capture_drone_lv1_silver_hotbar.png`: Silver chassis hotbar at Lv.1 with `🔒` on seeds and IPM, and plow active.
-      - `scratch/capture_drone_flyout_lv1.png`: Flyout at Lv.1 showing locks on Plant, Harvest, Auto Loop.
-      - `scratch/capture_drone_lv2_silver_hotbar.png`: Silver chassis hotbar at Lv.2 with seeds and IPM cleanly unlocked.
+      - `scratch/shot_1_worker_wood_hotbar.png`: Classic wood hotbar with pixel-art arrow buttons and worker capsule.
+      - `scratch/shot_2_drone_lv1_silver_hotbar.png`: Silver chassis hotbar at Lv.1 with `🔒` on seeds and IPM, and plow active.
+      - `scratch/shot_3_drone_lv1_flyout_locks.png`: Flyout at Lv.1 showing locks on Plant, Harvest, Auto Loop.
+      - `scratch/shot_4_drone_lv2_silver_hotbar.png`: Silver chassis hotbar at Lv.2 with seeds and IPM cleanly unlocked.

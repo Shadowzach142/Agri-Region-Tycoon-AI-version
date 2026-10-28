@@ -214,10 +214,17 @@ var flyout_items_vbox: BoxContainer = null # HBoxContainer of square items
 var flyout_item_buttons: Dictionary = {} # item_id -> Button
 
 # Unit Switcher UI (Switch between human workers and autonomous drones seamlessly!)
+var _switcher_dock: PanelContainer = null
+var _mode_farmer_btn: Button = null
+var _mode_drone_btn: Button = null
 var _unit_prev_btn: Button = null
 var _unit_pill_btn: Button = null
 var _unit_next_btn: Button = null
 var _unit_switch_type_btn: Button = null
+
+var style_topbar_btn_brown: StyleBox = null
+var style_topbar_btn_yellow: StyleBox = null
+var style_topbar_btn_hover: StyleBox = null
 
 var hover_card: PanelContainer = null
 var hover_timer: Timer = null
@@ -294,6 +301,14 @@ func _ready() -> void:
 	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"):
 		style_brown_btn_press = load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres")
 
+	# Load official HUD compact button styles for mode tabs
+	if ResourceLoader.exists("res://assets/sprites/hud/TopBar/Button/TopBarButtonBrown.tres"):
+		style_topbar_btn_brown = load("res://assets/sprites/hud/TopBar/Button/TopBarButtonBrown.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/TopBar/Button/TopBarButtonYellow.tres"):
+		style_topbar_btn_yellow = load("res://assets/sprites/hud/TopBar/Button/TopBarButtonYellow.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/TopBar/Button/TopBarButtonHover.tres"):
+		style_topbar_btn_hover = load("res://assets/sprites/hud/TopBar/Button/TopBarButtonHover.tres")
+
 	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/information-box.png"):
 		tex_info_box = load("res://assets/sprites/hud/Hopbar/information-box.png")
 
@@ -324,16 +339,16 @@ func _is_drone_mode() -> bool:
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
 	return farm_grid != null and farm_grid.has_method("get_selected_drone") and farm_grid.get_selected_drone() != null
 
-func _get_selected_drone() -> FarmDrone:
+func _get_selected_drone() -> Node:
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
 	if farm_grid and farm_grid.has_method("get_selected_drone"):
 		return farm_grid.get_selected_drone()
 	return null
 
 func _get_drone_capability_level() -> int:
-	var sel_drone := _get_selected_drone()
-	if sel_drone:
-		return sel_drone.get_level()
+	var sel_drone: Node = _get_selected_drone()
+	if sel_drone and sel_drone.has_method("get_level"):
+		return int(sel_drone.get_level())
 	return BuildingManager.get_drone_level()
 
 func _is_category_locked_for_unit(cat_id: String) -> bool:
@@ -372,6 +387,7 @@ func _get_active_category_data(cat_id: String) -> Dictionary:
 func _style_arrow_button(btn: Button, is_left: bool) -> void:
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.flat = true
 	var s_empty := StyleBoxEmpty.new()
 	btn.add_theme_stylebox_override("normal", s_empty)
@@ -394,6 +410,7 @@ func _style_arrow_button(btn: Button, is_left: bool) -> void:
 func _style_capsule_button(btn: Button, is_drone: bool, _is_switch_action: bool = false) -> void:
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.add_theme_font_size_override("font_size", 9)
 	if is_drone:
 		# High-tech gunmetal & cyan-silver border
@@ -451,6 +468,148 @@ func _style_capsule_button(btn: Button, is_drone: bool, _is_switch_action: bool 
 			btn.add_theme_stylebox_override("hover", s_hov)
 			btn.add_theme_stylebox_override("pressed", s_hov)
 
+func _style_mode_tab_button(btn: Button, type: String, is_active: bool, count: int = 0) -> void:
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 9)
+
+	if type == "farmer":
+		btn.text = "👨‍🌾 Workers"
+		if is_active:
+			btn.tooltip_text = "👨‍🌾 Human Farm Workers (Active)\nClick or press [Tab] to cycle workers"
+			btn.add_theme_color_override("font_color", Color(1.0, 0.95, 0.65))
+			btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.85))
+			if style_topbar_btn_yellow:
+				btn.add_theme_stylebox_override("normal", style_topbar_btn_yellow)
+				btn.add_theme_stylebox_override("hover", style_topbar_btn_yellow)
+				btn.add_theme_stylebox_override("pressed", style_topbar_btn_yellow)
+			else:
+				var s_act := StyleBoxFlat.new()
+				s_act.bg_color = Color(0.38, 0.25, 0.12, 1.0)
+				s_act.border_color = Color(0.95, 0.82, 0.35, 1.0)
+				s_act.border_width_left = 1
+				s_act.border_width_top = 1
+				s_act.border_width_right = 1
+				s_act.border_width_bottom = 1
+				s_act.corner_radius_top_left = 3
+				s_act.corner_radius_top_right = 3
+				s_act.corner_radius_bottom_left = 3
+				s_act.corner_radius_bottom_right = 3
+				s_act.content_margin_left = 5
+				s_act.content_margin_right = 5
+				s_act.content_margin_top = 2
+				s_act.content_margin_bottom = 2
+				btn.add_theme_stylebox_override("normal", s_act)
+				btn.add_theme_stylebox_override("hover", s_act)
+				btn.add_theme_stylebox_override("pressed", s_act)
+		else:
+			btn.tooltip_text = "Switch command to Human Farm Workers [Click]"
+			btn.add_theme_color_override("font_color", Color(0.78, 0.70, 0.58))
+			btn.add_theme_color_override("font_hover_color", Color(0.95, 0.90, 0.78))
+			if style_topbar_btn_brown:
+				btn.add_theme_stylebox_override("normal", style_topbar_btn_brown)
+				btn.add_theme_stylebox_override("hover", style_topbar_btn_hover if style_topbar_btn_hover else style_topbar_btn_brown)
+				btn.add_theme_stylebox_override("pressed", style_topbar_btn_brown)
+			else:
+				var s_inact := StyleBoxFlat.new()
+				s_inact.bg_color = Color(0.16, 0.11, 0.07, 0.90)
+				s_inact.border_color = Color(0.40, 0.28, 0.16, 0.80)
+				s_inact.border_width_left = 1
+				s_inact.border_width_top = 1
+				s_inact.border_width_right = 1
+				s_inact.border_width_bottom = 1
+				s_inact.corner_radius_top_left = 3
+				s_inact.corner_radius_top_right = 3
+				s_inact.corner_radius_bottom_left = 3
+				s_inact.corner_radius_bottom_right = 3
+				s_inact.content_margin_left = 5
+				s_inact.content_margin_right = 5
+				s_inact.content_margin_top = 2
+				s_inact.content_margin_bottom = 2
+				btn.add_theme_stylebox_override("normal", s_inact)
+				var s_hov := s_inact.duplicate()
+				s_hov.bg_color = Color(0.24, 0.16, 0.10, 0.95)
+				s_hov.border_color = Color(0.65, 0.48, 0.28, 0.95)
+				btn.add_theme_stylebox_override("hover", s_hov)
+				btn.add_theme_stylebox_override("pressed", s_hov)
+
+	elif type == "drone":
+		if count <= 0:
+			btn.text = "🛸 Locked 🔒"
+			btn.tooltip_text = "Autonomous Drone Fleet (Locked)\nBuild a Drone Landing Pad in Agri-Shop to deploy drones."
+			btn.add_theme_color_override("font_color", Color(0.52, 0.54, 0.58, 0.70))
+			btn.add_theme_color_override("font_hover_color", Color(0.65, 0.68, 0.72, 0.85))
+			var s_lock := StyleBoxFlat.new()
+			s_lock.bg_color = Color(0.12, 0.14, 0.16, 0.75)
+			s_lock.border_color = Color(0.28, 0.32, 0.36, 0.60)
+			s_lock.border_width_left = 1
+			s_lock.border_width_top = 1
+			s_lock.border_width_right = 1
+			s_lock.border_width_bottom = 1
+			s_lock.corner_radius_top_left = 3
+			s_lock.corner_radius_top_right = 3
+			s_lock.corner_radius_bottom_left = 3
+			s_lock.corner_radius_bottom_right = 3
+			s_lock.content_margin_left = 5
+			s_lock.content_margin_right = 5
+			s_lock.content_margin_top = 2
+			s_lock.content_margin_bottom = 2
+			btn.add_theme_stylebox_override("normal", s_lock)
+			btn.add_theme_stylebox_override("hover", s_lock)
+			btn.add_theme_stylebox_override("pressed", s_lock)
+		elif is_active:
+			btn.text = "🛸 Drones (%d)" % count
+			btn.tooltip_text = "🛸 Autonomous Drone Fleet (Active)\nClick or press [Tab] to cycle drones"
+			btn.add_theme_color_override("font_color", Color(0.40, 0.95, 1.0))
+			btn.add_theme_color_override("font_hover_color", Color(0.80, 0.98, 1.0))
+			var s_act := StyleBoxFlat.new()
+			s_act.bg_color = Color(0.14, 0.24, 0.32, 0.98)
+			s_act.border_color = Color(0.40, 0.90, 1.0, 1.0)
+			s_act.border_width_left = 1
+			s_act.border_width_top = 1
+			s_act.border_width_right = 1
+			s_act.border_width_bottom = 1
+			s_act.corner_radius_top_left = 3
+			s_act.corner_radius_top_right = 3
+			s_act.corner_radius_bottom_left = 3
+			s_act.corner_radius_bottom_right = 3
+			s_act.content_margin_left = 5
+			s_act.content_margin_right = 5
+			s_act.content_margin_top = 2
+			s_act.content_margin_bottom = 2
+			btn.add_theme_stylebox_override("normal", s_act)
+			var s_hov := s_act.duplicate()
+			s_hov.bg_color = Color(0.20, 0.32, 0.44, 1.0)
+			btn.add_theme_stylebox_override("hover", s_hov)
+			btn.add_theme_stylebox_override("pressed", s_hov)
+		else:
+			btn.text = "🛸 Drones (%d)" % count
+			btn.tooltip_text = "Switch command to Autonomous Drone Fleet (%d Active) [Hotkey U]" % count
+			btn.add_theme_color_override("font_color", Color(0.60, 0.80, 0.92))
+			btn.add_theme_color_override("font_hover_color", Color(0.85, 0.95, 1.0))
+			var s_inact := StyleBoxFlat.new()
+			s_inact.bg_color = Color(0.12, 0.15, 0.19, 0.90)
+			s_inact.border_color = Color(0.30, 0.45, 0.58, 0.70)
+			s_inact.border_width_left = 1
+			s_inact.border_width_top = 1
+			s_inact.border_width_right = 1
+			s_inact.border_width_bottom = 1
+			s_inact.corner_radius_top_left = 3
+			s_inact.corner_radius_top_right = 3
+			s_inact.corner_radius_bottom_left = 3
+			s_inact.corner_radius_bottom_right = 3
+			s_inact.content_margin_left = 5
+			s_inact.content_margin_right = 5
+			s_inact.content_margin_top = 2
+			s_inact.content_margin_bottom = 2
+			btn.add_theme_stylebox_override("normal", s_inact)
+			var s_hov := s_inact.duplicate()
+			s_hov.bg_color = Color(0.18, 0.23, 0.30, 0.98)
+			s_hov.border_color = Color(0.55, 0.80, 0.98, 0.95)
+			btn.add_theme_stylebox_override("hover", s_hov)
+			btn.add_theme_stylebox_override("pressed", s_hov)
+
 func _style_mini_button(btn: Button, text_color: Color = Color(0.92, 0.88, 0.82)) -> void:
 	_style_capsule_button(btn, false)
 
@@ -462,6 +621,11 @@ func _on_cycle_unit_next() -> void:
 			var cur: int = maxi(farm_grid.selected_drone_index, 1)
 			var nxt: int = (cur % total) + 1
 			farm_grid.select_drone_by_index(nxt)
+			var sel_d = farm_grid.get_selected_drone()
+			if is_instance_valid(sel_d):
+				var cam = get_tree().root.find_child("GameCamera", true, false)
+				if cam and cam.has_method("pan_to"):
+					cam.pan_to(sel_d.global_position)
 	else:
 		var hud = get_tree().root.find_child("HUD", true, false)
 		if hud and hud.has_method("_cycle_idle_worker"):
@@ -475,10 +639,33 @@ func _on_cycle_unit_prev() -> void:
 			var cur: int = maxi(farm_grid.selected_drone_index, 1)
 			var prev: int = (cur - 2 + total) % total + 1
 			farm_grid.select_drone_by_index(prev)
+			var sel_d = farm_grid.get_selected_drone()
+			if is_instance_valid(sel_d):
+				var cam = get_tree().root.find_child("GameCamera", true, false)
+				if cam and cam.has_method("pan_to"):
+					cam.pan_to(sel_d.global_position)
 	else:
 		var hud = get_tree().root.find_child("HUD", true, false)
 		if hud and hud.has_method("_cycle_idle_worker"):
 			hud._cycle_idle_worker()
+
+func _on_select_mode_farmer() -> void:
+	if not _is_drone_mode():
+		_on_cycle_unit_next()
+		return
+	_on_switch_unit_type()
+
+func _on_select_mode_drone() -> void:
+	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+	var active_drone_count: int = farm_grid.drones.size() if (farm_grid and "drones" in farm_grid) else 0
+	if active_drone_count == 0:
+		AudioManager.play_ui("error")
+		LogManager.log_event("buildings", "Build a Drone Landing Pad in Agri-Shop to get drones!", "🛸", Color(1.0, 0.4, 0.4))
+		return
+	if _is_drone_mode():
+		_on_cycle_unit_next()
+		return
+	_on_switch_unit_type()
 
 func _on_switch_unit_type() -> void:
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
@@ -489,12 +676,20 @@ func _on_switch_unit_type() -> void:
 			if farm_grid:
 				farm_grid.deselect_all_drones()
 			TaskManager.select_farmer(workers[0])
+			var cam = get_tree().root.find_child("GameCamera", true, false)
+			if cam and cam.has_method("pan_to"):
+				cam.pan_to(workers[0].global_position)
 			AudioManager.play_farmer("select")
 	else:
 		# Switch to autonomous drone fleet
 		if farm_grid and not farm_grid.drones.is_empty():
 			TaskManager.deselect_all_farmers()
 			farm_grid.select_drone_by_index(1)
+			var sel_d = farm_grid.get_selected_drone()
+			if is_instance_valid(sel_d):
+				var cam = get_tree().root.find_child("GameCamera", true, false)
+				if cam and cam.has_method("pan_to"):
+					cam.pan_to(sel_d.global_position)
 			var d_lvl: int = BuildingManager.get_drone_level()
 			if d_lvl < 2:
 				active_category = "tools"
@@ -519,7 +714,7 @@ func _on_worker_selection_changed(_selected_workers: Array) -> void:
 
 func _update_visibility_from_selection() -> void:
 	var selected: Array = TaskManager.get_selected_farmers()
-	var sel_drone: FarmDrone = _get_selected_drone()
+	var sel_drone: Node = _get_selected_drone()
 	var has_selection: bool = (selected.size() > 0) or (sel_drone != null)
 	visible = has_selection
 	if has_selection:
@@ -535,23 +730,38 @@ func _update_visibility_from_selection() -> void:
 		if hover_timer and not hover_timer.is_stopped():
 			hover_timer.stop()
 
-func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
+func _update_unit_header(selected: Array, sel_drone: Node = null) -> void:
 	if not _unit_pill_btn:
 		return
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
 	var active_drone_count: int = farm_grid.drones.size() if (farm_grid and "drones" in farm_grid) else 0
+	var is_drone := (sel_drone != null)
 
-	if sel_drone != null:
-		var d_lvl := sel_drone.get_level()
-		var crop_disp: String = str(Data.get_crop(sel_drone.crop_type).get("display_name", sel_drone.crop_type))
-		_unit_pill_btn.text = "🛸 %s (Lv.%d)" % [sel_drone.get_drone_name(), d_lvl]
-		_unit_pill_btn.tooltip_text = "%s (Lv.%d)\nClick to cycle to next drone" % [sel_drone.get_drone_name(), d_lvl]
+	# Dynamic styling for the dock frame border based on active mode
+	if _switcher_dock:
+		var s_dock: StyleBoxFlat = _switcher_dock.get_theme_stylebox("panel") as StyleBoxFlat
+		if s_dock:
+			if is_drone:
+				s_dock.border_color = Color(0.25, 0.55, 0.75, 0.90)
+				s_dock.bg_color = Color(0.08, 0.12, 0.16, 0.92)
+			else:
+				s_dock.border_color = Color(0.42, 0.32, 0.20, 0.85)
+				s_dock.bg_color = Color(0.11, 0.08, 0.06, 0.92)
+
+	# Update Mode Switcher Tabs
+	if _mode_farmer_btn:
+		_style_mode_tab_button(_mode_farmer_btn, "farmer", not is_drone, 0)
+	if _mode_drone_btn:
+		_style_mode_tab_button(_mode_drone_btn, "drone", is_drone, active_drone_count)
+
+	if is_drone:
+		var d_lvl: int = int(sel_drone.get_level()) if sel_drone.has_method("get_level") else 1
+		var c_type: String = str(sel_drone.get("crop_type")) if sel_drone.get("crop_type") != null else "palay"
+		var crop_disp: String = str(Data.get_crop(c_type).get("display_name", c_type))
+		var d_name: String = str(sel_drone.get_drone_name()) if sel_drone.has_method("get_drone_name") else "Drone"
+		_unit_pill_btn.text = "🛸 %s (Lv.%d)" % [d_name, d_lvl]
+		_unit_pill_btn.tooltip_text = "%s (Lv.%d)\nClick or press [Tab] to cycle to next drone" % [d_name, d_lvl]
 		_style_capsule_button(_unit_pill_btn, true, false)
-
-		_unit_switch_type_btn.text = "👨‍🌾 Workers"
-		_unit_switch_type_btn.tooltip_text = "Switch command to human farm workers"
-		_unit_switch_type_btn.visible = true
-		_style_capsule_button(_unit_switch_type_btn, false, true)
 
 		# If Lv.1, ensure selected tool in slot 2 is valid for Lv.1 (e.g. plow)
 		if d_lvl < 2 and selected_category_items.get("tools", "") in ["auto_loop", "plant", "harvest"]:
@@ -561,11 +771,12 @@ func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
 
 		if worker_header_label:
 			var task_status: String = "Plow & Water" if d_lvl == 1 else ("Seeder & Spray" if d_lvl == 2 else "Full Harvest Loop")
+			var zone_arr: Array = sel_drone.get("zone") if (sel_drone.get("zone") is Array) else []
 			worker_header_label.text = "🛸 %s Ready (Lv.%d %s) • Field: %s" % [
-				sel_drone.get_drone_name(),
+				d_name,
 				d_lvl,
 				task_status,
-				("%d Plots" % sel_drone.zone.size()) if not sel_drone.zone.is_empty() else "None (Drag Box on Farm)"
+				("%d Plots" % zone_arr.size()) if not zone_arr.is_empty() else "None (Drag Box on Farm)"
 			]
 	else:
 		var w_name: String = "Worker 1"
@@ -579,16 +790,12 @@ func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
 				elif w.has_method("get") and w.get("name"):
 					w_name = str(w.name)
 			_unit_pill_btn.text = "👨‍🌾 %s" % w_name
-			_unit_pill_btn.tooltip_text = "Click to cycle to next worker"
+			_unit_pill_btn.tooltip_text = "%s\nClick or press [Tab] to cycle to next worker" % w_name
 		else:
 			_unit_pill_btn.text = "👨‍🌾 Squad (%d)" % selected.size()
-			_unit_pill_btn.tooltip_text = "Click to cycle workers"
+			_unit_pill_btn.tooltip_text = "Workers (%d Selected)\nClick or press [Tab] to cycle workers" % selected.size()
 		_style_capsule_button(_unit_pill_btn, false, false)
 
-		_unit_switch_type_btn.text = "🛸 Drones"
-		_unit_switch_type_btn.visible = (active_drone_count > 0)
-		_unit_switch_type_btn.tooltip_text = "Switch command to autonomous drone fleet"
-		_style_capsule_button(_unit_switch_type_btn, true, true)
 		if worker_header_label:
 			worker_header_label.text = "👨‍🌾 %s Ready • Click Slot to Choose & Click/Drag Field" % w_name
 
@@ -662,55 +869,111 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 	close_btn.pressed.connect(func(): close_tray())
 	tray_vbox.add_child(close_btn)
 
-	# Unit Switcher Bar (Switch between workers and individual drones seamlessly!)
+	# Unit Switcher Dock (Unified tactical command dock for Farmers and Drones)
+	_switcher_dock = PanelContainer.new()
+	_switcher_dock.name = "UnitSwitcherDock"
+	_switcher_dock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_switcher_dock.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var s_dock := StyleBoxFlat.new()
+	s_dock.bg_color = Color(0.10, 0.08, 0.06, 0.90) # dark walnut chassis
+	s_dock.border_color = Color(0.42, 0.32, 0.20, 0.85) # warm wood border
+	s_dock.border_width_left = 1
+	s_dock.border_width_top = 1
+	s_dock.border_width_right = 1
+	s_dock.border_width_bottom = 1
+	s_dock.corner_radius_top_left = 4
+	s_dock.corner_radius_top_right = 4
+	s_dock.corner_radius_bottom_left = 4
+	s_dock.corner_radius_bottom_right = 4
+	s_dock.content_margin_left = 4
+	s_dock.content_margin_right = 4
+	s_dock.content_margin_top = 2
+	s_dock.content_margin_bottom = 2
+	_switcher_dock.add_theme_stylebox_override("panel", s_dock)
+	tray_vbox.add_child(_switcher_dock)
+
 	var unit_bar := HBoxContainer.new()
 	unit_bar.name = "UnitSwitcherBar"
 	unit_bar.add_theme_constant_override("separation", 3)
 	unit_bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	unit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tray_vbox.add_child(unit_bar)
+	_switcher_dock.add_child(unit_bar)
 
+	# 1. Mode Selector: Farmer Tab
+	_mode_farmer_btn = Button.new()
+	_mode_farmer_btn.name = "ModeFarmerBtn"
+	_mode_farmer_btn.text = "👨‍🌾 Workers"
+	_mode_farmer_btn.custom_minimum_size = Vector2(62, 20)
+	_mode_farmer_btn.focus_mode = Control.FOCUS_NONE
+	_mode_farmer_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_mode_farmer_btn.add_theme_font_size_override("font_size", 9)
+	_mode_farmer_btn.pressed.connect(_on_select_mode_farmer)
+	unit_bar.add_child(_mode_farmer_btn)
+
+	# 2. Mode Selector: Drone Tab
+	_mode_drone_btn = Button.new()
+	_mode_drone_btn.name = "ModeDroneBtn"
+	_mode_drone_btn.text = "🛸 Drones"
+	_mode_drone_btn.custom_minimum_size = Vector2(62, 20)
+	_mode_drone_btn.focus_mode = Control.FOCUS_NONE
+	_mode_drone_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_mode_drone_btn.add_theme_font_size_override("font_size", 9)
+	_mode_drone_btn.pressed.connect(_on_select_mode_drone)
+	unit_bar.add_child(_mode_drone_btn)
+	_unit_switch_type_btn = _mode_drone_btn # Maintain test compatibility
+
+	# 3. Micro Divider
+	var v_div := VSeparator.new()
+	v_div.custom_minimum_size = Vector2(4, 16)
+	v_div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var s_vdiv := StyleBoxLine.new()
+	s_vdiv.color = Color(0.48, 0.38, 0.25, 0.70)
+	s_vdiv.vertical = true
+	s_vdiv.thickness = 1
+	v_div.add_theme_stylebox_override("separator", s_vdiv)
+	unit_bar.add_child(v_div)
+
+	# 4. Previous Unit Arrow
 	_unit_prev_btn = Button.new()
 	_unit_prev_btn.name = "UnitPrevBtn"
 	_unit_prev_btn.custom_minimum_size = Vector2(18, 20)
 	_unit_prev_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_unit_prev_btn.expand_icon = true
+	_unit_prev_btn.focus_mode = Control.FOCUS_NONE
 	if tex_tab_arrow_left:
 		_unit_prev_btn.icon = tex_tab_arrow_left
 	else:
 		_unit_prev_btn.text = "◀"
 	_style_arrow_button(_unit_prev_btn, true)
+	_unit_prev_btn.tooltip_text = "Previous Unit [Shift+Tab]"
 	_unit_prev_btn.pressed.connect(_on_cycle_unit_prev)
 	unit_bar.add_child(_unit_prev_btn)
 
+	# 5. Unit Display Pill
 	_unit_pill_btn = Button.new()
 	_unit_pill_btn.name = "UnitPillBtn"
 	_unit_pill_btn.text = "👨‍🌾 Worker 1"
-	_unit_pill_btn.custom_minimum_size = Vector2(104, 20)
+	_unit_pill_btn.custom_minimum_size = Vector2(98, 20)
+	_unit_pill_btn.focus_mode = Control.FOCUS_NONE
 	_style_capsule_button(_unit_pill_btn, false, false)
 	_unit_pill_btn.pressed.connect(_on_cycle_unit_next)
 	unit_bar.add_child(_unit_pill_btn)
 
+	# 6. Next Unit Arrow
 	_unit_next_btn = Button.new()
 	_unit_next_btn.name = "UnitNextBtn"
 	_unit_next_btn.custom_minimum_size = Vector2(18, 20)
 	_unit_next_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_unit_next_btn.expand_icon = true
+	_unit_next_btn.focus_mode = Control.FOCUS_NONE
 	if tex_tab_arrow_right:
 		_unit_next_btn.icon = tex_tab_arrow_right
 	else:
 		_unit_next_btn.text = "▶"
 	_style_arrow_button(_unit_next_btn, false)
+	_unit_next_btn.tooltip_text = "Next Unit [Tab]"
 	_unit_next_btn.pressed.connect(_on_cycle_unit_next)
 	unit_bar.add_child(_unit_next_btn)
-
-	_unit_switch_type_btn = Button.new()
-	_unit_switch_type_btn.name = "UnitSwitchTypeBtn"
-	_unit_switch_type_btn.text = "🛸 Drones"
-	_unit_switch_type_btn.custom_minimum_size = Vector2(64, 20)
-	_style_capsule_button(_unit_switch_type_btn, true, true)
-	_unit_switch_type_btn.pressed.connect(_on_switch_unit_type)
-	unit_bar.add_child(_unit_switch_type_btn)
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 3)
@@ -781,6 +1044,7 @@ func _create_category_slot_button(cat_data: Dictionary) -> Button:
 	btn.custom_minimum_size = Vector2(46, 46) # Pure square box like Minecraft!
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var s_norm := _create_stylebox_from_texture(tex_dark_box, false, false)
@@ -896,6 +1160,7 @@ func _setup_flyout_drawer(parent: VBoxContainer) -> void:
 	min_btn.text = "✕"
 	min_btn.custom_minimum_size = Vector2(18, 18)
 	min_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	min_btn.focus_mode = Control.FOCUS_NONE
 	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"):
 		min_btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButton.tres"))
 		min_btn.add_theme_stylebox_override("hover", load("res://assets/sprites/hud/Buttons/Squarebutton/SquareBrownButtonHover.tres"))
@@ -1112,11 +1377,11 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		ch.queue_free()
 	flyout_item_buttons.clear()
 
-	var sel_drone: FarmDrone = _get_selected_drone() if _is_drone_mode() else null
+	var sel_drone: Node = _get_selected_drone() if _is_drone_mode() else null
 	var cur_sel: String = ""
 	if sel_drone != null:
 		if cat_id == "seeds":
-			cur_sel = sel_drone.crop_type
+			cur_sel = str(sel_drone.get("crop_type")) if sel_drone.get("crop_type") != null else "palay"
 		elif cat_id == "tools":
 			cur_sel = selected_category_items.get("tools", "plow" if _get_drone_capability_level() < 2 else "auto_loop")
 		elif cat_id == "treatments":
@@ -1134,6 +1399,7 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		btn.custom_minimum_size = Vector2(40, 40) # Pure square box like Minecraft!
 		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		btn.focus_mode = Control.FOCUS_NONE
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 		var is_cur: bool = (item_id == cur_sel)
@@ -1238,6 +1504,7 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		shop_btn.custom_minimum_size = Vector2(40, 40)
 		shop_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		shop_btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		shop_btn.focus_mode = Control.FOCUS_NONE
 		shop_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		shop_btn.tooltip_text = "Unlock more seed varieties in the Agri-Shop!"
 
@@ -1341,14 +1608,14 @@ func _on_flyout_item_selected(cat_id: String, item_id: String) -> void:
 	_close_flyout()
 
 func _update_category_slots_display() -> void:
-	var sel_drone: FarmDrone = _get_selected_drone() if _is_drone_mode() else null
+	var sel_drone: Node = _get_selected_drone() if _is_drone_mode() else null
 	for cat_id in CATEGORY_ORDER:
 		var c_data: Dictionary = _get_active_category_data(cat_id)
 		var is_locked: bool = _is_category_locked_for_unit(cat_id)
 		var cur_item_id: String = ""
 		if sel_drone != null:
 			if cat_id == "seeds":
-				cur_item_id = sel_drone.crop_type
+				cur_item_id = str(sel_drone.get("crop_type")) if sel_drone.get("crop_type") != null else "palay"
 			elif cat_id == "tools":
 				cur_item_id = selected_category_items.get("tools", "plow" if _get_drone_capability_level() < 2 else "auto_loop")
 			elif cat_id == "treatments":
