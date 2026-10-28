@@ -1135,7 +1135,7 @@ func _populate_land() -> void:
 	var unlocked_parcels: Array = farm_grid.unlocked_parcels if (farm_grid and "unlocked_parcels" in farm_grid) else ["homestead"]
 	var cash: int = EconomyManager.cash
 
-	for p in Data.LAND_PARCELS:
+	for p in Data.get_parcels():
 		var pid: String = p.get("id", "")
 		var is_owned: bool = unlocked_parcels.has(pid)
 		var cost: int = p.get("cost", 0)

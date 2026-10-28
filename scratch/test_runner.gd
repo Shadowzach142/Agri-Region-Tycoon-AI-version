@@ -108,6 +108,9 @@ func _ready() -> void:
 	# Test 5: Multi-tile 2×2 Coconut Grove footprint coverage
 	# -----------------------------------------------------------------------
 	var grove_root := Vector2i(6, 6)
+	if not BuildingManager.unlocked_crops.has("coconut"):
+		BuildingManager.unlocked_crops.append("coconut")
+	EconomyManager.cash = 1000
 	for dx in range(2):
 		for dy in range(2):
 			farm_grid.tiles[grove_root.x + dx][grove_root.y + dy].state = FarmTile.TileState.PLOWED

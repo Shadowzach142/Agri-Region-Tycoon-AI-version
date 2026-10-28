@@ -177,7 +177,10 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if is_instance_valid(_zone_layer):
-		_zone_layer.queue_free()
+		if _zone_layer.get_parent() == null:
+			_zone_layer.free()
+		else:
+			_zone_layer.queue_free()
 
 # ---------------------------------------------------------------------------
 # Public API (called by FarmGrid / PlantHotbar)

@@ -64,6 +64,15 @@ const REGIONS = {
 		"soil_moisture": 65,
 		"specialty": "Rice Paddies & Wetland Agriculture",
 		"description": "The fertile rice bowl of Central Mindanao, fed by the Pulangi river basin with rich alluvial soils for continuous cultivation.",
+		"has_coast": true,
+		"water_body": "Pulangi River / Rio Grande de Mindanao",
+		"landscape_theme": "river_basin",
+		"monument_id": "bangkapayapaan",
+		"monument_name": "Bangka ng Kapayapaan Monument",
+		"monument_subtitle": "Historical River Peace Landmark • Cotabato Basin",
+		"monument_blurb": "A sculpted traditional river boat symbolizing unity, peace, and resilience among the Bangsamoro, Indigenous, and Settler communities along the Rio Grande de Mindanao.",
+		"monument_texture": "res://assets/sprites/monuments/bangkapayapaan_monument.png",
+		"monument_texture_flipped": "res://assets/sprites/monuments/bangkapayapaan_monument_FLIPPED.png",
 		"pros": [
 			"Rich alluvial soil with high natural moisture (65%)",
 			"Accelerated Palay growth & bumper harvest yields",
@@ -85,6 +94,21 @@ const REGIONS = {
 		"soil_moisture": 55,
 		"specialty": "Highland Specialty Crops, Coffee & Pineapple",
 		"description": "Cool volcanic plateaus surrounding Mount Matutum and Lake Sebu, renowned for premium Coffee, Corn, and export Pineapples.",
+		"has_coast": true,
+		"water_body": "Lake Sebu / Lake Holon Crater Waters",
+		"landscape_theme": "mountain_highlands",
+		"monument_id": "surallah_tri_people",
+		"monument_name": "Surallah Cultural Tri-People Monument",
+		"monument_subtitle": "Cultural Heritage Monument • South Cotabato",
+		"monument_blurb": "Towering cultural masterpiece by Kublai Millan celebrating the harmonious brotherhood of Christian Settlers, Indigenous T'boli & Bla-an, and Muslim Maguindanaon under Mount Matutum.",
+		"monument_texture": "res://assets/sprites/monuments/surallah_tri_people_monument.png",
+		"monument_texture_flipped": "res://assets/sprites/monuments/surallah_tri_people_monument_FLIPPED.png",
+		"secondary_monument_id": "tboli_knoon",
+		"secondary_monument_name": "T'boli K'noon Cultural Landmark",
+		"secondary_monument_subtitle": "Indigenous Heritage • Lake Sebu / T'boli",
+		"secondary_monument_blurb": "Dedicated to the heritage of the Lake Sebu Dreamweavers and the indigenous crafts of the T'boli people.",
+		"secondary_monument_texture": "res://assets/sprites/monuments/T_boli_Knoon_Monument.png",
+		"secondary_monument_texture_flipped": "res://assets/sprites/monuments/T_boli_Knoon_Monument_FLIPPED.png",
 		"pros": [
 			"Cool mountain climate prevents crop heat stress",
 			"Volcanic soil yields +20% bonus on Coffee & Pineapple",
@@ -106,6 +130,15 @@ const REGIONS = {
 		"soil_moisture": 45,
 		"specialty": "Arid Coastal Farming & Plantation Perennials",
 		"description": "Sun-drenched agrarian coastal plains along Sarangani Bay, ideal for hardy Coconut Palms and deep-sea export trade.",
+		"has_coast": true,
+		"water_body": "Sarangani Littoral Coast / Celebes Sea",
+		"landscape_theme": "littoral_coast",
+		"monument_id": "maitum_jars",
+		"monument_name": "Maitum Anthropomorphic Jars Replicas",
+		"monument_subtitle": "National Cultural Treasure • Sarangani Littoral Coast",
+		"monument_blurb": "Replicas of the 2,000-year-old anthropomorphic earthenware burial vessels discovered in Ayub Cave, Maitum, Sarangani — declared National Cultural Treasures of the Philippines.",
+		"monument_texture": "res://assets/sprites/monuments/maitum_anthropomorphic_replicas.png",
+		"monument_texture_flipped": "res://assets/sprites/monuments/maitum_anthropomorphic_replicas_FLIPPED.png",
 		"pros": [
 			"Ideal tropical climate for Coconut & Banana groves",
 			"Direct coastal shipping access with low freight costs",
@@ -127,6 +160,15 @@ const REGIONS = {
 		"soil_moisture": 58,
 		"specialty": "Sugarcane Plantations & Mechanized Grains",
 		"description": "Expansive agricultural flatlands and open corridors suited for large-scale Sugarcane plantations and mechanized grains.",
+		"has_coast": true,
+		"water_body": "Buluan Lake & Tacurong Wetland Basin",
+		"landscape_theme": "granary_valley",
+		"monument_id": "sultan_kudarat_statue",
+		"monument_name": "Sultan Muhammad Dipatuan Kudarat Monument",
+		"monument_subtitle": "Provincial Capitol Hero Landmark • Isulan, Sultan Kudarat",
+		"monument_blurb": "Monument to the 17th-century Sultan of Maguindanao, a fearless warrior, statesman, and hero who defended Mindanao's sovereignty and unified the diverse peoples of Central Mindanao.",
+		"monument_texture": "res://assets/sprites/monuments/Sultan_Kudarat_Monument.png",
+		"monument_texture_flipped": "res://assets/sprites/monuments/Sultan_Kudarat_Monument_FLIPPED.png",
 		"pros": [
 			"Broad flat plains maximize tractor & harvester speed",
 			"Rich loam gives +20% bonus on Sugarcane & Corn",
@@ -148,6 +190,15 @@ const REGIONS = {
 		"soil_moisture": 50,
 		"specialty": "Industrial Seaport Processing & Cold Storage",
 		"description": "The trade capital of Region 12, featuring direct seaport access, industrial cold storage, and export packaging hubs.",
+		"has_coast": true,
+		"water_body": "Sarangani Bay Deepwater Seaport",
+		"landscape_theme": "agro_industrial_port",
+		"monument_id": "gen_paulino_santos",
+		"monument_name": "General Paulino Santos Monument",
+		"monument_subtitle": "Founder Memorial Landmark • Plaza Heneral Santos",
+		"monument_blurb": "Memorial monument honoring Major General Paulino Santos, pioneer military engineer and administrator who led the 1939 settlement that founded modern General Santos City.",
+		"monument_texture": "res://assets/sprites/monuments/gen_paulino_santos_monument.png",
+		"monument_texture_flipped": "res://assets/sprites/monuments/gen_paulino_santos_monument_FLIPPED.png",
 		"pros": [
 			"Direct seaport access with top export rates (+35%)",
 			"Industrial Cold Storage halts harvest spoilage",
@@ -1472,6 +1523,9 @@ func is_hub_available(name: String) -> bool:
 
 # ---------------------------------------------------------------------------
 # Land Expansion Parcels (16x16 each, 32x32 world island)
+# Balanced 100% evenly across all 5 regions:
+# 4 parcels total = 1,024 plots (256 starter + 768 expansion plots)
+# Costs: Homestead (₱0), East (₱1,500), South (₱2,400), Highland (₱4,200)
 # ---------------------------------------------------------------------------
 const LAND_PARCELS: Array[Dictionary] = [
 	{
@@ -1512,15 +1566,255 @@ const LAND_PARCELS: Array[Dictionary] = [
 	},
 ]
 
-func get_parcel(id: String) -> Dictionary:
+const REGIONAL_LAND_PARCELS: Dictionary = {
+	"cotabato": [
+		{
+			"id": "homestead",
+			"name": "Pulangi Riverbed Homestead",
+			"rect": Rect2i(0, 0, 16, 16),
+			"cost": 0,
+			"unlocked_by_default": true,
+			"sign_tile": Vector2i(7, 7),
+			"description": "Your starting riverfront estate on the banks of Rio Grande de Mindanao. 16×16 cultivated area (256 plots).",
+		},
+		{
+			"id": "east_meadows",
+			"name": "Pulangi Delta Wetlands",
+			"rect": Rect2i(16, 0, 16, 16),
+			"cost": 1500,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 2),
+			"description": "Rich alluvial wetlands along the river bend. Adds 16×16 (256 plots) eastward for rice paddies and irrigation canals.",
+		},
+		{
+			"id": "south_plains",
+			"name": "Basin Floodplain Fields",
+			"rect": Rect2i(0, 16, 16, 16),
+			"cost": 2400,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(2, 18),
+			"description": "Fertile floodplains nourished by river silt. Adds 16×16 (256 plots) southward for bumper grain harvests.",
+		},
+		{
+			"id": "highland_plateau",
+			"name": "Alluvial Lowland Estate",
+			"rect": Rect2i(16, 16, 16, 16),
+			"cost": 4200,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 18),
+			"description": "Elevated river terrace overlooking the delta. Adds 16×16 (256 plots) southeastward with natural flood drainage.",
+		},
+	],
+	"south_cotabato": [
+		{
+			"id": "homestead",
+			"name": "Matutum Valley Homestead",
+			"rect": Rect2i(0, 0, 16, 16),
+			"cost": 0,
+			"unlocked_by_default": true,
+			"sign_tile": Vector2i(7, 7),
+			"description": "Your high-altitude mountain farm estate in the cool shadow of Mount Matutum. 16×16 cultivated area (256 plots).",
+		},
+		{
+			"id": "east_meadows",
+			"name": "Pineapple Foothills Plateau",
+			"rect": Rect2i(16, 0, 16, 16),
+			"cost": 1500,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 2),
+			"description": "Mineral-rich volcanic plateau. Adds 16×16 (256 plots) eastward for export-grade pineapples and yellow corn.",
+		},
+		{
+			"id": "south_plains",
+			"name": "Lake Sebu Highland Terraces",
+			"rect": Rect2i(0, 16, 16, 16),
+			"cost": 2400,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(2, 18),
+			"description": "Misty mountain terraces. Adds 16×16 (256 plots) southward with ideal elevation for premium Arabica coffee.",
+		},
+		{
+			"id": "highland_plateau",
+			"name": "Cloudcrest Mountain Slope",
+			"rect": Rect2i(16, 16, 16, 16),
+			"cost": 4200,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 18),
+			"description": "Scenic high-altitude ridge. Adds 16×16 (256 plots) southeastward naturally protected from low-elevation flash floods.",
+		},
+	],
+	"sarangani": [
+		{
+			"id": "homestead",
+			"name": "Sarangani Shoreline Homestead",
+			"rect": Rect2i(0, 0, 16, 16),
+			"cost": 0,
+			"unlocked_by_default": true,
+			"sign_tile": Vector2i(7, 7),
+			"description": "Your sunny coastal farm estate along the tropical shores of Sarangani Bay. 16×16 cultivated area (256 plots).",
+		},
+		{
+			"id": "east_meadows",
+			"name": "White Sand Coastal Sands",
+			"rect": Rect2i(16, 0, 16, 16),
+			"cost": 1500,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 2),
+			"description": "Oceanfront arable shoreline along Glan's coast. Adds 16×16 (256 plots) eastward for thriving coconut palm groves.",
+		},
+		{
+			"id": "south_plains",
+			"name": "Alabel Littoral Lowlands",
+			"rect": Rect2i(0, 16, 16, 16),
+			"cost": 2400,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(2, 18),
+			"description": "Sun-drenched coastal plains. Adds 16×16 (256 plots) southward for Cavendish banana plantations and trade sheds.",
+		},
+		{
+			"id": "highland_plateau",
+			"name": "Bayview Ocean Promontory",
+			"rect": Rect2i(16, 16, 16, 16),
+			"cost": 4200,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 18),
+			"description": "Elevated coastal headland with direct shipping views. Adds 16×16 (256 plots) southeastward with zero river inundation.",
+		},
+	],
+	"sultan_kudarat": [
+		{
+			"id": "homestead",
+			"name": "Tacurong Valley Homestead",
+			"rect": Rect2i(0, 0, 16, 16),
+			"cost": 0,
+			"unlocked_by_default": true,
+			"sign_tile": Vector2i(7, 7),
+			"description": "Your central agricultural valley estate in the breadbasket corridor of Sultan Kudarat. 16×16 cultivated area (256 plots).",
+		},
+		{
+			"id": "east_meadows",
+			"name": "Central Granary Plains",
+			"rect": Rect2i(16, 0, 16, 16),
+			"cost": 1500,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 2),
+			"description": "Vast level plains. Adds 16×16 (256 plots) eastward for high-efficiency mechanized sugarcane and grain cultivation.",
+		},
+		{
+			"id": "south_plains",
+			"name": "Isulan Prairie Lowlands",
+			"rect": Rect2i(0, 16, 16, 16),
+			"cost": 2400,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(2, 18),
+			"description": "Broad fertile agricultural lowlands. Adds 16×16 (256 plots) southward for expansive crop rows and storage depots.",
+		},
+		{
+			"id": "highland_plateau",
+			"name": "Sultanate Agricultural Estate",
+			"rect": Rect2i(16, 16, 16, 16),
+			"cost": 4200,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 18),
+			"description": "Expansive agricultural frontier. Adds 16×16 (256 plots) southeastward with optimal soil fertility and machinery access.",
+		},
+	],
+	"general_santos": [
+		{
+			"id": "homestead",
+			"name": "Pioneer Avenue Homestead",
+			"rect": Rect2i(0, 0, 16, 16),
+			"cost": 0,
+			"unlocked_by_default": true,
+			"sign_tile": Vector2i(7, 7),
+			"description": "Your agro-industrial estate near the bustling city center of General Santos. 16×16 cultivated area (256 plots).",
+		},
+		{
+			"id": "east_meadows",
+			"name": "Harbor Seaport Wharf",
+			"rect": Rect2i(16, 0, 16, 16),
+			"cost": 1500,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 2),
+			"description": "Strategic coastal land adjacent to Makar Port. Adds 16×16 (256 plots) eastward for deepwater export docks & packaging.",
+		},
+		{
+			"id": "south_plains",
+			"name": "Lagao Agro-Processing District",
+			"rect": Rect2i(0, 16, 16, 16),
+			"cost": 2400,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(2, 18),
+			"description": "Industrial agriculture plots. Adds 16×16 (256 plots) southward for cold storage warehouses and transport depots.",
+		},
+		{
+			"id": "highland_plateau",
+			"name": "Buayan Highland Frontier",
+			"rect": Rect2i(16, 16, 16, 16),
+			"cost": 4200,
+			"unlocked_by_default": false,
+			"sign_tile": Vector2i(18, 18),
+			"description": "Elevated city outskirts. Adds 16×16 (256 plots) southeastward with highway access and expansive crop plots.",
+		},
+	],
+}
+
+func get_parcels(region_id: String = "") -> Array:
+	var r_id: String = region_id if region_id != "" else current_region
+	if REGIONAL_LAND_PARCELS.has(r_id):
+		return REGIONAL_LAND_PARCELS[r_id]
+	return LAND_PARCELS
+
+func get_parcel(id: String, region_id: String = "") -> Dictionary:
+	var r_id: String = region_id if region_id != "" else current_region
+	var p_list: Array = REGIONAL_LAND_PARCELS.get(r_id, LAND_PARCELS)
+	for p in p_list:
+		if p.get("id") == id:
+			return p
 	for p in LAND_PARCELS:
 		if p.get("id") == id:
 			return p
 	return {}
 
-func get_parcel_for_tile(pos: Vector2i) -> Dictionary:
+func get_parcel_for_tile(pos: Vector2i, region_id: String = "") -> Dictionary:
+	var r_id: String = region_id if region_id != "" else current_region
+	var p_list: Array = REGIONAL_LAND_PARCELS.get(r_id, LAND_PARCELS)
+	for p in p_list:
+		var r: Rect2i = p["rect"]
+		if r.has_point(pos):
+			return p
 	for p in LAND_PARCELS:
 		var r: Rect2i = p["rect"]
 		if r.has_point(pos):
 			return p
 	return {}
+
+func get_region_scene_path(region_key: String) -> String:
+	match region_key:
+		"cotabato":
+			return "res://scenes/MainGame_Cotabato.tscn"
+		"south_cotabato":
+			return "res://scenes/MainGame_SouthCotabato.tscn"
+		"sarangani":
+			return "res://scenes/MainGame_Sarangani.tscn"
+		"sultan_kudarat":
+			return "res://scenes/MainGame_SultanKudarat.tscn"
+		"general_santos":
+			return "res://scenes/MainGame_GeneralSantos.tscn"
+		_:
+			return "res://scenes/MainGame.tscn"
+
+func get_region_map_path(region_key: String) -> String:
+	match region_key:
+		"cotabato":
+			return "res://scenes/maps/Map_Cotabato.tscn"
+		"south_cotabato":
+			return "res://scenes/maps/Map_SouthCotabato.tscn"
+		"sarangani":
+			return "res://scenes/maps/Map_Sarangani.tscn"
+		"sultan_kudarat":
+			return "res://scenes/maps/Map_SultanKudarat.tscn"
+		"general_santos":
+			return "res://scenes/maps/Map_GeneralSantos.tscn"
+		_:
+			return "res://scenes/maps/Map_Cotabato.tscn"

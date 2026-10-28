@@ -334,7 +334,7 @@ func _unlock_all_land() -> void:
 	var grid := _get_farm_grid()
 	if grid == null:
 		return
-	for p in Data.LAND_PARCELS:
+	for p in Data.get_parcels():
 		grid.unlock_parcel(p.get("id"))
 
 func _reset_all_tiles() -> void:

@@ -99,6 +99,16 @@ const MODE_EXPLANATIONS: Dictionary = {
 			"Review your prestige titles from Bronze Planter to Master Hacienda Tycoon."
 		],
 		"tip": "👉 Click to inspect regional records"
+	},
+	"trailer": {
+		"title": "🎬 OFFICIAL GAME TRAILER (1:30)",
+		"tagline": "[ FACTORIO-STYLE CINEMATIC SHOWCASE ]",
+		"sentences": [
+			"Start in orbital space with a spinning globe that locks onto the Philippines and zooms into Mindanao (Region XII).",
+			"Watch a lone farmer's humble manual labor evolve into a massive automated empire of sprinklers, mills, and 12 autonomous drones.",
+			"Experience cultural monuments, bustling decorations, typhoon survival, and all 5 SOCCSKSARGEN regions in a 90-second cinematic feature."
+		],
+		"tip": "👉 Click to watch the 1m 30s in-game trailer"
 	}
 }
 
@@ -135,6 +145,7 @@ var _career_perks_container: Control = null
 var _mode_start_btn: Button = null
 var _mode_load_btn: Button = null
 var _mode_leaderboard_btn: Button = null
+var _mode_trailer_btn: Button = null
 
 # StartMenu Textures & Styles Cache
 var tex_big_logs: Texture2D = null
@@ -384,6 +395,24 @@ func _ready() -> void:
 		assert(SaveManager.delete_slot(1), "Delete slot 1 should succeed")
 		assert(not SaveManager.has_save(1), "Slot 1 should be cleared")
 		print("--- AUTOMATED SAVE & LOAD TEST PASSED ---")
+
+		assert(_mode_trailer_btn != null, "Watch Trailer button must exist on MainMenu")
+		_open_trailer_modal()
+		var tr_node = find_child("TrailerRoot", true, false)
+		assert(tr_node != null, "TrailerModal must spawn and build UI")
+		var tr_modal = tr_node.get_parent()
+		if tr_modal and tr_modal.has_method("_jump_to_time"):
+			tr_modal._jump_to_time(25.0)
+			tr_modal._process(0.5)
+			tr_modal._jump_to_time(55.0)
+			tr_modal._process(0.5)
+			tr_modal._jump_to_time(80.0)
+			tr_modal._process(0.5)
+			tr_modal._jump_to_time(98.0)
+			tr_modal._process(0.5)
+			tr_modal._restore_autoload_state()
+			tr_modal.free()
+		print("✔ Watch Trailer button & 105s Live-Gameplay Factorio-style TrailerModal verified!")
 
 		get_tree().quit(0)
 	elif "--test-ui-boxes" in OS.get_cmdline_args():
@@ -699,6 +728,16 @@ func _build_mode_select_view() -> void:
 		_mode_leaderboard_btn.pressed.connect(func():
 			_hide_mode_hover_card_immediate()
 			_open_leaderboard_modal()
+		)
+
+	_mode_trailer_btn = find_child("ModeTrailerBtn", true, false) as Button
+	if _mode_trailer_btn:
+		_mode_trailer_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["trailer"]["sentences"])
+		_mode_trailer_btn.mouse_entered.connect(func(): _on_mode_button_hovered("trailer", _mode_trailer_btn))
+		_mode_trailer_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("trailer"))
+		_mode_trailer_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_open_trailer_modal()
 		)
 
 	var s30 = find_child("Season30Btn", true, false) as Button
@@ -1069,6 +1108,12 @@ func _open_leaderboard_modal() -> void:
 		var lb = lb_cls.new()
 		add_child(lb)
 
+func _open_trailer_modal() -> void:
+	var tr_cls = load("res://src/ui/TrailerModal.gd")
+	if tr_cls:
+		var tr = tr_cls.new()
+		add_child(tr)
+
 func _open_load_modal() -> void:
 	var modal = SaveLoadModalScript.new(SaveLoadModalScript.Mode.LOAD)
 	get_tree().root.add_child(modal)
@@ -1252,4 +1297,8 @@ func _on_start_pressed() -> void:
 	else:
 		TimeManager.is_freeplay_mode = false
 
-	get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
+	var target_scene := Data.get_region_scene_path(Data.current_region)
+	if ResourceLoader.exists(target_scene):
+		get_tree().change_scene_to_file(target_scene)
+	else:
+		get_tree().change_scene_to_file("res://scenes/MainGame.tscn")

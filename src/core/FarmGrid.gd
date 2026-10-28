@@ -169,15 +169,8 @@ func _ready() -> void:
 	add_child(drag_overlay)
 	drag_overlay.farm_grid = self
 
-	# Coastal Sea Water Layer (z_index -40)
-	var sea_water = SeaWater.new()
-	sea_water.name = "SeaWater"
-	add_child(sea_water)
-
-	# Out-of-Bounds Forest & Perimeter Trails (Clash of Clans style)
-	forest_overlay = OutOfBoundsForestScript.new()
-	forest_overlay.name = "OutOfBoundsForest"
-	add_child(forest_overlay)
+	# Regional Environment Map (Unique terrain, monuments, cultural props, and regional water per province)
+	_load_regional_map()
 
 	# Soil & Farm Diagnostic Heatmap Overlay (z_index 195)
 	heatmap_overlay = FarmHeatmapOverlay.new()
@@ -236,6 +229,32 @@ func _ready() -> void:
 		TaskManager.tasks_assigned.connect(func(_w, _t): if drag_overlay: drag_overlay.queue_redraw())
 
 	select_tile.call_deferred(Vector2i(0, 0))
+
+func _load_regional_map() -> void:
+	# Check if a RegionalMap node already exists in this FarmGrid (e.g. from an inherited or custom scene)
+	var existing_map = get_node_or_null("RegionalMap")
+	if existing_map:
+		forest_overlay = existing_map.get_node_or_null("OutOfBoundsForest")
+		return
+
+	var map_path := Data.get_region_map_path(Data.current_region)
+	if ResourceLoader.exists(map_path):
+		var map_scene = load(map_path) as PackedScene
+		if map_scene:
+			var map_inst = map_scene.instantiate()
+			map_inst.name = "RegionalMap"
+			add_child(map_inst)
+			forest_overlay = map_inst.get_node_or_null("OutOfBoundsForest")
+			return
+
+	# Fallback if map scene not found
+	var sea_water = SeaWater.new()
+	sea_water.name = "SeaWater"
+	add_child(sea_water)
+
+	forest_overlay = OutOfBoundsForestScript.new()
+	forest_overlay.name = "OutOfBoundsForest"
+	add_child(forest_overlay)
 
 func _process(delta: float) -> void:
 	if renderer:
@@ -508,7 +527,7 @@ func _procedural_generate_obstacles_in_rect(rect: Rect2i, num_trees: int, num_ro
 
 			# 4. Never layer on parcel purchase signposts or Bayanihan field posts
 			var is_sign_tile: bool = false
-			for p in Data.LAND_PARCELS:
+			for p in Data.get_parcels():
 				if p.get("sign_tile", Vector2i(-1, -1)) == pos:
 					is_sign_tile = true
 					break
@@ -617,7 +636,7 @@ func _create_parcel_signposts() -> void:
 	parcel_sign_nodes.clear()
 
 	# Also sweep all parcel sign tiles directly to remove any orphaned Signpost nodes
-	for p in Data.LAND_PARCELS:
+	for p in Data.get_parcels():
 		var spos: Vector2i = p.get("sign_tile", Vector2i(-1, -1))
 		if _is_valid(spos):
 			var troot: Node2D = tile_roots[spos.x][spos.y]
@@ -627,7 +646,7 @@ func _create_parcel_signposts() -> void:
 					child.queue_free()
 
 	# 2. Only create signposts for locked expansion parcels
-	for p in Data.LAND_PARCELS:
+	for p in Data.get_parcels():
 		var pid: String = p.get("id", "")
 		if pid == "homestead" or unlocked_parcels.has(pid):
 			continue
@@ -957,7 +976,7 @@ func _update_parcel_boundaries() -> void:
 	for child in parcel_boundaries_node.get_children():
 		child.queue_free()
 
-	for p in Data.LAND_PARCELS:
+	for p in Data.get_parcels():
 		var pid: String = p.get("id", "")
 		var rect: Rect2i = p.get("rect", Rect2i())
 		var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(rect.position, rect.size)

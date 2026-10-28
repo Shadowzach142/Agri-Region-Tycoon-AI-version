@@ -19,16 +19,33 @@ var dirt_trail_node: Node2D = null
 var trees_layer: Node2D = null
 var fog_of_war_node: Node2D = null
 
+@export var region_key: String = ""
+
+func _resolve_region() -> String:
+	if region_key != "":
+		return region_key
+	var data_node = get_tree().root.get_node_or_null("Data") if is_inside_tree() else null
+	if data_node and "current_region" in data_node:
+		region_key = data_node.current_region
+	else:
+		region_key = "cotabato"
+	return region_key
+
 func _ready() -> void:
 	name = "OutOfBoundsForest"
 	y_sort_enabled = true
+	var reg := _resolve_region()
 
 	# 1. Seamless Out-of-Bounds Grass Terrain (Z=-8, pixel-perfect NGRASS diamonds under forest)
 	terrain_node = OutOfBoundsTerrainScript.new()
+	if "region_key" in terrain_node:
+		terrain_node.region_key = reg
 	add_child(terrain_node)
 
 	# 2. Natural Dirt Perimeter Trail (Z=-5, drawn under grass edges and trees)
 	dirt_trail_node = OutOfBoundsDirtTrailScript.new()
+	if "region_key" in dirt_trail_node:
+		dirt_trail_node.region_key = reg
 	add_child(dirt_trail_node)
 
 	# 3. Forest Canopy Layer (Z=10, Y-sorted with crops, buildings, and workers)
@@ -50,8 +67,26 @@ func _ready() -> void:
 func _build_forest() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20261024 # Deterministic seed for consistent, beautiful layout
+	var reg := _resolve_region()
+
+	var reg_foliage_tint := Color.WHITE
+	match reg:
+		"south_cotabato":
+			reg_foliage_tint = Color(0.82, 0.92, 0.85) # Highland alpine pine cool green
+		"cotabato":
+			reg_foliage_tint = Color(0.88, 1.02, 0.90) # Lush river delta emerald
+		"sarangani":
+			reg_foliage_tint = Color(1.04, 1.02, 0.92) # Sunlit coastal fringe
+		"sultan_kudarat":
+			reg_foliage_tint = Color(0.98, 0.96, 0.85) # Warm granary savanna amber
+		"general_santos":
+			reg_foliage_tint = Color(0.92, 0.94, 0.94) # Crisp urban port greenbelt
 
 	var add_tree := func(gx: float, gy: float, tex: Texture2D, custom_jitter: float = 7.0) -> void:
+		# Preserve scenic open monument plaza along NW edge so regional monuments stay visible
+		if gx >= -4.5 and gx <= -0.5 and gy >= -1.0 and gy <= 11.0:
+			return
+
 		var base_pos := Vector2(
 			FarmerMovement.ORIGIN_OFFSET.x + (gx - gy) * FarmerMovement.HALF_W,
 			FarmerMovement.ORIGIN_OFFSET.y + (gx + gy + 1.0) * FarmerMovement.HALF_H
@@ -72,9 +107,14 @@ func _build_forest() -> void:
 		var sc := rng.randf_range(0.96, 1.05)
 		spr.scale = Vector2(sc, sc)
 
-		# Rich tropical foliage tint variation
+		# Rich tropical foliage tint variation modulated by regional climate
 		var tint := rng.randf_range(0.94, 1.02)
-		spr.modulate = Color(tint * 0.97, tint, tint * 0.95, 1.0)
+		spr.modulate = Color(
+			tint * 0.97 * reg_foliage_tint.r,
+			tint * reg_foliage_tint.g,
+			tint * 0.95 * reg_foliage_tint.b,
+			1.0
+		)
 		trees_layer.add_child(spr)
 
 	# Depth layers: extended from d=1.8 out to d=9.8 tiles into the periphery
@@ -138,16 +178,26 @@ func _build_forest() -> void:
 			x_curr += step
 
 	# -----------------------------------------------------------------------
-	# 4. COASTAL HEADLANDS (Framing the eastern sea at (32, 0) and (32, 32))
+	# 4. HEADLAND CORNERS (Framing the eastern water at corners only)
+	# Trees only go in the NE & SE corner zones (ABOVE/BELOW the farm grid)
+	# NEVER along gx >= 32, gy in [0..31] — that's the eastern water boundary for ALL regions
 	# -----------------------------------------------------------------------
-	# North Headland overlooking bay (gx in [32, 41], gy in [-9, -0.5])
+	# North Headland overlooking bay (gx in [32, 41], gy in [-9, -1])
 	for gx in range(32, 42):
-		for gy in range(-9, 0):
+		for gy in range(-9, -1):
 			var tex: Texture2D = TEX_TREE_1 if rng.randf() < 0.65 else TEX_TREE_2
 			add_tree.call(float(gx) + rng.randf_range(-0.3, 0.3), float(gy) + rng.randf_range(-0.3, 0.3), tex, 8.0)
 
-	# South Headland overlooking bay (gx in [32, 41], gy in [32, 41])
+	# South Headland overlooking bay (gx in [32, 41], gy in [33, 42])
 	for gx in range(32, 42):
-		for gy in range(32, 42):
+		for gy in range(33, 43):
 			var tex: Texture2D = TEX_TREE_1 if rng.randf() < 0.65 else TEX_TREE_2
 			add_tree.call(float(gx) + rng.randf_range(-0.3, 0.3), float(gy) + rng.randf_range(-0.3, 0.3), tex, 8.0)
+
+	# Regional eastern fringe vegetation — ONLY for open coastal regions (Sarangani, GenSan).
+	# Inland water regions (Cotabato, SouthCotabato, SultanKudarat) have NO eastern fringe trees
+	# so their shore/levee/marsh environment polygons are fully visible.
+	match reg:
+		# Sarangani & GenSan: no trees at eastern edge (open coastal/port view, clear to water)
+		_:
+			pass # All regions: keep the eastern water boundary clear of trees

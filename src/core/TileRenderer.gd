@@ -351,7 +351,7 @@ func process_animations(delta: float) -> void:
 	if not ground_sprites or ground_sprites.flood_water_variants.is_empty():
 		return
 	_flood_anim_timer += delta
-	if _flood_anim_timer < 0.16: # ~6.25 FPS smooth natural water shimmer loop
+	if _flood_anim_timer < 0.45: # ~2.2 FPS gentle natural water shimmer loop
 		return
 	_flood_anim_timer = 0.0
 	_flood_anim_frame = (_flood_anim_frame + 1) % ground_sprites.flood_water_variants.size()
@@ -382,7 +382,10 @@ func _apply_sprite_or_color(fill: Polygon2D, fallback_color: Color, tile: FarmTi
 				
 				# Preserve unbought wilderness shading on locked sprites
 				if tile.state == FarmTile.TileState.LOCKED:
-					sprite.modulate = Color(0.58, 0.66, 0.54, 1.0)
+					if "sand" in tex.resource_path.to_lower():
+						sprite.modulate = Color(0.85, 0.82, 0.74, 1.0)
+					else:
+						sprite.modulate = Color(0.58, 0.66, 0.54, 1.0)
 				elif tile.state == FarmTile.TileState.FLOODED:
 					if "water" in tex.resource_path.to_lower():
 						sprite.modulate = Color(1.0, 1.0, 1.0, 0.98)

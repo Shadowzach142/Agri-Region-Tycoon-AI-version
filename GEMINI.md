@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 141 — Living Animated Water Sprites: Sarangani Bay Ocean & Flash Flood Plots)
+> **Last Updated**: 2026-10-28 (Session 146 — In-Game 90s Factorio-Style Cinematic Trailer (`TrailerModal.gd`) + MainMenu Watch Trailer Button; Full Perimeter Regional Map Environments)
 
 ---
 
@@ -54,10 +54,11 @@ agri-region-ai-version/
 │   │   ├── GameCamera.gd                  ← WASD keyboard pan & zoom (no mouse edge pan)
 │   │   ├── DragSelectOverlay.gd           ← Marquee box draw
 │   │   ├── FarmHeatmapOverlay.gd          ← class_name FarmHeatmapOverlay (z=195, Soil & Farm Diagnostic Heatmap & Sprinkler Blueprint)
-│   │   ├── SeaWater.gd                    ← class_name SeaWater (z=-40, animated eastern tropical ocean, surf & navigation buoys)
-│   │   ├── OutOfBoundsForest.gd           ← class_name OutOfBoundsForest (CoC-style multi-layered perimeter canopy & bushes)
-│   │   ├── OutOfBoundsTerrain.gd          ← class_name OutOfBoundsTerrain (z=-8, continuous NGRASS ground tiles under forest)
-│   │   ├── OutOfBoundsDirtTrail.gd        ← class_name OutOfBoundsDirtTrail (z=-5, authentic organic dirt perimeter trail)
+│   │   ├── SeaWater.gd                    ← class_name SeaWater (z=-40, regional-adaptive animated water: ocean/lake/river/wetland/harbor per region)
+│   │   ├── OutOfBoundsForest.gd           ← class_name OutOfBoundsForest (CoC-style multi-layered perimeter canopy with regional foliage tint)
+│   │   ├── OutOfBoundsTerrain.gd          ← class_name OutOfBoundsTerrain (z=-8, region-adaptive ground materials: grass/sand/soil/gravel)
+│   │   ├── OutOfBoundsDirtTrail.gd        ← class_name OutOfBoundsDirtTrail (z=-5, region-adaptive perimeter trail material: mud/slate/sand/granary/promenade)
+│   │   ├── RegionalStreamOverlay.gd       ← class_name RegionalStreamOverlay (draws living natural water features: river streams, mountain brooks, irrigation canals)
 │   │   └── OutOfBoundsFogOfWar.gd         ← class_name OutOfBoundsFogOfWar (z=22, multi-band isometric gradient fog & drifting mist)
 │   ├── farmer/                            ← Worker character system
 │   │   ├── Farmer.gd                      ← Worker CharacterBody2D (32×32 retro pixel animations: walk, till, harvest, idle)
@@ -81,6 +82,7 @@ agri-region-ai-version/
 │   │   ├── AdminPanel.gd                  ← Debug panel (backtick key)
 │   │   ├── BacklogPanel.gd                ← Farm Chronicle log panel (spawned dynamically)
 │   │   ├── LeaderboardPanel.gd            ← PvE Regional League standings & Hall of Fame modal (J/T key)
+│   │   ├── TrailerModal.gd                ← class_name TrailerModal (90-second Factorio-style in-game cinematic trailer launched from MainMenu)
 │   │   ├── WeatherAppModal.gd             ← Dedicated Weather App & PAGASA forecast telemetry dashboard
 │   │   ├── HeatmapLegendBar.gd            ← class_name HeatmapLegendBar (Interactive Diagnostic Heatmap HUD Control Bar & Live Hover Telemetry)
 │   │   └── PauseMenu.gd                   ← ESC pause overlay (spawned dynamically)
@@ -1843,4 +1845,103 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
     - **Automated Verification & Visual Inspection**:
       - `scratch/test_water_animation.gd`: 7/7 comprehensive unit tests passed (texture loads for all 21 frames, ocean geometry constants on 32×32 grid, GroundTileSprites flood water loading, get_texture returns water sprite on flooded tile, beach detection on 32×32 grid, TileRenderer dynamic registration/animation tick, and clean unregistration upon tile drainage).
       - Captured in-engine screenshot `scratch/shot_water_showcase.png` demonstrating both flooded farmland plots with shimmering water and drowned rice crop overlays, alongside the animated eastern ocean with turquoise rolling waves, surf foam, and navigation buoys.
+- **Session 142 (2026-10-28)**:
+  - **Sarangani Bay Ocean Cadence Calming & Coastal Beach Sand Alignment**:
+    - **Coastline & Beach Dunes Alignment (`src/core/GroundTileSprites.gd`)**:
+      - Calibrated beach detection logic `is_beach_tile()` for the expanded 32×32 grid:
+        - Easternmost shoreline: `pos.x == 31` (wet sand with wash tides).
+        - Continuous golden sand strip: `pos.x == 30`.
+        - Organic undulating dune transition: `pos.x == 29` (~55% sand transition).
+      - Tuned moisture threshold for wet sand from 50% to 80% to maintain golden sandy appearance under standard tropical air.
+    - **Ocean Swell Cadence & Lagoon Blending (`src/world/SeaWater.gd`)**:
+      - Relaxed ocean wave speed from rapid 6.2 rad/s to tranquil 0.85 rad/s with sinusoidal swells and rolling crests.
+      - Introduced quiet troughs (`swell < 0.10`) showing tranquil water without breaking foam.
+      - Implemented smooth multi-band blending between shallow turquoise lagoon (`dist < 2.0`), reef transition zone (`2.0 <= dist < 4.5`), and deep sapphire ocean (`dist >= 4.5`).
+      - Calmed shoreline wash tide to gentle 0.45 rad/s rhythm with soft translucent water sheets and reduced foam intensity.
+      - Tuned navigation marker buoys to natural gentle bobbing (1.8px amplitude).
+    - **Visual Shimmer Polish (`src/core/TileRenderer.gd`)**:
+      - Adjusted flooded farm plot shimmer rate to a gentle ~2.2 FPS (`_flood_anim_timer < 0.45`).
+      - Added dedicated warm sand modulation (`Color(0.85, 0.82, 0.74, 1.0)`) for locked/unbought wilderness beach tiles instead of darkening grass green tint.
+- **Session 143 (2026-10-28)**:
+  - **Unique Regional Scenes & Maps with Provincial Monuments & Balanced Gameplay for All 5 Regions**:
+    - **Regional Map & Scene Architecture (`src/world/RegionalMapBase.gd`, `scenes/maps/`, `scenes/`)**:
+      - Implemented 5 dedicated map scenes (`res://scenes/maps/Map_<Region>.tscn`) and 5 dedicated main gameplay scenes (`res://scenes/MainGame_<Region>.tscn`).
+      - Updated `scenes/MainMenu.gd` and `autoload/SaveManager.gd` to route directly into each region's specific gameplay scene (`Data.get_region_scene_path(Data.current_region)`).
+    - **Interactive Provincial Monuments (`src/world/RegionalMonument.gd`)**:
+      - Authentic regional monuments: Bangka ng Kapayapaan (Cotabato), Surallah Tri-People + T'boli K'noon (South Cotabato), Maitum Jars (Sarangani), Sultan Kudarat (Sultan Kudarat), General Paulino Santos (GenSan).
+      - Reworked Sultan Kudarat monument to 72×96 px dignified pixel-art figure with kris sword and tengkolok crown.
+    - **Session Notes**: Map scripts still contained decorative props (session incomplete — see Session 144).
 
+- **Session 144 (2026-10-28)**:
+  - **Fully Unique Regional Environments: Water, Terrain, Trail, Forest & Monument-Only Maps**:
+    - **NO DECORATIVE PROPS on ANY regional map** — only monument(s) per region. All `add_prop()` calls removed from all 5 Map_<Region>.gd scripts.
+    - **All 5 regions now have eastern water boundary (has_coast=true)** enabling `requires_shore` buildings (e.g., gensan_seaport) to be built in ALL regions:
+      - `cotabato`: `water_body = "Pulangi River / Rio Grande de Mindanao"` — freshwater river current, mooring posts
+      - `south_cotabato`: `water_body = "Lake Sebu / Lake Holon Crater Waters"` — crystal alpine lake, mountain lotuses
+      - `sarangani`: `water_body = "Sarangani Littoral Coast / Celebes Sea"` — turquoise tropical ocean, rolling swells
+      - `sultan_kudarat`: `water_body = "Buluan Lake & Tacurong Wetland Basin"` — calm wetland, bamboo baklad fish traps
+      - `general_santos`: `water_body = "Sarangani Bay Deepwater Seaport"` — deep navy harbor, seawall, fairway buoys
+    - **SeaWater.gd** fully reworked to detect `Data.current_region` and render completely distinct water visuals per region (water color, wave physics, animated coastal features — no more uniform tropical ocean for all regions).
+    - **OutOfBoundsTerrain.gd** reworked: region-specific ground material textures for each region:
+      - Cotabato: Wet grass + alluvial soil (green tint)
+      - South Cotabato: Alpine highland turf (cool slate green tint) + volcanic boulders
+      - Sarangani: Sun-bleached coastal sand dunes (warm sandy tint)
+      - Sultan Kudarat: Golden agricultural prairie loam (amber tint)
+      - General Santos: Compacted port gravel + urban stone (grey tint)
+    - **RegionalStreamOverlay.gd** (NEW): Procedural animated natural water feature overlays:
+      - Cotabato: Meandering Pulangi tributary with muddy riverbank
+      - South Cotabato: Cascading mountain brook with stony alpine bed
+      - Sultan Kudarat: Straight agricultural irrigation canal network
+      - Sarangani: Coastal tide pools and shell shoals
+      - General Santos: Stone-lined seaport drainage culvert
+    - **OutOfBoundsDirtTrail.gd** reworked: region-specific perimeter trail materials:
+      - Cotabato: Damp alluvial mud towpath (dark wet clay)
+      - South Cotabato: Crushed volcanic slate / basalt gravel (dark grey)
+      - Sarangani: Coastal sandy dune trail (warm sand + seashell flecks)
+      - Sultan Kudarat: Broad packed-earth granary highway (golden amber, wider width=34)
+      - General Santos: Dressed granite stone promenade (compacted grey + stone curb)
+    - **OutOfBoundsForest.gd** reworked: regional foliage tint per region (emerald delta, alpine pine, coastal fringe, granary savanna, port greenbelt).
+    - **Plaza terraces** per region also have distinct stone colors: river cobble (Cotabato), volcanic basalt with bronze inlay (South Cotabato), coral limestone (Sarangani), golden Capitol marble (Sultan Kudarat), dressed granite (General Santos).
+    - **GroundTileSprites.gd** `is_beach_tile()` updated: sandy beach tiles restricted to Sarangani only (not all `has_coast=true` regions).
+    - **Automated test**: `test_parse_regional_scripts.gd` — 30/30 checks passed (13 scripts, 5 scenes, 12 textures, 5 region water boundaries).
+
+        - `cotabato`: `Map_Cotabato.tscn` / `MainGame_Cotabato.tscn`
+        - `south_cotabato`: `Map_SouthCotabato.tscn` / `MainGame_SouthCotabato.tscn`
+        - `sarangani`: `Map_Sarangani.tscn` / `MainGame_Sarangani.tscn`
+        - `sultan_kudarat`: `Map_SultanKudarat.tscn` / `MainGame_SultanKudarat.tscn`
+        - `general_santos`: `Map_GeneralSantos.tscn` / `MainGame_GeneralSantos.tscn`
+      - Maintained full universal fallback via `res://scenes/MainGame.tscn` which dynamically loads the active region's map if launched directly.
+      - Updated `scenes/MainMenu.gd` and `autoload/SaveManager.gd` to route directly into each region's specific gameplay scene (`Data.get_region_scene_path(Data.current_region)`).
+    - **Interactive Provincial Monuments (`src/world/RegionalMonument.gd`)**:
+      - Created `class_name RegionalMonument` featuring nearest-neighbor pixel art rendering, 3D stone plinths with beveled depth and soft contact shadows.
+      - Interactive hover tooltip card displaying historical category, title, location subtitle, historical lore blurb, and interaction prompts.
+      - Click interaction with audio chime (`AudioManager.play_ui("tile_select")`), scale punch bounce tween, and Chronicle logging (`LogManager.log_event("system", "🏛️ Celebrated Landmark: ...")`).
+      - Deployed authentic regional monuments matching assets from `assets/sprites/monuments/`:
+        1. **Cotabato**: *Bangka ng Kapayapaan Monument* (`bangkapayapaan_monument.png`) honoring peace and unity along Rio Grande de Mindanao.
+        2. **South Cotabato**: *Surallah Cultural Tri-People Monument* (`surallah_tri_people_monument.png`) by Kublai Millan celebrating Christian, Lumad, and Muslim coexistence, plus the secondary *T'boli K'noon Cultural Landmark* (`T_boli_Knoon_Monument.png`) guarding the Lake Sebu trail.
+        3. **Sarangani**: *Maitum Anthropomorphic Jars Replicas* (`maitum_anthropomorphic_replicas.png`) enshrining the 2,000-year-old Ayub Cave national cultural treasures overlooking Sarangani Bay.
+        4. **Sultan Kudarat**: *Sultan Muhammad Dipatuan Kudarat Monument* (`Sultan_Kudarat_Monument.png`) commemorating the 17th-century hero and statesman atop the Capitol plaza.
+        5. **General Santos**: *General Paulino Santos Monument* (`gen_paulino_santos_monument.png`) honoring the founder and pioneer settlement leader in Plaza Heneral Santos.
+    - **Distinctive Regional Layouts & Thematic Cultural Assets (`src/world/RegionalProp.gd`)**:
+      - Created `class_name RegionalProp` providing interactive hover tooltips and tactile click responses for authentic Philippine props:
+        - **Cotabato**: Pulangi freshwater river canal (`RiverWater.gd`), riverbank Tambayan Kubo, bamboo chairs, fresh Buko stall, fiesta drums, mobile karaoke cart, and red gumamela flowerbeds.
+        - **South Cotabato**: High-altitude volcanic stone terraces, Matutum volcanic boulder trios & monoliths, wild highland tree orchids, hanging floral baskets, alpine vista bench, and boxed pink bougainvillea. No sea water (enclosed highland mountain perimeter).
+        - **Sarangani**: Sun-drenched coral coastline with animated turquoise sea water, white surf, and buoys (`SeaWater.gd`), beachfront buko stall, seaside charcoal BBQ stand, driftwood benches, picnic table set, and coastal pandakaki.
+        - **Sultan Kudarat**: Grand agricultural valley boulevard with Fiesta Entrance Welcome Arch, highway agricultural checkpoint barrier, community fiesta stage, grain market notice board, festive parol stands, and royal yellow santan & yellow bell borders. No sea water (enclosed granary valley).
+        - **General Santos**: Civic seaport promenade bordering Makar Port harbor waters (`SeaWater.gd`), full community Barangay Basketball Court, classic Philippine passenger tricycle, midnight balut & penoy stall, multi-grill street BBQ, municipal blue & red park benches, recycled tire planters, and manicured topiary shrubs.
+    - **100% Even & Balanced Gameplay Across All Regions (`autoload/Data.gd`, `src/core/FarmGrid.gd`)**:
+      - Standardized 32×32 farm world (1,024 plots) identical across all 5 regions.
+      - Balanced 4 parcels per region (1 starting Homestead + 3 expansion territories) with identical plot sizes (16×16 = 256 plots each) and identical expansion costs (₱0, ₱1,500, ₱2,400, ₱4,200).
+      - Added `REGIONAL_LAND_PARCELS` in `Data.gd` giving authentic localized names and lore to every territory (e.g. "Pulangi Riverbed Homestead" vs "Matutum Valley Homestead" vs "Pioneer Avenue Homestead").
+      - Restricted eastern coastal beach sands in `GroundTileSprites.gd` to coastal regions (`sarangani`, `general_santos`), keeping inland regions as continuous lush agricultural soils.
+      - Cleared the out-of-bounds forest canopy in `OutOfBoundsForest.gd` across the northwest civic plaza (`gx in [-4.5, -0.5], gy in [-1.0, 11.0]`) so monuments and props are unobstructed.
+    - **Automated Verification**:
+      - `scratch/test_regional_maps.gd`: 56/56 checks passed (all 5 regions' Data definitions, monument textures, 1024-plot balance, 5 Map scenes, 5 MainGame scenes, and universal MainGame).
+      - Regression tests: `run_test_expanded_farm_32x32.tscn` (10/10 passed), `run_test_main_menu.tscn` (all passed).
+- **Session 146 (2026-10-28)**:
+  - **105s Live-Gameplay Factorio-Style Trailer (`src/ui/TrailerModal.gd` + `scenes/MainMenu.tscn` / `scenes/MainMenu.gd`)**:
+    - Added **"🎬 WATCH TRAILER"** button (`ModeTrailerBtn`) on `MainMenu` that launches `TrailerModal.gd`.
+    - Built `TrailerModal.gd` around a real live `SubViewport` running the actual `FarmGrid`, 7 `Farmer` workers executing real `TaskManager` tasks (`plow`, `plant`, `water`, `harvest`), 6 autonomous `FarmDrone` units flying over real `DroneZoneOverlay` sectors, real `Building` nodes (`bahay_kubo`, `bodega`, `water_tower`, `weather_station`, `sprinkler`, `rice_mill`, `sugar_mill`, `coffee_roastery`, `copra_dryer`, `gensan_seaport`, etc.), all 7 real crop sprite stages (including 2×2 `banana` and `coconut` groves), and real `Data.BUILDINGS` Fiesta & cultural decorations (`fiesta_entrance`, `fiesta_stage`, `fiesta_drums`, `basketball_court`, `karaoke_on_wheels`, `tricycle`, `balut_stall`, `buko_stall`, `bbq_stand_multiple`, `parol_stand`, `tambayan_kubo`, flower beds).
+    - Paced across 5 unhurried chapters (105 seconds / 1m 45s) with slow camera pans/zooms and clean fade-through-black cuts, interactive chapter pills, Play/Pause, 1.0×/1.5×/2.0× speed controls, and full autoload state restoration on exit.
+  - **Shoreline & Regional Perimeter Fixes (`OutOfBoundsTerrain.gd`, `OutOfBoundsForest.gd`, `Map_*.gd`)**:
+    - Fixed eastern shoreline grass/bush overlap (`gx >= 29` skip in `OutOfBoundsTerrain.gd` and cleared eastern fringe bushes in `OutOfBoundsForest.gd`) and expanded full-perimeter regional features across all 5 `Map_*.gd` scripts.

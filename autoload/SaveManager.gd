@@ -280,7 +280,11 @@ func load_game(slot_index: int) -> bool:
 
 	load_completed.emit(slot_index, true, "Loading " + meta.get("title", "Save Slot"))
 	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
+	var target_scene := Data.get_region_scene_path(Data.current_region)
+	if ResourceLoader.exists(target_scene):
+		get_tree().change_scene_to_file(target_scene)
+	else:
+		get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
 	return true
 
 ## Deletes a save slot

@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://mg_cotabato_01"]
+
+[ext_resource type="PackedScene" uid="uid://maingameplay" path="res://scenes/MainGame.tscn" id="1_maingame"]
+[ext_resource type="PackedScene" path="res://scenes/maps/Map_Cotabato.tscn" id="2_map_cotabato"]
+
+[node name="MainGame" instance=ExtResource("1_maingame")]
+
+[node name="RegionalMap" parent="FarmGrid" index="0" instance=ExtResource("2_map_cotabato")]
+

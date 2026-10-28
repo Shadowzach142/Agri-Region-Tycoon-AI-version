@@ -41,13 +41,21 @@ var world_seed: int = 0
 
 ## Returns true if the grid coordinate lies on the eastern coastal beach side
 static func is_beach_tile(pos: Vector2i) -> bool:
-	# Easternmost coastal line touching the sea is x == 31 (32x32) or x == 23 (24x24)
-	if pos.x == 31 or pos.x == 23:
+	# Only Sarangani Littoral Coast features an eastern sandy beach shoreline
+	var cur_reg: String = Data.current_region if Engine.has_singleton("Data") or ("current_region" in Data) else "sarangani"
+	if cur_reg != "sarangani":
+		return false
+
+	# Easternmost coastal shoreline touching the sea is x == 31
+	if pos.x == 31:
 		return true
-	# Organic undulating coastal dune line along x == 30 or x == 22
-	if pos.x == 30 or pos.x == 22:
+	# Continuous golden sand beach strip along x == 30
+	if pos.x == 30:
+		return true
+	# Organic undulating coastal dune line along x == 29
+	if pos.x == 29:
 		var wave: int = (pos.y * 7 + 3) % 11
-		return wave < 7 # ~64% of dune edge tiles are sandy beach
+		return wave < 6 # ~55% of dune edge tiles transition into sand
 	return false
 
 func _init() -> void:
@@ -238,7 +246,7 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 		# Natural uncultivated plots (homestead / coast)
 		FarmTile.TileState.EMPTY:
 			if is_beach:
-				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+				if (pos.x == 31 or tile.soil_moisture > 80.0) and not wet_sand_variants.is_empty():
 					var idx := get_variant_index(pos, 250, wet_sand_variants.size())
 					return wet_sand_variants[idx]
 				elif not sand_variants.is_empty():
@@ -264,7 +272,7 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 		# Unbought wilderness parcels
 		FarmTile.TileState.LOCKED:
 			if is_beach:
-				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+				if (pos.x == 31 or tile.soil_moisture > 80.0) and not wet_sand_variants.is_empty():
 					var idx := get_variant_index(pos, 450, wet_sand_variants.size())
 					return wet_sand_variants[idx]
 				elif not sand_variants.is_empty():
@@ -283,7 +291,7 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 		# Natural obstacles (trees, rocks) resting on natural grass / beach dunes
 		FarmTile.TileState.OBSTACLE:
 			if is_beach:
-				if (pos.x == 23 or tile.soil_moisture > 50.0) and not wet_sand_variants.is_empty():
+				if (pos.x == 31 or tile.soil_moisture > 80.0) and not wet_sand_variants.is_empty():
 					var idx := get_variant_index(pos, 650, wet_sand_variants.size())
 					return wet_sand_variants[idx]
 				elif not sand_variants.is_empty():
