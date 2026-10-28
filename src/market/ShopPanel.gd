@@ -233,20 +233,8 @@ func _setup_category_navigation() -> void:
 	if not tabs:
 		return
 
-	# 1. High-visibility theme icon overrides for TabContainer & internal TabBar
-	tabs.add_theme_icon_override("decrement", TEX_TAB_ARROW_L_NORM)
-	tabs.add_theme_icon_override("decrement_highlight", TEX_TAB_ARROW_L_HOV)
-	tabs.add_theme_icon_override("increment", TEX_TAB_ARROW_R_NORM)
-	tabs.add_theme_icon_override("increment_highlight", TEX_TAB_ARROW_R_HOV)
-
-	var tab_bar: TabBar = tabs.get_tab_bar()
-	if tab_bar:
-		tab_bar.add_theme_icon_override("decrement", TEX_TAB_ARROW_L_NORM)
-		tab_bar.add_theme_icon_override("decrement_highlight", TEX_TAB_ARROW_L_HOV)
-		tab_bar.add_theme_icon_override("increment", TEX_TAB_ARROW_R_NORM)
-		tab_bar.add_theme_icon_override("increment_highlight", TEX_TAB_ARROW_R_HOV)
-		if not tab_bar.tab_changed.is_connected(_on_tab_changed):
-			tab_bar.tab_changed.connect(_on_tab_changed)
+	# Hide the redundant bottom tab bar strip — use the prominent top CategoryNavBar as the sole navigator
+	tabs.tabs_visible = false
 
 	if not tabs.tab_changed.is_connected(_on_tab_changed):
 		tabs.tab_changed.connect(_on_tab_changed)
@@ -279,6 +267,12 @@ func _setup_category_navigation() -> void:
 	pill.name = "CategoryPill"
 	pill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pill.custom_minimum_size = Vector2(360, 36)
+	pill.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	pill.tooltip_text = "Click to cycle category [or use Q / E / Arrow keys]"
+	pill.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_on_next_category()
+	)
 
 	if ResourceLoader.exists("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"):
 		pill.add_theme_stylebox_override("panel", load("res://assets/sprites/hud/Inner-container/InnerBarBg.tres"))
@@ -302,18 +296,8 @@ func _setup_category_navigation() -> void:
 	cat_title_label.add_theme_color_override("font_shadow_color", Color(0.08, 0.04, 0.02, 0.95))
 	cat_title_label.add_theme_constant_override("shadow_offset_x", 1)
 	cat_title_label.add_theme_constant_override("shadow_offset_y", 1)
+	cat_title_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	pill.add_child(cat_title_label)
-
-	# High-contrast font overrides for TabContainer and its internal TabBar
-	tabs.add_theme_font_size_override("font_size", 15)
-	tabs.add_theme_color_override("font_selected_color", Color(1.0, 0.92, 0.40, 1.0))
-	tabs.add_theme_color_override("font_hovered_color", Color(1.0, 0.98, 0.88, 1.0))
-	tabs.add_theme_color_override("font_unselected_color", Color(0.90, 0.86, 0.78, 0.95))
-	if tab_bar:
-		tab_bar.add_theme_font_size_override("font_size", 15)
-		tab_bar.add_theme_color_override("font_selected_color", Color(1.0, 0.92, 0.40, 1.0))
-		tab_bar.add_theme_color_override("font_hovered_color", Color(1.0, 0.98, 0.88, 1.0))
-		tab_bar.add_theme_color_override("font_unselected_color", Color(0.90, 0.86, 0.78, 0.95))
 
 	# Next Category Button (►)
 	next_cat_btn = TextureButton.new()

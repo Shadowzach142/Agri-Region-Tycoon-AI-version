@@ -1064,6 +1064,7 @@ theme_override_styles/tab_hovered = SubResource("StyleBoxFlat_tab_hovered")
 theme_override_styles/tab_selected = SubResource("StyleBoxFlat_tab_selected")
 theme_override_styles/tab_focus = SubResource("StyleBoxEmpty_tab_panel")
 current_tab = 0
+tabs_visible = false
 
 [node name="Labor" type="ScrollContainer" parent="HUDLayer/Control/ShopPanel/VBox/TabContainer" unique_id=845105787]
 layout_mode = 2

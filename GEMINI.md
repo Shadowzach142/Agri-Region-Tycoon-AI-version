@@ -1760,3 +1760,12 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
     - Removed the parallel black micro-hose Line2D and emitter Polygon2D nodes that previously rendered across soil plots whenever an active Irrigation Pump & Tower (`water_tower`) was present on the farm.
     - Preserved full underlying agronomy and gameplay mechanics: the pump tower continues providing automated morning hydration, drought resilience, and sprinkler pressure without visually cluttering the pixel-art soil and crop diamonds.
     - `scratch/run_test_no_irrigation_lines.tscn`: Verified that active water tower generates 0 pipe lines or emitter nodes across plowed and growing plots.
+
+- **Session 138 (2026-10-28)**:
+  - **Agri-Shop Category Navigation Streamlining (`src/market/ShopPanel.gd`, `scenes/MainGame.tscn`)**:
+    - **Removed Bottom TabBar Strip**: Set `TabContainer.tabs_visible = false` in both `MainGame.tscn` and `ShopPanel.gd`, eliminating the redundant, crowded second row of small tab buttons and micro arrows underneath the main category bar.
+    - **Single Unified Category Navigator**: The top prominent `CategoryNavBar` now serves as the sole, spacious category switcher with:
+      - Large pixel-art Left (`◄`) and Right (`►`) arrow buttons.
+      - Rich wooden breadcrumb pill (`Category X of 9: <icon> <Category Name>`) in `InnerBarBg.tres`.
+      - Interactive click-to-cycle support on the central pill with hand cursor and hover tooltip, in addition to `Q`/`E` and Left/Right keyboard shortcuts.
+    - **Verification**: `scratch/run_test_shop_clean_category_nav.tscn` passed 5/5 assertions; captured and confirmed in-game screenshot `scratch/shot_shop_clean_category_nav.png`.
