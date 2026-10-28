@@ -238,6 +238,8 @@ func _ready() -> void:
 	select_tile.call_deferred(Vector2i(0, 0))
 
 func _process(delta: float) -> void:
+	if renderer:
+		renderer.process_animations(delta)
 	_update_foliage_occlusion(delta)
 	_update_hover_cursor()
 

@@ -27,6 +27,7 @@ extends Resource
 @export var walk_soil_variants:    Array[Texture2D] = []
 @export var sand_variants:         Array[Texture2D] = []
 @export var wet_sand_variants:     Array[Texture2D] = []
+@export var flood_water_variants: Array[Texture2D] = []
 
 # Backwards-compatibility aliases for existing systems
 @export var light_grass_variants:  Array[Texture2D] = []
@@ -40,13 +41,13 @@ var world_seed: int = 0
 
 ## Returns true if the grid coordinate lies on the eastern coastal beach side
 static func is_beach_tile(pos: Vector2i) -> bool:
-	# Easternmost coastal line touching the sea is x == 23 (for y in 0..23)
-	if pos.x == 23:
+	# Easternmost coastal line touching the sea is x == 31 (32x32) or x == 23 (24x24)
+	if pos.x == 31 or pos.x == 23:
 		return true
-	# Organic undulating coastal dune line along x == 22
-	if pos.x == 22:
+	# Organic undulating coastal dune line along x == 30 or x == 22
+	if pos.x == 30 or pos.x == 22:
 		var wave: int = (pos.y * 7 + 3) % 11
-		return wave < 7 # ~64% of x == 22 tiles are sandy beach dunes
+		return wave < 7 # ~64% of dune edge tiles are sandy beach
 	return false
 
 func _init() -> void:
@@ -137,6 +138,15 @@ func _ensure_variants_loaded() -> void:
 				var tex := load(path) as Texture2D
 				if tex:
 					wet_sand_variants.append(tex)
+
+	# 8. Flood Water Animated Variants (water_01..05)
+	if flood_water_variants.is_empty():
+		for i in range(1, 6):
+			var path := "res://assets/sprites/water/water_%02d.png" % i
+			if ResourceLoader.exists(path):
+				var tex := load(path) as Texture2D
+				if tex:
+					flood_water_variants.append(tex)
 
 	# Sync backwards-compatibility arrays
 	if light_grass_variants.is_empty():
@@ -289,13 +299,17 @@ func get_texture(tile: FarmTile, pos: Vector2i = Vector2i.ZERO) -> Texture2D:
 			return null
 
 		FarmTile.TileState.FLOODED:
+			# Animated water sprites for flooded plots
+			if not flood_water_variants.is_empty():
+				var idx := get_variant_index(pos, 888, flood_water_variants.size())
+				return flood_water_variants[idx]
 			if flooded:
 				return flooded
 			# Flooded beach uses wet sand
 			if is_beach and not wet_sand_variants.is_empty():
 				var idx := get_variant_index(pos, 850, wet_sand_variants.size())
 				return wet_sand_variants[idx]
-			# Flooded plots are water-soaked: use wet grass
+			# Flooded plots fallback: use wet grass
 			if not wet_grass_variants.is_empty():
 				var idx := get_variant_index(pos, 808, wet_grass_variants.size())
 				return wet_grass_variants[idx]

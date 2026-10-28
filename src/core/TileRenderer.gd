@@ -46,6 +46,10 @@ var ground_sprites: GroundTileSprites = null
 var _crop_texture_cache: Dictionary = {}
 var _crop_stage_cache: Dictionary = {}
 
+var _flooded_tiles: Dictionary = {}
+var _flood_anim_timer: float = 0.0
+var _flood_anim_frame: int = 0
+
 # Obstacle Sprites
 const ROCK_OBSTACLE_TEXTURES: Array[String] = [
 	"res://assets/sprites/obstacles/OBSTACLE_Boulder-kinda-round..png",
@@ -312,8 +316,11 @@ func setup(fills: Array, overlays: Array, dots: Array, labels: Array, sprites: A
 # Batch update
 # ---------------------------------------------------------------------------
 func update_all(tiles: Array, grid_size: Vector2i) -> void:
+	_flooded_tiles.clear()
 	for x in range(grid_size.x):
 		for y in range(grid_size.y):
+			if tiles[x][y].state == FarmTile.TileState.FLOODED:
+				_flooded_tiles[Vector2i(x, y)] = true
 			update_tile(Vector2i(x, y), tiles)
 
 # ---------------------------------------------------------------------------
@@ -321,6 +328,11 @@ func update_all(tiles: Array, grid_size: Vector2i) -> void:
 # ---------------------------------------------------------------------------
 func update_tile(pos: Vector2i, tiles: Array) -> void:
 	var tile: FarmTile = tiles[pos.x][pos.y]
+	if tile.state == FarmTile.TileState.FLOODED:
+		_flooded_tiles[pos] = true
+	else:
+		_flooded_tiles.erase(pos)
+
 	var fill: Polygon2D = tile_fills[pos.x][pos.y]
 	var sprite: Sprite2D = null
 	if tile_sprites.size() > pos.x and tile_sprites[pos.x].size() > pos.y:
@@ -331,6 +343,24 @@ func update_tile(pos: Vector2i, tiles: Array) -> void:
 	_apply_fill_color(pos, tile, fill, lbl, sprite)
 	_render_texture_detail(pos, tile)
 	_update_status_dot(tile, dot)
+
+## Advances animations for dynamic ground tiles (e.g. flooded water shimmer)
+func process_animations(delta: float) -> void:
+	if _flooded_tiles.is_empty():
+		return
+	if not ground_sprites or ground_sprites.flood_water_variants.is_empty():
+		return
+	_flood_anim_timer += delta
+	if _flood_anim_timer < 0.16: # ~6.25 FPS smooth natural water shimmer loop
+		return
+	_flood_anim_timer = 0.0
+	_flood_anim_frame = (_flood_anim_frame + 1) % ground_sprites.flood_water_variants.size()
+	for pos in _flooded_tiles.keys():
+		if pos.x < tile_sprites.size() and pos.y < tile_sprites[pos.x].size():
+			var sp: Sprite2D = tile_sprites[pos.x][pos.y]
+			if sp and sp.visible:
+				var f_idx: int = (_flood_anim_frame + pos.x * 2 + pos.y) % ground_sprites.flood_water_variants.size()
+				sp.texture = ground_sprites.flood_water_variants[f_idx]
 
 # ---------------------------------------------------------------------------
 # Fill color + crop icon
@@ -354,7 +384,10 @@ func _apply_sprite_or_color(fill: Polygon2D, fallback_color: Color, tile: FarmTi
 				if tile.state == FarmTile.TileState.LOCKED:
 					sprite.modulate = Color(0.58, 0.66, 0.54, 1.0)
 				elif tile.state == FarmTile.TileState.FLOODED:
-					sprite.modulate = Color(0.40, 0.65, 0.90, 0.95)
+					if "water" in tex.resource_path.to_lower():
+						sprite.modulate = Color(1.0, 1.0, 1.0, 0.98)
+					else:
+						sprite.modulate = Color(0.40, 0.65, 0.90, 0.95)
 				elif tile.state == FarmTile.TileState.INFECTED:
 					sprite.modulate = Color(0.85, 0.40, 0.35, 1.0)
 				else:

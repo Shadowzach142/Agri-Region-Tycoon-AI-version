@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 140 — Authentic Philippine Village Decorations & Sub-Category Tabs in Agri-Shop)
+> **Last Updated**: 2026-10-28 (Session 141 — Living Animated Water Sprites: Sarangani Bay Ocean & Flash Flood Plots)
 
 ---
 
@@ -1824,4 +1824,23 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
         - `scratch/decorations_shop_flora.png`: Flora & Garden filter showing 22 cards with 3D pedestals.
         - `scratch/decorations_shop_stalls.png`: Street Stalls filter showing Balut cart, Buko stand, BBQ grills, and Tricycle.
         - `scratch/decorations_village_plaza.png`: Beautiful in-game village plaza showing placed Tambayan kubo, basketball court, parol stand, table sets, and benches.
+
+- **Session 141 (2026-10-28)**:
+  - **Living Animated Water Sprites & Environmental Fluidity (Sarangani Bay Ocean & Flash Flood Plots)**:
+    - **Asset Library & Texture Integration (`assets/sprites/water/`)**:
+      - Sourced and imported 21 authentic 128×64px pixel-art isometric water sprite frames with nearest-neighbor filtering:
+        - `water_01.png` to `water_05.png`: Natural calm water shimmer loop for flooded farm plots and tranquil shallow bays.
+        - `water_light_01.png` to `water_light_08.png`: Vibrant turquoise sunlit rolling wave sequence for coastal shallows and breaking surf along the eastern beach.
+        - `water_dark_01.png` to `water_dark_08.png`: Deep navy/sapphire rolling swells for the deep outer ocean of Sarangani Bay.
+    - **Eastern Ocean Animation System (`src/world/SeaWater.gd`)**:
+      - Transformed static procedural water into a multi-layered isometric animated ocean with real-time wave animation cycles.
+      - Implemented smooth phase-shifted wave propagation where wave speed and phase evolve organically with distance from shore.
+      - Layered animated white surf foam along the sand coastline and bobbing navigation marker buoys with harmonic wave buoyancy.
+    - **Dynamic Flooded Farmland Simulation (`src/core/GroundTileSprites.gd`, `src/core/TileRenderer.gd`, `src/core/FarmGrid.gd`)**:
+      - `GroundTileSprites.gd`: Added `flood_water_variants` array loading `res://assets/sprites/water/water_%02d.png` (1..5). Configured `FarmTile.TileState.FLOODED` to return animated water sprites with spatial coordinate hash offsets so adjacent flooded plots do not pulse synchronously.
+      - `TileRenderer.gd`: Added active tracking dictionary `_flooded_tiles`, `_flood_anim_timer`, and `process_animations(delta)` running at ~6.25 FPS. Updated `_apply_sprite_or_color()` to preserve natural pixel-art brilliance (`Color(1.0, 1.0, 1.0, 0.98)`) on water textures, reserving blue modulation only for grass fallback.
+      - `FarmGrid.gd`: Hooked `renderer.process_animations(delta)` into `_process(delta)` for seamless background ground animation.
+    - **Automated Verification & Visual Inspection**:
+      - `scratch/test_water_animation.gd`: 7/7 comprehensive unit tests passed (texture loads for all 21 frames, ocean geometry constants on 32×32 grid, GroundTileSprites flood water loading, get_texture returns water sprite on flooded tile, beach detection on 32×32 grid, TileRenderer dynamic registration/animation tick, and clean unregistration upon tile drainage).
+      - Captured in-engine screenshot `scratch/shot_water_showcase.png` demonstrating both flooded farmland plots with shimmering water and drowned rice crop overlays, alongside the animated eastern ocean with turquoise rolling waves, surf foam, and navigation buoys.
 
