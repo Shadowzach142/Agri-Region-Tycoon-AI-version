@@ -599,7 +599,6 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 					ridge.add_point(Vector2(-36.0, f_offset * 0.5 - 16.0))
 					ridge.add_point(Vector2(36.0,  f_offset * 0.5 + 20.0))
 					overlay.add_child(ridge)
-			_draw_drip_irrigation_lines(overlay, tile)
 
 		FarmTile.TileState.FLOODED:
 			if tile.crop_type != "":
@@ -638,7 +637,6 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 				overlay.add_child(ripple2)
 
 		FarmTile.TileState.INFECTED:
-			_draw_drip_irrigation_lines(overlay, tile)
 			if tile.crop_type != "":
 				if tile.is_multi_tile_root:
 					_draw_2x2_multi_tile_crop(overlay, tile)
@@ -648,7 +646,6 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 						_draw_custom_crop_sprite(overlay, crop_tex, tile)
 
 		FarmTile.TileState.PLANTED:
-			_draw_drip_irrigation_lines(overlay, tile)
 			if tile.is_multi_tile_root:
 				_draw_2x2_multi_tile_crop(overlay, tile)
 			else:
@@ -666,7 +663,6 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 					overlay.add_child(mound)
 
 		FarmTile.TileState.GROWING:
-			_draw_drip_irrigation_lines(overlay, tile)
 			if tile.is_multi_tile_root:
 				_draw_2x2_multi_tile_crop(overlay, tile)
 			else:
@@ -690,7 +686,6 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 						overlay.add_child(stalk)
 
 		FarmTile.TileState.HARVESTABLE:
-			_draw_drip_irrigation_lines(overlay, tile)
 			if tile.is_multi_tile_root:
 				_draw_2x2_multi_tile_crop(overlay, tile)
 			else:
@@ -739,53 +734,9 @@ func _render_texture_detail(pos: Vector2i, tile: FarmTile) -> void:
 		if pest_tex != null:
 			_draw_pest_overlay_sprite(overlay, pest_tex)
 
-func _draw_drip_irrigation_lines(overlay: Node2D, tile: FarmTile) -> void:
-	var bm = null
-	if Engine.has_singleton("BuildingManager"):
-		bm = Engine.get_singleton("BuildingManager")
-	elif Engine.get_main_loop() and Engine.get_main_loop().root.has_node("BuildingManager"):
-		bm = Engine.get_main_loop().root.get_node("BuildingManager")
-
-	if bm == null or not bm.has_method("has_irrigation") or not bm.has_irrigation():
-		return
-
-	var irr_lvl: int = bm.get_irrigation_level() if bm.has_method("get_irrigation_level") else 1
-	var hose_col := Color(0.14, 0.16, 0.18, 0.85)
-	var emitter_col := Color(0.35, 0.45, 0.55, 0.90)
-	var drop_col := Color(0.35, 0.80, 1.0, 0.80)
-
-	# Parallel micro-drip hoses aligned with isometric 2:1 slope
-	var offsets := [-6.0, 8.0]
-	for off_y in offsets:
-		var p1 := Vector2(-32.0, off_y * 0.5 - 16.0)
-		var p2 := Vector2(32.0, off_y * 0.5 + 16.0)
-
-		var hose := Line2D.new()
-		hose.width = 1.3
-		hose.default_color = hose_col
-		hose.add_point(p1)
-		hose.add_point(p2)
-		overlay.add_child(hose)
-
-		# Emitter nozzles along the drip line
-		for t in [0.28, 0.50, 0.72]:
-			var ep: Vector2 = p1.lerp(p2, t)
-			var emitter := Polygon2D.new()
-			emitter.polygon = PackedVector2Array([
-				ep + Vector2(-1.5, -1.0), ep + Vector2(1.5, -1.0),
-				ep + Vector2(1.5, 1.0), ep + Vector2(-1.5, 1.0)
-			])
-			emitter.color = emitter_col
-			overlay.add_child(emitter)
-
-			if irr_lvl >= 3:
-				var drop := Polygon2D.new()
-				drop.polygon = PackedVector2Array([
-					ep + Vector2(0, 1.0), ep + Vector2(1.2, 2.5),
-					ep + Vector2(0, 3.5), ep + Vector2(-1.2, 2.5)
-				])
-				drop.color = drop_col
-				overlay.add_child(drop)
+func _draw_drip_irrigation_lines(_overlay: Node2D, _tile: FarmTile) -> void:
+	# Drip lines and pipe visuals removed per user request to maintain clean pixel-art soil aesthetics
+	return
 
 func _draw_custom_crop_sprite(overlay: Node2D, crop_tex: Texture2D, tile: FarmTile) -> void:
 	if not crop_tex:

@@ -1753,3 +1753,10 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
       - `scratch/shot_2_drone_lv1_silver_hotbar.png`: Silver chassis hotbar at Lv.1 with `🔒` on seeds and IPM, and plow active.
       - `scratch/shot_3_drone_lv1_flyout_locks.png`: Flyout at Lv.1 showing locks on Plant, Harvest, Auto Loop.
       - `scratch/shot_4_drone_lv2_silver_hotbar.png`: Silver chassis hotbar at Lv.2 with seeds and IPM cleanly unlocked.
+
+- **Session 137 (2026-10-28)**:
+  - **Removed Irrigation Pipe / Line Visuals Across Farm Tiles (`src/core/TileRenderer.gd`)**:
+    - Disengaged procedural `_draw_drip_irrigation_lines()` across all tile states (`PLOWED`, `INFECTED`, `PLANTED`, `GROWING`, `HARVESTABLE`).
+    - Removed the parallel black micro-hose Line2D and emitter Polygon2D nodes that previously rendered across soil plots whenever an active Irrigation Pump & Tower (`water_tower`) was present on the farm.
+    - Preserved full underlying agronomy and gameplay mechanics: the pump tower continues providing automated morning hydration, drought resilience, and sprinkler pressure without visually cluttering the pixel-art soil and crop diamonds.
+    - `scratch/run_test_no_irrigation_lines.tscn`: Verified that active water tower generates 0 pipe lines or emitter nodes across plowed and growing plots.
