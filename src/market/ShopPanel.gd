@@ -31,14 +31,7 @@ const TEX_SUGAR_MILL: Texture2D      = preload("res://assets/sprites/buildings/T
 const TEX_COPRA_DRYER: Texture2D     = preload("res://assets/sprites/buildings/Tapahan_Copra_Dryer.png")
 const TEX_COFFEE_ROASTERY: Texture2D = preload("res://assets/sprites/buildings/Artisan_Coffee_Roastery.png")
 
-# Preloaded Flower Decoration Textures
-const TEX_FLOWER_SANTAN: Texture2D           = preload("res://assets/sprites/Decorations/Flowers/flower_santan.png")
-const TEX_FLOWER_GUMAMELA: Texture2D         = preload("res://assets/sprites/Decorations/Flowers/flower_gumamela.png")
-const TEX_FLOWER_GARDEN_HEDGE: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_garden_hedge.png")
-const TEX_FLOWER_BOUGAINVILLEA: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_bougainvillea.png")
-const TEX_FLOWER_TOPIARY_SHRUB: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_topiary_shrub.png")
-const TEX_FLOWER_WILDFLOWER_BED: Texture2D   = preload("res://assets/sprites/Decorations/Flowers/flower_wildflower_bed.png")
-const TEX_FLOWER_BLOSSOM_CLUSTER: Texture2D  = preload("res://assets/sprites/Decorations/Flowers/flower_blossom_cluster.png")
+
 
 # Preloaded Arrow Textures for Category Navigation
 const TEX_ARROW_L_NORM: Texture2D    = preload("res://assets/sprites/hud/Buttons/Arrows/arrow_left_normal.png")
@@ -82,6 +75,9 @@ var processing_grid: GridContainer = null
 var trade_grid: GridContainer = null
 var decorations_grid: GridContainer = null
 var land_grid: GridContainer = null
+
+var current_decor_filter: String = "flora"
+var decor_filter_buttons: Dictionary = {}
 
 var _refresh_timer: float = 0.0
 
@@ -185,7 +181,7 @@ func _ready() -> void:
 	machinery_grid = _make_tab("Machinery", "🚜 Machinery & Fleet")
 	processing_grid = _make_tab("Processing", "🏭 Milling & Refining")
 	trade_grid = _make_tab("Trade", "🚢 Trade Hubs & Ports")
-	decorations_grid = _make_tab("Decorations", "🌸 Decorations")
+	decorations_grid = _make_decorations_tab("Decorations", "🌸 Decorations")
 	land_grid = _make_tab("Land", "🗺️ Land (16×16 Parcels)")
 
 	_setup_category_navigation()
@@ -421,6 +417,113 @@ func _make_tab(tab_name: String, title: String) -> GridContainer:
 	tab_container.add_child(scroll)
 	tab_container.set_tab_title(tab_container.get_tab_count() - 1, title)
 	return grid
+
+func _make_decorations_tab(tab_name: String, title: String) -> GridContainer:
+	var tab_container: TabContainer = find_child("TabContainer", true, false)
+	if tab_container == null:
+		return null
+
+	var scroll := ScrollContainer.new()
+	scroll.name = tab_name
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	var pad := MarginContainer.new()
+	pad.add_theme_constant_override("margin_left", 8)
+	pad.add_theme_constant_override("margin_top", 10)
+	pad.add_theme_constant_override("margin_right", 8)
+	pad.add_theme_constant_override("margin_bottom", 10)
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(pad)
+
+	var main_vbox := VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_theme_constant_override("separation", 10)
+	pad.add_child(main_vbox)
+
+	# Subcategory filter bar
+	var subnav := HBoxContainer.new()
+	subnav.name = "DecorSubnav"
+	subnav.alignment = BoxContainer.ALIGNMENT_CENTER
+	subnav.add_theme_constant_override("separation", 8)
+	main_vbox.add_child(subnav)
+
+	var filters := [
+		{"id": "flora", "label": "🌸 Flora & Garden (22)"},
+		{"id": "stalls", "label": "🍢 Street Stalls (14)"},
+		{"id": "tambayan", "label": "🌴 Tambayan & Seats (7)"},
+		{"id": "all", "label": "🌟 All (43)"},
+	]
+
+	for f in filters:
+		var btn := Button.new()
+		btn.text = f.label
+		btn.custom_minimum_size = Vector2(136, 28)
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		btn.add_theme_font_size_override("font_size", 11)
+		var fid: String = f.id
+		btn.pressed.connect(func():
+			_set_decor_filter(fid)
+		)
+		btn.mouse_entered.connect(func(): AudioManager.play_ui("hover"))
+		subnav.add_child(btn)
+		decor_filter_buttons[fid] = btn
+
+	var grid := GridContainer.new()
+	grid.name = "Grid"
+	grid.columns = 3
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	main_vbox.add_child(grid)
+
+	tab_container.add_child(scroll)
+	tab_container.set_tab_title(tab_container.get_tab_count() - 1, title)
+	_update_decor_filter_button_styles()
+	return grid
+
+func _set_decor_filter(subcat: String) -> void:
+	if current_decor_filter == subcat:
+		return
+	current_decor_filter = subcat
+	AudioManager.play_ui("click")
+	_update_decor_filter_button_styles()
+	_populate_decorations()
+
+func _update_decor_filter_button_styles() -> void:
+	for fid in decor_filter_buttons:
+		var btn: Button = decor_filter_buttons[fid]
+		if not is_instance_valid(btn):
+			continue
+		if fid == current_decor_filter:
+			btn.add_theme_stylebox_override("normal", STYLE_GOLD_NORMAL)
+			btn.add_theme_stylebox_override("hover", STYLE_GOLD_HOVER)
+			btn.add_theme_stylebox_override("pressed", STYLE_GOLD_PRESSED)
+			btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.05))
+		else:
+			btn.add_theme_stylebox_override("normal", STYLE_SQ_BROWN_NORMAL)
+			btn.add_theme_stylebox_override("hover", STYLE_SQ_BROWN_HOVER)
+			btn.add_theme_stylebox_override("pressed", STYLE_SQ_BROWN_PRESSED)
+			btn.add_theme_color_override("font_color", Color(0.96, 0.93, 0.88))
+
+func _populate_decorations() -> void:
+	if decorations_grid == null:
+		return
+	for child in decorations_grid.get_children():
+		decorations_grid.remove_child(child)
+		child.queue_free()
+
+	for b_key in Data.BUILDINGS.keys():
+		var b_data: Dictionary = Data.get_building(b_key)
+		if str(b_data.get("shop_category", "")) == "decorations":
+			var subcat: String = str(b_data.get("decor_subcategory", "flora"))
+			if current_decor_filter == "all" or current_decor_filter == subcat:
+				decorations_grid.add_child(_create_building_coc_card(b_key))
 
 # ---------------------------------------------------------------------------
 # CoC-Style Card Factory
@@ -847,7 +950,7 @@ func _populate_buildings() -> void:
 	_fill_category_grid(machinery_grid, "machinery")
 	_fill_category_grid(processing_grid, "processing")
 	_fill_category_grid(trade_grid, "trade")
-	_fill_category_grid(decorations_grid, "decorations")
+	_populate_decorations()
 
 func _fill_category_grid(grid: GridContainer, category: String) -> void:
 	if grid == null:
@@ -875,8 +978,12 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	var meta_right: String = ""
 
 	if b_data.get("is_decoration", false):
-		meta_left = "🌸 1×1 Plot"
-		meta_right = "Instant Decor"
+		meta_left = "🌸 %d×%d Plot" % [fp.x, fp.y]
+		var subcat: String = b_data.get("decor_subcategory", "flora")
+		match subcat:
+			"stalls": meta_right = "Street Stall"
+			"tambayan": meta_right = "Tambayan"
+			_: meta_right = "Instant Decor"
 	elif b_data.get("halts_spoilage", false):
 		meta_right = "Halts Rot • 100%"
 	elif b_data.get("storage_limit", 0) > 0:
@@ -997,22 +1104,13 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 			preview_node = ShopSpritePreview.new(b_key, TEX_COPRA_DRYER)
 		"coffee_roastery":
 			preview_node = ShopSpritePreview.new(b_key, TEX_COFFEE_ROASTERY)
-		"flower_santan":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_SANTAN)
-		"flower_gumamela":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_GUMAMELA)
-		"flower_garden_hedge":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_GARDEN_HEDGE)
-		"flower_bougainvillea":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_BOUGAINVILLEA)
-		"flower_topiary_shrub":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_TOPIARY_SHRUB)
-		"flower_wildflower_bed":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_WILDFLOWER_BED)
-		"flower_blossom_cluster":
-			preview_node = ShopSpritePreview.new(b_key, TEX_FLOWER_BLOSSOM_CLUSTER)
 		_:
-			preview_node = ShopSpritePreview.new(b_key, TEX_KUBO)
+			if Data.get_building(b_key).get("is_decoration", false):
+				var fit: Dictionary = Building.get_art_fit(b_key, false)
+				var d_tex: Texture2D = fit.get("texture", null)
+				preview_node = ShopSpritePreview.new(b_key, d_tex)
+			else:
+				preview_node = ShopSpritePreview.new(b_key, TEX_KUBO)
 
 	return _create_coc_card(
 		b_data.get("display_name", b_key),

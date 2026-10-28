@@ -112,10 +112,22 @@ func refresh() -> void:
 
 	var is_decor: bool = b_data.get("is_decoration", false)
 	if is_decor:
-		level_label.text = "Garden Flora • 1×1 Plot"
-		status_label.text = "🌸 Beautifying Farmstead"
+		var fp: Vector2i = b_data.get("grid_size", Vector2i(1, 1))
+		var subcat: String = b_data.get("decor_subcategory", "flora")
+		match subcat:
+			"stalls":
+				level_label.text = "Street Stall • %d×%d Plot" % [fp.x, fp.y]
+				status_label.text = "🍢 Enlivening Community"
+				status_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
+			"tambayan":
+				level_label.text = "Tambayan • %d×%d Plot" % [fp.x, fp.y]
+				status_label.text = "🌴 Rest & Gathering Area"
+				status_label.add_theme_color_override("font_color", Color(0.60, 0.95, 0.65))
+			_:
+				level_label.text = "Garden Flora • %d×%d Plot" % [fp.x, fp.y]
+				status_label.text = "🌸 Beautifying Farmstead"
+				status_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.90))
 		status_label.modulate = Color.WHITE
-		status_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.90))
 	else:
 		var stars := ""
 		for i in range(current_building.level):
@@ -450,17 +462,26 @@ func _refresh_generic_feature_section() -> void:
 		_populate_default_features(b_type, lvl, b_data)
 
 func _populate_decoration_features(_b_type: String, _lvl: int, b_data: Dictionary) -> void:
+	var subcat: String = b_data.get("decor_subcategory", "flora")
+	var fp: Vector2i = b_data.get("grid_size", Vector2i(1, 1))
 	if feature_title_label:
-		feature_title_label.text = "🌸 Farmstead Garden Decoration & Landscaping"
+		match subcat:
+			"stalls":
+				feature_title_label.text = "🍢 Barrio Street Stall & Community Landmark"
+			"tambayan":
+				feature_title_label.text = "🌴 Tambayan Shed, Seating & Gathering Hub"
+			_:
+				feature_title_label.text = "🌸 Farmstead Garden Decoration & Landscaping"
 
-	var c1 := _create_card("Botanical Flora Specimen", "🌿")
-	_add_card_line(c1, "Variety: %s" % str(b_data.get("display_name", "Decorative Flower")), Color(1.0, 0.88, 0.45))
+	var cat_title: String = "Botanical Flora Specimen" if subcat == "flora" else ("Community Fixture" if subcat == "stalls" else "Tambayan Furniture")
+	var c1 := _create_card(cat_title, b_data.get("icon", "✨"))
+	_add_card_line(c1, "Name: %s" % str(b_data.get("display_name", "Decoration")), Color(1.0, 0.88, 0.45))
 	_add_card_line(c1, str(b_data.get("description", "")), Color(0.95, 0.90, 0.82))
 
 	var c2 := _create_card("Aesthetic Landscaping & Placement", "📐")
-	_add_card_line(c2, "Footprint: Compact 1×1 diamond plot.", Color(0.85, 0.95, 0.85))
+	_add_card_line(c2, "Footprint: %d×%d diamond plot." % [fp.x, fp.y], Color(0.85, 0.95, 0.85))
 	_add_card_line(c2, "Orientation: Press [R] key or click the Flip button to mirror horizontally.", Color(0.55, 0.95, 0.60))
-	_add_card_line(c2, "Pathways: Perfect for lining farm roads, perimeters, and kubo frontages.", Color(0.88, 0.82, 0.74))
+	_add_card_line(c2, "Plaza & Paths: Perfect for building a charming Pinoy barrio center or farmstead courtyard.", Color(0.88, 0.82, 0.74))
 
 func _populate_processing_features(_b_type: String, _lvl: int, _b_data: Dictionary, recipe: Dictionary) -> void:
 	if feature_title_label:
@@ -900,7 +921,10 @@ func _get_building_summary(b_type: String) -> String:
 func _format_stats(b_type: String, lvl: int) -> String:
 	var b_data := Data.get_building(b_type)
 	if b_data.get("is_decoration", false):
-		return "🌸 Decorative Flora\n📐 Footprint: 1×1 plot\n🔄 Orientable: Press [R] to flip"
+		var fp: Vector2i = b_data.get("grid_size", Vector2i(1, 1))
+		var subcat: String = b_data.get("decor_subcategory", "flora")
+		var cat_name := "Decorative Flora" if subcat == "flora" else ("Street Stall" if subcat == "stalls" else "Tambayan Area")
+		return "🌸 %s\n📐 Footprint: %d×%d plot\n🔄 Orientable: Press [R] to flip" % [cat_name, fp.x, fp.y]
 
 	var lines: Array[String] = []
 

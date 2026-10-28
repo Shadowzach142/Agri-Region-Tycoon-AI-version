@@ -338,7 +338,11 @@ func inspect_tile(pos: Vector2i, tile: FarmTile) -> void:
 				if b_data.get("is_decoration", false):
 					crop_label.text = b_name
 					if state_label:
-						state_label.text = "🌸 Garden Flora"
+						var subcat: String = b_data.get("decor_subcategory", "flora")
+						match subcat:
+							"stalls": state_label.text = "🍢 Street Stall"
+							"tambayan": state_label.text = "🌴 Tambayan"
+							_: state_label.text = "🌸 Garden Flora"
 				else:
 					crop_label.text = "%s Lv.%d" % [b_name, b_ref.level]
 					if state_label:

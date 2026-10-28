@@ -64,7 +64,8 @@ func _draw() -> void:
 		var sprite_origin: Vector2 = center - coff * sc
 		var dsz := tex.get_size() * sc
 		var ghost_mod: Color = Color(1.0, 1.0, 1.0, 0.65) if is_valid else Color(1.0, 0.40, 0.40, 0.50)
-		if is_flipped and Data.get_building(b_type).get("is_decoration", false):
+		var has_dedicated_flip: bool = prev.get("has_dedicated_flip", false)
+		if is_flipped and Data.get_building(b_type).get("is_decoration", false) and not has_dedicated_flip:
 			draw_set_transform(Vector2(center.x, sprite_origin.y), 0.0, Vector2(-1.0, 1.0))
 			draw_texture_rect(tex, Rect2(-coff.x * sc, 0.0, dsz.x, dsz.y), false, ghost_mod)
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

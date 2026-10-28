@@ -92,13 +92,352 @@ const SPRINKLER_FRAMES: Array[Dictionary] = [
 	{"region": Rect2(325, 3, 83, 74), "stem": Vector2(40.0, 60.0)}, # Frame 4: Active rotary spray angle 4
 ]
 
-const TEX_FLOWER_SANTAN: Texture2D            = preload("res://assets/sprites/Decorations/Flowers/flower_santan.png")
-const TEX_FLOWER_GUMAMELA: Texture2D          = preload("res://assets/sprites/Decorations/Flowers/flower_gumamela.png")
-const TEX_FLOWER_GARDEN_HEDGE: Texture2D      = preload("res://assets/sprites/Decorations/Flowers/flower_garden_hedge.png")
-const TEX_FLOWER_BOUGAINVILLEA: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_bougainvillea.png")
-const TEX_FLOWER_TOPIARY_SHRUB: Texture2D     = preload("res://assets/sprites/Decorations/Flowers/flower_topiary_shrub.png")
-const TEX_FLOWER_WILDFLOWER_BED: Texture2D    = preload("res://assets/sprites/Decorations/Flowers/flower_wildflower_bed.png")
-const TEX_FLOWER_BLOSSOM_CLUSTER: Texture2D   = preload("res://assets/sprites/Decorations/Flowers/flower_blossom_cluster.png")
+const DECORATION_FITS: Dictionary = {
+	"flower_bougainvillea_orange": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_orange.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_orange_FLIPPED.png"),
+		"scale": 1.5,
+		"center_offset": Vector2(32.5, 48.0),
+		"roof_apex_y": -42.0,
+		"scaffold_h": 32.0
+	},
+	"flower_bougainvillea_pink": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_pink.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_pink_FLIPPED.png"),
+		"scale": 1.5,
+		"center_offset": Vector2(32.0, 48.0),
+		"roof_apex_y": -42.0,
+		"scaffold_h": 32.0
+	},
+	"flower_bougainvillea_white": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_white.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_boxed_white_FLIPPED.png"),
+		"scale": 1.5,
+		"center_offset": Vector2(34.0, 44.0),
+		"roof_apex_y": -42.0,
+		"scaffold_h": 32.0
+	},
+	"flower_bougainvillea_potted": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_Bougainvillea_potted_pink.png"),
+		"flip_tex": null,
+		"scale": 1.5,
+		"center_offset": Vector2(22.0, 52.0),
+		"roof_apex_y": -45.0,
+		"scaffold_h": 35.0
+	},
+	"flower_gumamela_colorful": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_gumamela_colorful.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_gumamela_colorful_FLIPPEDl.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(24.5, 66.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+	"flower_gumamela_red": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_gumamela_red.png"),
+		"flip_tex": null,
+		"scale": 1.4,
+		"center_offset": Vector2(30.0, 58.0),
+		"roof_apex_y": -48.0,
+		"scaffold_h": 38.0
+	},
+	"flower_gumamela_pink": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_gumamela_pink.png"),
+		"flip_tex": null,
+		"scale": 1.4,
+		"center_offset": Vector2(27.5, 53.0),
+		"roof_apex_y": -45.0,
+		"scaffold_h": 35.0
+	},
+	"flower_gumamela_yellow": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_gumamela_yellow.png"),
+		"flip_tex": null,
+		"scale": 1.4,
+		"center_offset": Vector2(27.0, 56.0),
+		"roof_apex_y": -46.0,
+		"scaffold_h": 36.0
+	},
+	"flower_santan_box_red": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_red.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_red_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(32.5, 40.0),
+		"roof_apex_y": -38.0,
+		"scaffold_h": 30.0
+	},
+	"flower_santan_box_orange": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_orange.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_orange_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(39.0, 44.0),
+		"roof_apex_y": -38.0,
+		"scaffold_h": 30.0
+	},
+	"flower_santan_box_yellow": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_yellow.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_box_yellow_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(34.5, 48.0),
+		"roof_apex_y": -38.0,
+		"scaffold_h": 30.0
+	},
+	"flower_santan_round_red": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_round_red.png"),
+		"flip_tex": null,
+		"scale": 2.2,
+		"center_offset": Vector2(16.0, 24.0),
+		"roof_apex_y": -34.0,
+		"scaffold_h": 26.0
+	},
+	"flower_santan_round_yellow": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_santan_bush_round_yellow.png"),
+		"flip_tex": null,
+		"scale": 2.2,
+		"center_offset": Vector2(16.0, 24.0),
+		"roof_apex_y": -34.0,
+		"scaffold_h": 26.0
+	},
+	"flower_orchids_hanged": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_orchids_hanged.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_orchids_hanged_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(36.0, 64.0),
+		"roof_apex_y": -52.0,
+		"scaffold_h": 42.0
+	},
+	"flower_orchids_tree": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_orchids_tree.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_orchids_tree_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(21.5, 60.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+	"flower_pandakaki_bush": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_pandakaki_bush.png"),
+		"flip_tex": null,
+		"scale": 1.6,
+		"center_offset": Vector2(22.5, 36.0),
+		"roof_apex_y": -35.0,
+		"scaffold_h": 28.0
+	},
+	"flower_pandakaki_potted": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_pandakaki_potted.png"),
+		"flip_tex": null,
+		"scale": 1.8,
+		"center_offset": Vector2(16.0, 32.0),
+		"roof_apex_y": -36.0,
+		"scaffold_h": 28.0
+	},
+	"flower_yellow_bell": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_yellow_bell.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flower_yellow_bell_FLIPPED.png"),
+		"scale": 1.4,
+		"center_offset": Vector2(32.0, 47.0),
+		"roof_apex_y": -42.0,
+		"scaffold_h": 34.0
+	},
+	"flowers_in_tires": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flowers_in_tires.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flowers/flowers_in_tires_FLIPPED.png"),
+		"scale": 1.5,
+		"center_offset": Vector2(33.0, 36.0),
+		"roof_apex_y": -32.0,
+		"scaffold_h": 25.0
+	},
+	"flower_daisy_colorful": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_daisy_colorful.png"),
+		"flip_tex": null,
+		"scale": 1.5,
+		"center_offset": Vector2(28.0, 26.0),
+		"roof_apex_y": -28.0,
+		"scaffold_h": 22.0
+	},
+	"flower_daisy_fallen": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flowers/flower_daisy_fallen.png"),
+		"flip_tex": null,
+		"scale": 2.0,
+		"center_offset": Vector2(15.5, 14.0),
+		"roof_apex_y": -18.0,
+		"scaffold_h": 15.0
+	},
+	"flower_pots": {
+		"norm_tex": preload("res://assets/sprites/Decorations/flower_pots.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/flower_pots_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(41.0, 86.0),
+		"roof_apex_y": -65.0,
+		"scaffold_h": 50.0
+	},
+	"balut_stall": {
+		"norm_tex": preload("res://assets/sprites/Decorations/balut_stall.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/balut_stall_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(40.0, 78.0),
+		"roof_apex_y": -78.0,
+		"scaffold_h": 60.0
+	},
+	"buko_stall": {
+		"norm_tex": preload("res://assets/sprites/Decorations/buko_Stall.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/buko_Stall_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(40.0, 78.0),
+		"roof_apex_y": -78.0,
+		"scaffold_h": 60.0
+	},
+	"bbq_stand": {
+		"norm_tex": preload("res://assets/sprites/Decorations/bbq_stand.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/bbq_stand_FLIPPED.png"),
+		"scale": 1.1,
+		"center_offset": Vector2(31.0, 68.0),
+		"roof_apex_y": -68.0,
+		"scaffold_h": 52.0
+	},
+	"bbq_stand_multiple": {
+		"norm_tex": preload("res://assets/sprites/Decorations/bbq_stand_multiple.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/bbq_stand_multiple_FLIPPED.png"),
+		"scale": 1.1,
+		"center_offset": Vector2(38.0, 64.0),
+		"roof_apex_y": -64.0,
+		"scaffold_h": 50.0
+	},
+	"tricycle": {
+		"norm_tex": preload("res://assets/sprites/Decorations/tricycle.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/tricycle_FLIPPED.png"),
+		"scale": 1.1,
+		"center_offset": Vector2(38.0, 48.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+	"karaoke_on_wheels": {
+		"norm_tex": preload("res://assets/sprites/Decorations/karaoke_on_wheels.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/karaoke_on_wheels_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(48.0, 80.0),
+		"roof_apex_y": -78.0,
+		"scaffold_h": 60.0
+	},
+	"parol_stand": {
+		"norm_tex": preload("res://assets/sprites/Decorations/parol_stand.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/parol_stand_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(41.5, 78.0),
+		"roof_apex_y": -78.0,
+		"scaffold_h": 60.0
+	},
+	"toy_store": {
+		"norm_tex": preload("res://assets/sprites/Decorations/toy_store.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/toy_store_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(40.0, 80.0),
+		"roof_apex_y": -80.0,
+		"scaffold_h": 62.0
+	},
+	"fiesta_entrance": {
+		"norm_tex": preload("res://assets/sprites/Decorations/fiesta_entrance.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/fiesta_entrance_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(41.0, 84.0),
+		"roof_apex_y": -84.0,
+		"scaffold_h": 65.0
+	},
+	"fiesta_drums": {
+		"norm_tex": preload("res://assets/sprites/Decorations/fiesta_drums.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/fiesta_drums_FLIPPED.png"),
+		"scale": 1.0,
+		"center_offset": Vector2(49.0, 66.0),
+		"roof_apex_y": -66.0,
+		"scaffold_h": 50.0
+	},
+	"post_board": {
+		"norm_tex": preload("res://assets/sprites/Decorations/post_board.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/post_board_FLIPPED.png"),
+		"scale": 1.1,
+		"center_offset": Vector2(33.0, 68.0),
+		"roof_apex_y": -68.0,
+		"scaffold_h": 52.0
+	},
+	"fiesta_stage": {
+		"norm_tex": preload("res://assets/sprites/Decorations/fiesta_stage.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/fiesta_stage_FLIPPED.png"),
+		"scale": 1.8,
+		"center_offset": Vector2(44.0, 72.0),
+		"roof_apex_y": -110.0,
+		"scaffold_h": 85.0
+	},
+	"basketball_court": {
+		"norm_tex": preload("res://assets/sprites/Decorations/basketball_court.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/basketball_court_FLIPPED.png"),
+		"scale": 1.8,
+		"center_offset": Vector2(39.0, 84.0),
+		"roof_apex_y": -120.0,
+		"scaffold_h": 90.0
+	},
+	"checkpoint": {
+		"norm_tex": preload("res://assets/sprites/Decorations/checkpoint.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/checkpoint_FLIPPED.png"),
+		"scale": 1.7,
+		"center_offset": Vector2(48.0, 76.0),
+		"roof_apex_y": -110.0,
+		"scaffold_h": 85.0
+	},
+	"tambayan_kubo": {
+		"norm_tex": preload("res://assets/sprites/Decorations/tambayan_kubo.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/tambayan_kubo_FLIPPED.png"),
+		"scale": 1.8,
+		"center_offset": Vector2(45.0, 76.0),
+		"roof_apex_y": -115.0,
+		"scaffold_h": 90.0
+	},
+	"tambayan": {
+		"norm_tex": preload("res://assets/sprites/Decorations/tambayan.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/tambayan_FLIPPED.png"),
+		"scale": 1.8,
+		"center_offset": Vector2(40.0, 76.0),
+		"roof_apex_y": -115.0,
+		"scaffold_h": 90.0
+	},
+	"table_set": {
+		"norm_tex": preload("res://assets/sprites/Decorations/table_set.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/table_set_FLIPPED.png"),
+		"scale": 1.6,
+		"center_offset": Vector2(56.0, 52.0),
+		"roof_apex_y": -80.0,
+		"scaffold_h": 60.0
+	},
+	"tambayan_chairs": {
+		"norm_tex": preload("res://assets/sprites/Decorations/tambayan_chairs.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/tambayan_chairs_FLIPPED.png"),
+		"scale": 1.1,
+		"center_offset": Vector2(36.5, 60.0),
+		"roof_apex_y": -60.0,
+		"scaffold_h": 48.0
+	},
+	"bench_blue": {
+		"norm_tex": preload("res://assets/sprites/Decorations/bench_blue.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/bench_blue_FLIPPED.png"),
+		"scale": 1.2,
+		"center_offset": Vector2(27.0, 50.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+	"bench_red": {
+		"norm_tex": preload("res://assets/sprites/Decorations/bench_red.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/bench_red_FLIPPED.png"),
+		"scale": 1.2,
+		"center_offset": Vector2(27.0, 50.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+	"wooden_seat": {
+		"norm_tex": preload("res://assets/sprites/Decorations/wooden_seat.png"),
+		"flip_tex": preload("res://assets/sprites/Decorations/wooden_seat_FLIPPED.png"),
+		"scale": 1.2,
+		"center_offset": Vector2(32.0, 50.0),
+		"roof_apex_y": -50.0,
+		"scaffold_h": 40.0
+	},
+}
 
 var art_sprite: Sprite2D = null
 var is_flipped: bool = false:
@@ -122,11 +461,27 @@ func _update_flipped_visuals() -> void:
 		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
 		art_sprite.position = -coff * sc
 		if Data.get_building(building_type).get("is_decoration", false):
-			art_sprite.flip_h = is_flipped
+			var has_dedicated_flip: bool = fit.get("has_dedicated_flip", false)
+			art_sprite.flip_h = is_flipped if not has_dedicated_flip else false
 	_update_art_sprite_state()
 	queue_redraw()
 
 static func get_art_fit(b_type: String, flipped: bool = false) -> Dictionary:
+	if DECORATION_FITS.has(b_type):
+		var d: Dictionary = DECORATION_FITS[b_type]
+		var flip_tex = d.get("flip_tex", null)
+		var tex: Texture2D = flip_tex if (flipped and flip_tex != null) else d.get("norm_tex", null)
+		var has_dedicated_flip: bool = (flip_tex != null)
+		return {
+			"texture": tex,
+			"scale": float(d.get("scale", 1.0)),
+			"center_offset": d.get("center_offset", Vector2.ZERO),
+			"has_slab": false,
+			"has_dedicated_flip": has_dedicated_flip,
+			"roof_apex_y": float(d.get("roof_apex_y", -40.0)),
+			"scaffold_h": float(d.get("scaffold_h", 30.0))
+		}
+
 	match b_type:
 		"bayanihan_center":
 			return {
@@ -200,69 +555,7 @@ static func get_art_fit(b_type: String, flipped: bool = false) -> Dictionary:
 				"roof_apex_y": -178.0,
 				"scaffold_h": 125.0
 			}
-		"flower_santan":
-			return {
-				"texture": TEX_FLOWER_SANTAN,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_gumamela":
-			return {
-				"texture": TEX_FLOWER_GUMAMELA,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_garden_hedge":
-			return {
-				"texture": TEX_FLOWER_GARDEN_HEDGE,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_bougainvillea":
-			return {
-				"texture": TEX_FLOWER_BOUGAINVILLEA,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_topiary_shrub":
-			return {
-				"texture": TEX_FLOWER_TOPIARY_SHRUB,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_wildflower_bed":
-			return {
-				"texture": TEX_FLOWER_WILDFLOWER_BED,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
-		"flower_blossom_cluster":
-			return {
-				"texture": TEX_FLOWER_BLOSSOM_CLUSTER,
-				"scale": 2.0,
-				"center_offset": Vector2(16.0, 22.0),
-				"has_slab": false,
-				"roof_apex_y": -36.0,
-				"scaffold_h": 28.0
-			}
+
 	return {}
 
 ## Returns ghost placement preview dictionary for ALL buildings
@@ -390,7 +683,8 @@ func _ready() -> void:
 		var coff: Vector2 = fit.get("center_offset", Vector2.ZERO)
 		art_sprite.position = -coff * sc
 		if Data.get_building(building_type).get("is_decoration", false):
-			art_sprite.flip_h = is_flipped
+			var has_dedicated_flip: bool = fit.get("has_dedicated_flip", false)
+			art_sprite.flip_h = is_flipped if not has_dedicated_flip else false
 			state = BuildingState.ACTIVE
 		art_sprite.show_behind_parent = true
 		add_child(art_sprite)

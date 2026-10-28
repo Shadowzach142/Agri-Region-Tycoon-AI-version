@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 139 — Farm Land Expansion to 32×32 Grid & 16×16 Parcels)
+> **Last Updated**: 2026-10-28 (Session 140 — Authentic Philippine Village Decorations & Sub-Category Tabs in Agri-Shop)
 
 ---
 
@@ -1795,3 +1795,33 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
       - `scratch/run_test_expanded_farm_32x32.tscn`: 10/10 assertions passed (grid dimensions, parcel rects, tile memory, starting states, starter buildings, seawater, camera bounds, and land purchasing).
       - Regression tests: `run_verify_ui.tscn` (15/15 checks passed), `run_test_trade_hubs.tscn` (9/9 checks passed), `run_test_drone_hangar_and_hotbar.tscn` (14/14 checks passed).
       - Visual confirmation: Captured in-engine screenshots `shot_expanded_farm_32x32.png` and `shot_expanded_land_shop.png`.
+
+- **Session 140 (2026-10-28)**:
+  - **Authentic Philippine Village Decorations Expansion & Sub-Category Agri-Shop Navigation**:
+    - **Asset Library Integration (`autoload/Data.gd`, `src/buildings/Building.gd`)**:
+      - Brought in the complete suite of 43 authentic Philippine pixel-art village decorations from `assets/sprites/Decorations/` (flowers, stalls, tambayan, fixtures).
+      - Configured complete agronomic data in `Data.BUILDINGS` with `shop_category = "decorations"`, `cost` (₱35–₱120), `build_time = 0.0` (instant placement), `is_decoration = true`, and `decor_subcategory`:
+        - **🌸 Flora & Garden (22 items)**: Bougainvillea flower boxes (orange, pink, white, potted), Gumamela / hibiscus (colorful, red, pink, yellow), Santan hedges (box/round, red/orange/yellow), Pandakaki, Yellow Bell, Wild Orchids (hanging, tree-mounted), Daisy beds, and Tire Planters.
+        - **🍢 Street Stalls & Fiesta (14 items)**: Balut & Penoy cart, Fresh Buko juice stand, Pinoy Inasal BBQ grills (single & multiple skewers), Barangay utility tricycle, Mobile videoke machine, Christmas Parol stand, Barrio toy store, Fiesta entrance banner arch, Fiesta brass drums, Community post board, Barrio Fiesta performance stage, Basketball half-court (with LIGA banner and ball), and Barangay security checkpoint.
+        - **🌴 Tambayan, Gazebos & Seating (7 items)**: Bamboo Tambayan Kubo (thatched pavilion with cushions), Barrio waiting shed (Waiting Shed / Tambayan), Bamboo table set with stools and snacks, Fiesta dining chairs, Park benches (ocean blue & crimson red), and Carved tree stump seat.
+    - **Dedicated Flipped Textures & Art Fit System (`src/buildings/Building.gd`)**:
+      - Integrated dedicated hand-drawn isometric flipped sprites (e.g. `_FLIPPED.png` for carts, stands, videoke, and courts) instead of simple axis flipping, maintaining proper perspective, lighting, and shadow angles.
+      - Tuned custom `scale`, `center_offset`, and diamond baseline alignment for every decoration.
+    - **Sub-Category Tab Navigation in Agri-Shop (`src/market/ShopPanel.gd`)**:
+      - Replaced monolithic decoration list with an interactive sub-category filter navigation bar:
+        - `🌸 Flora & Garden (22)`
+        - `🍢 Street Stalls (14)`
+        - `🌴 Tambayan & Seats (7)`
+        - `🌟 All (43)`
+      - Dynamic pedestal previews: Eliminated hardcoded texture preloads in favor of `Building.get_art_fit()` dynamic previews on spotlight pedestals.
+      - Styled sub-category filter buttons using gold-accented active states (`STYLE_GOLD_NORMAL`) and subtle brown buttons (`STYLE_SQ_BROWN_NORMAL`) with UI sound effects.
+    - **Inspection & Demolition Updates (`src/buildings/BuildingCardPopup.gd`, `src/ui/TileInfoPanel.gd`)**:
+      - `BuildingCardPopup`: Customized titles and cards to reflect subcategory (e.g. "🍢 Barrio Street Stall & Community Landmark" vs "🌴 Tambayan Shed, Seating & Gathering Hub").
+      - `TileInfoPanel`: Displays contextual subcategory badge (`🍢 Street Stall`, `🌴 Tambayan`, or `🌸 Garden Flora`).
+    - **Automated Verification & Visual Inspection**:
+      - `scratch/run_test_new_decorations.tscn`: 7/7 comprehensive test phases passed (43 building definitions, 43 normal & flipped texture loads, ShopPanel sub-category filtering, 1×1 instant placement, 2×2 footprint placement, dedicated flip toggle, and BuildingCardPopup inspection/demolition refund).
+      - Captured and validated in-engine screenshots:
+        - `scratch/decorations_shop_flora.png`: Flora & Garden filter showing 22 cards with 3D pedestals.
+        - `scratch/decorations_shop_stalls.png`: Street Stalls filter showing Balut cart, Buko stand, BBQ grills, and Tricycle.
+        - `scratch/decorations_village_plaza.png`: Beautiful in-game village plaza showing placed Tambayan kubo, basketball court, parol stand, table sets, and benches.
+
