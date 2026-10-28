@@ -952,44 +952,44 @@ func is_hub_available(name: String) -> bool:
 	return bm != null and bm.has_building(req)
 
 # ---------------------------------------------------------------------------
-# Land Expansion Parcels (10x10 each)
+# Land Expansion Parcels (16x16 each, 32x32 world island)
 # ---------------------------------------------------------------------------
 const LAND_PARCELS: Array[Dictionary] = [
 	{
 		"id": "homestead",
 		"name": "Central Homestead",
-		"rect": Rect2i(0, 0, 12, 12),
+		"rect": Rect2i(0, 0, 16, 16),
 		"cost": 0,
 		"unlocked_by_default": true,
-		"sign_tile": Vector2i(5, 5),
-		"description": "Your starting farm estate. 12x12 cultivated area (144 plots).",
+		"sign_tile": Vector2i(7, 7),
+		"description": "Your starting farm estate. 16×16 cultivated area (256 plots).",
 	},
 	{
 		"id": "east_meadows",
 		"name": "Eastern Riverbanks",
-		"rect": Rect2i(12, 0, 12, 12),
+		"rect": Rect2i(16, 0, 16, 16),
 		"cost": 1500,
 		"unlocked_by_default": false,
-		"sign_tile": Vector2i(14, 2),
-		"description": "Rich alluvial flatlands. Adds 12x12 (144 plots) eastward for rice paddies, buildings, and canals.",
+		"sign_tile": Vector2i(18, 2),
+		"description": "Rich alluvial flatlands. Adds 16×16 (256 plots) eastward for rice paddies, buildings, and canals.",
 	},
 	{
 		"id": "south_plains",
 		"name": "Southern Lowlands",
-		"rect": Rect2i(0, 12, 12, 12),
+		"rect": Rect2i(0, 16, 16, 16),
 		"cost": 2400,
 		"unlocked_by_default": false,
-		"sign_tile": Vector2i(2, 14),
-		"description": "Expansive flatlands. Adds 12x12 (144 plots) southward for crop rows, warehouses, and mills.",
+		"sign_tile": Vector2i(2, 18),
+		"description": "Expansive flatlands. Adds 16×16 (256 plots) southward for crop rows, warehouses, and mills.",
 	},
 	{
 		"id": "highland_plateau",
 		"name": "Highland Foothills",
-		"rect": Rect2i(12, 12, 12, 12),
+		"rect": Rect2i(16, 16, 16, 16),
 		"cost": 4200,
 		"unlocked_by_default": false,
-		"sign_tile": Vector2i(14, 14),
-		"description": "Elevated volcanic plateau. Adds 12x12 (144 plots) southeastward with shelter from low-elevation floods.",
+		"sign_tile": Vector2i(18, 18),
+		"description": "Elevated volcanic plateau. Adds 16×16 (256 plots) southeastward with shelter from low-elevation floods.",
 	},
 ]
 

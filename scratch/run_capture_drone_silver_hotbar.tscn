@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://c_cap_drn_silv"]
+[gd_scene load_steps=2 format=3 uid="uid://dcapturesilver01"]
 
-[ext_resource type="Script" path="res://scratch/capture_drone_silver_hotbar.gd" id="1_capt"]
+[ext_resource type="Script" path="res://scratch/capture_drone_silver_hotbar.gd" id="1_cap"]
 
-[node name="RunCapture" type="Node"]
-script = ExtResource("1_capt")
+[node name="CaptureRunner" type="Node2D"]
+script = ExtResource("1_cap")

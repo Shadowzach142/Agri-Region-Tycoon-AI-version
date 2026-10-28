@@ -22,17 +22,17 @@ func _ready() -> void:
 	_generate_terrain()
 
 func _generate_terrain() -> void:
-	# Farm is 0 <= gx < 24 and 0 <= gy < 24.
-	# We tile out-of-bounds terrain from gx = -9 to 32, gy = -9 to 32.
+	# Farm is 0 <= gx < 32 and 0 <= gy < 32.
+	# We tile out-of-bounds terrain from gx = -9 to 41, gy = -9 to 41.
 	# We skip inside the farm (handled by FarmGrid) and inside Sarangani Bay (handled by SeaWater).
 	
-	for gx in range(-9, 33):
-		for gy in range(-9, 33):
+	for gx in range(-9, 42):
+		for gy in range(-9, 42):
 			# Skip farm grid area
-			if gx >= 0 and gx < 24 and gy >= 0 and gy < 24:
+			if gx >= 0 and gx < 32 and gy >= 0 and gy < 32:
 				continue
 			# Skip eastern ocean (Sarangani Bay)
-			if gx >= 24 and gy >= 0 and gy < 24:
+			if gx >= 32 and gy >= 0 and gy < 32:
 				continue
 				
 			var pos_px: Vector2 = FarmerMovement.grid_to_pixel_center(Vector2i(gx, gy), null)
@@ -47,8 +47,8 @@ func _generate_terrain() -> void:
 			
 			# Subtle ambient forest shade under the deep canopy
 			var dist_out: float = max(
-				max(0.0 - float(gx), float(gx) - 23.0),
-				max(0.0 - float(gy), float(gy) - 23.0)
+				max(0.0 - float(gx), float(gx) - 31.0),
+				max(0.0 - float(gy), float(gy) - 31.0)
 			)
 			var shade: float = clampf(1.0 - (dist_out * 0.025), 0.78, 1.0)
 			spr.modulate = Color(shade * 0.95, shade, shade * 0.92, 1.0)

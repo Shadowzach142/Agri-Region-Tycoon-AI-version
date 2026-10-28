@@ -94,16 +94,16 @@ func _build_forest() -> void:
 	for d in depth_steps:
 		var step: float = 1.6 if d <= 3.8 else 2.0
 		var y_curr: float = -d - 4.5
-		while y_curr <= 27.5 + d:
+		while y_curr <= 35.5 + d:
 			var tex: Texture2D = TEX_TREE_1 if (d >= 2.8 or rng.randf() < 0.6) else TEX_TREE_2
 			add_tree.call(-d + rng.randf_range(-0.3, 0.3), y_curr + rng.randf_range(-0.3, 0.3), tex, 9.0)
 			y_curr += step
 
 	# -----------------------------------------------------------------------
-	# 2. NORTH-EAST BORDER (gy < 0, gx from -9 to 30)
+	# 2. NORTH-EAST BORDER (gy < 0, gx from -9 to 38)
 	# -----------------------------------------------------------------------
 	# Frontline edge bushes (gy = -0.7 to -1.3)
-	for x in range(-6, 27):
+	for x in range(-6, 35):
 		var tex: Texture2D = TEX_TREE_3 if rng.randf() < 0.6 else TEX_TREE_2
 		add_tree.call(float(x) + rng.randf_range(-0.25, 0.25), -0.9 + rng.randf_range(-0.15, 0.15), tex, 6.0)
 		if rng.randf() < 0.45:
@@ -113,41 +113,41 @@ func _build_forest() -> void:
 	for d in depth_steps:
 		var step: float = 1.6 if d <= 3.8 else 2.0
 		var x_curr: float = -d - 4.5
-		while x_curr <= 28.5 + d:
+		while x_curr <= 36.5 + d:
 			var tex: Texture2D = TEX_TREE_1 if (d >= 2.8 or rng.randf() < 0.6) else TEX_TREE_2
 			add_tree.call(x_curr + rng.randf_range(-0.3, 0.3), -d + rng.randf_range(-0.3, 0.3), tex, 9.0)
 			x_curr += step
 
 	# -----------------------------------------------------------------------
-	# 3. SOUTH-WEST BORDER (gy >= 24, gx from -9 to 26)
+	# 3. SOUTH-WEST BORDER (gy >= 32, gx from -9 to 34)
 	# -----------------------------------------------------------------------
-	# Frontline edge bushes (gy = 24.5 to 25.1)
-	for x in range(-6, 26):
+	# Frontline edge bushes (gy = 32.5 to 33.1)
+	for x in range(-6, 34):
 		var tex: Texture2D = TEX_TREE_3 if rng.randf() < 0.6 else TEX_TREE_2
-		add_tree.call(float(x) + rng.randf_range(-0.25, 0.25), 24.65 + rng.randf_range(-0.15, 0.15), tex, 6.0)
+		add_tree.call(float(x) + rng.randf_range(-0.25, 0.25), 32.65 + rng.randf_range(-0.15, 0.15), tex, 6.0)
 		if rng.randf() < 0.45:
-			add_tree.call(float(x) + 0.5, 25.15 + rng.randf_range(-0.15, 0.15), TEX_TREE_3, 5.0)
+			add_tree.call(float(x) + 0.5, 33.15 + rng.randf_range(-0.15, 0.15), TEX_TREE_3, 5.0)
 
 	# Mid & Deep SW layers
 	for d in depth_steps:
 		var step: float = 1.6 if d <= 3.8 else 2.0
 		var x_curr: float = -d - 4.5
-		while x_curr <= 26.5 + d * 0.5:
+		while x_curr <= 34.5 + d * 0.5:
 			var tex: Texture2D = TEX_TREE_1 if (d >= 2.8 or rng.randf() < 0.6) else TEX_TREE_2
-			add_tree.call(x_curr + rng.randf_range(-0.3, 0.3), 24.0 + d + rng.randf_range(-0.3, 0.3), tex, 9.0)
+			add_tree.call(x_curr + rng.randf_range(-0.3, 0.3), 32.0 + d + rng.randf_range(-0.3, 0.3), tex, 9.0)
 			x_curr += step
 
 	# -----------------------------------------------------------------------
-	# 4. COASTAL HEADLANDS (Framing the eastern sea at (24, 0) and (24, 24))
+	# 4. COASTAL HEADLANDS (Framing the eastern sea at (32, 0) and (32, 32))
 	# -----------------------------------------------------------------------
-	# North Headland overlooking bay (gx in [24, 33], gy in [-9, -0.5])
-	for gx in range(24, 34):
+	# North Headland overlooking bay (gx in [32, 41], gy in [-9, -0.5])
+	for gx in range(32, 42):
 		for gy in range(-9, 0):
 			var tex: Texture2D = TEX_TREE_1 if rng.randf() < 0.65 else TEX_TREE_2
 			add_tree.call(float(gx) + rng.randf_range(-0.3, 0.3), float(gy) + rng.randf_range(-0.3, 0.3), tex, 8.0)
 
-	# South Headland overlooking bay (gx in [24, 33], gy in [24, 33])
-	for gx in range(24, 34):
-		for gy in range(24, 34):
+	# South Headland overlooking bay (gx in [32, 41], gy in [32, 41])
+	for gx in range(32, 42):
+		for gy in range(32, 42):
 			var tex: Texture2D = TEX_TREE_1 if rng.randf() < 0.65 else TEX_TREE_2
 			add_tree.call(float(gx) + rng.randf_range(-0.3, 0.3), float(gy) + rng.randf_range(-0.3, 0.3), tex, 8.0)

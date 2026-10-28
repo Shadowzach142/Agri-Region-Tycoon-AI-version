@@ -186,7 +186,7 @@ func _ready() -> void:
 	processing_grid = _make_tab("Processing", "🏭 Milling & Refining")
 	trade_grid = _make_tab("Trade", "🚢 Trade Hubs & Ports")
 	decorations_grid = _make_tab("Decorations", "🌸 Decorations")
-	land_grid = _make_tab("Land", "🗺️ Land (10×10 Parcels)")
+	land_grid = _make_tab("Land", "🗺️ Land (16×16 Parcels)")
 
 	_setup_category_navigation()
 

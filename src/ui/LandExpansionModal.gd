@@ -139,7 +139,7 @@ func _build_ui() -> void:
 	_unlock_btn = Button.new()
 	_unlock_btn.custom_minimum_size = Vector2(0, 42)
 	_unlock_btn.add_theme_font_size_override("font_size", 14)
-	_unlock_btn.text = "🔓 Purchase & Unlock 10x10 Land"
+	_unlock_btn.text = "🔓 Purchase & Unlock Land"
 	_unlock_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_unlock_btn.pressed.connect(_on_unlock_pressed)
 	vbox.add_child(_unlock_btn)

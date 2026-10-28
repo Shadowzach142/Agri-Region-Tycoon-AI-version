@@ -190,7 +190,7 @@ func _ready() -> void:
 	assert(shop.labor_grid != null and shop.labor_grid.get_child_count() == 3, "Shop Labor grid must have 3 cards")
 	assert(shop.storage_grid != null and shop.storage_grid.get_child_count() == 4, "Shop Storage grid must have 4 cards")
 	assert(shop.weather_grid != null and shop.weather_grid.get_child_count() == 4, "Shop Weather grid must have 4 cards (incl. Field Survey Kit)")
-	assert(shop.machinery_grid != null and shop.machinery_grid.get_child_count() == 1, "Shop Machinery grid must have 1 card (Drone Hangar)")
+	assert(shop.machinery_grid != null and shop.machinery_grid.get_child_count() == 2, "Shop Machinery grid must have 2 cards (Drone Hangar + Landing Pad)")
 	assert(shop.trade_grid != null and shop.trade_grid.get_child_count() == 4, "Shop Trade grid must have 4 cards (Trading Post + 3 Hubs)")
 	assert(shop.land_grid != null and shop.land_grid.get_child_count() == 4, "Shop Land grid must have 4 cards")
 	print("✔ ShopPanel: COC-Style 3-column card grid verified across all categories (including Trade & Survey Kit)")

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cmexc8roodrhw"]
+
+[ext_resource type="Script" path="res://scratch/test_tab_and_switcher_ui.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

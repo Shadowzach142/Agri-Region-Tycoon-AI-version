@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 136 — Drone Command Hangar & Landing Pad Separation, Silver Cyber Hotbar & Level-Gated Avionics)
+> **Last Updated**: 2026-10-28 (Session 139 — Farm Land Expansion to 32×32 Grid & 16×16 Parcels)
 
 ---
 
@@ -14,7 +14,7 @@
 | **Texture per node** | `texture_filter = 1` on every Sprite2D/TextureRect in `.tscn` |
 | **Font** | `res://assets/font/quill_and_antler/quill-and-antler.ttf` (Quill & Antler pixel font) |
 | **Entry** | `res://scenes/MainMenu.tscn` → `res://scenes/MainGame.tscn` |
-| **Theme** | Philippine farm tycoon, isometric 24×24 grid (12×12 homestead + buyable 12×12 parcels) |
+| **Theme** | Philippine farm tycoon, isometric 32×32 grid (16×16 homestead + buyable 16×16 parcels) |
 | **Godot exe** | `C:\Users\ADMIN\Downloads\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe` |
 
 ---
@@ -1769,3 +1769,29 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
       - Rich wooden breadcrumb pill (`Category X of 9: <icon> <Category Name>`) in `InnerBarBg.tres`.
       - Interactive click-to-cycle support on the central pill with hand cursor and hover tooltip, in addition to `Q`/`E` and Left/Right keyboard shortcuts.
     - **Verification**: `scratch/run_test_shop_clean_category_nav.tscn` passed 5/5 assertions; captured and confirmed in-game screenshot `scratch/shot_shop_clean_category_nav.png`.
+
+- **Session 139 (2026-10-28)**:
+  - **Farm Plot Land Expansion to 32×32 Grid (1,024 Plots) & 16×16 Parcels**:
+    - **Expanded Farm Grid (`src/core/FarmGrid.gd`, `autoload/Data.gd`)**:
+      - Scaled the global world farm grid from 24×24 (576 plots) to 32×32 (1,024 plots).
+      - Rebalanced all 4 territorial land parcels to 16×16 diamonds (256 plots each):
+        - `homestead`: `Rect2i(0, 0, 16, 16)` — Starting unlocked estate increased from 144 to 256 plots, giving players nearly double initial building and planting space right from Day 1.
+        - `east_meadows`: `Rect2i(16, 0, 16, 16)` — Eastern alluvial riverbanks territory (₱1,500).
+        - `south_plains`: `Rect2i(0, 16, 16, 16)` — Southern lowlands territory (₱2,400).
+        - `highland_plateau`: `Rect2i(16, 16, 16, 16)` — Elevated volcanic foothills territory (₱4,200).
+    - **Perimeter & World Environment Recalibration**:
+      - `SeaWater.gd`: Shifted eastern coastline from `COAST_X = 24.0` to `COAST_X = 32.0`, `GRID_HEIGHT = 32.0`, and updated navigation marker buoys into Sarangani Bay.
+      - `OutOfBoundsTerrain.gd`: Extended continuous NGRASS ground tiles to `range(-9, 42)`, seamlessly tiling outside 32×32 without gaps.
+      - `OutOfBoundsDirtTrail.gd`: Lengthened the natural worn dirt perimeter path along NW, NE, and SW borders to 32 tiles, setting SW trail base to `t, 32.5`.
+      - `OutOfBoundsFogOfWar.gd`: Extended multi-band isometric gradient fog rings and drifting mist wisps outward to envelope the larger 32×32 perimeter.
+      - `OutOfBoundsForest.gd`: Extended multi-layered tree canopies and frontline bushes along all 4 borders and relocated coastal headland forests to `gx in [32, 41]`.
+      - `GameCamera.gd`: Expanded camera boundaries to `world_bounds_min = Vector2(-1550, -320)` and `world_bounds_max = Vector2(3400, 2480)`, lowered `min_zoom` to `0.45` for full-island visibility, and recalibrated `center_on_homestead()` to `Vector2(768, 576)` (the center of the 16×16 homestead).
+      - `WeatherEffects.gd`: Recentered ground rain splashes and night fireflies to `Vector2(768, 1088)` with extents `(2100, 1050)`.
+    - **UI & Shop Updates**:
+      - `ShopPanel.gd`: Updated Land category label to `🗺️ Land (16×16 Parcels)` with dynamic "16×16 Plots" card tags.
+      - `BayanihanModal.gd`: Updated default subtitle to `Central Homestead (16×16 Plots)`.
+      - `LandExpansionModal.gd`: Retained dynamic rect sizing (`16×16 Land (256 New Plots)`).
+    - **Automated Verification**:
+      - `scratch/run_test_expanded_farm_32x32.tscn`: 10/10 assertions passed (grid dimensions, parcel rects, tile memory, starting states, starter buildings, seawater, camera bounds, and land purchasing).
+      - Regression tests: `run_verify_ui.tscn` (15/15 checks passed), `run_test_trade_hubs.tscn` (9/9 checks passed), `run_test_drone_hangar_and_hotbar.tscn` (14/14 checks passed).
+      - Visual confirmation: Captured in-engine screenshots `shot_expanded_farm_32x32.png` and `shot_expanded_land_shop.png`.

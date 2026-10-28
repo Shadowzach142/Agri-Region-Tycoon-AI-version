@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c76lupspqub4s"]
+
+[ext_resource type="Script" path="res://scratch/test_shop_clean_category_nav.gd" id="1_test"]
+
+[node name="TestRunner" type="Node2D"]
+script = ExtResource("1_test")

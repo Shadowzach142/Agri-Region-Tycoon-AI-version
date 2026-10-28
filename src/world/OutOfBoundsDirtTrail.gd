@@ -11,9 +11,9 @@ func _init() -> void:
 
 func _draw() -> void:
 	# Calculate trail paths along the 3 land borders:
-	# 1. North-West: (0, 0) to (0, 24)
-	# 2. North-East: (0, 0) to (24, 0)
-	# 3. South-West: (0, 24) to (24, 24)
+	# 1. North-West: (0, 0) to (0, 32)
+	# 2. North-East: (0, 0) to (32, 0)
+	# 3. South-West: (0, 32) to (32, 32)
 
 	var get_pt = func(gx: float, gy: float) -> Vector2:
 		return Vector2(
@@ -23,7 +23,7 @@ func _draw() -> void:
 
 	# 1. NW Trail
 	var nw_points: PackedVector2Array = []
-	for i in range(-2, 51):
+	for i in range(-2, 67):
 		var t: float = float(i) * 0.5
 		var base: Vector2 = get_pt.call(-0.5, t)
 		# subtle natural waviness
@@ -32,7 +32,7 @@ func _draw() -> void:
 
 	# 2. NE Trail
 	var ne_points: PackedVector2Array = []
-	for i in range(-2, 51):
+	for i in range(-2, 67):
 		var t: float = float(i) * 0.5
 		var base: Vector2 = get_pt.call(t, -0.5)
 		var wobble: float = cos(t * 1.8) * 2.5
@@ -40,9 +40,9 @@ func _draw() -> void:
 
 	# 3. SW Trail
 	var sw_points: PackedVector2Array = []
-	for i in range(-2, 51):
+	for i in range(-2, 67):
 		var t: float = float(i) * 0.5
-		var base: Vector2 = get_pt.call(t, 24.5)
+		var base: Vector2 = get_pt.call(t, 32.5)
 		var wobble: float = sin(t * 1.8 + 1.0) * 2.5
 		sw_points.append(base + Vector2(wobble, wobble * 0.5))
 

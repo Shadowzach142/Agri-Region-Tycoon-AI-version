@@ -29,7 +29,7 @@ func _init_mist_particles() -> void:
 		var side: int = i % 3 # 0: NW, 1: NE, 2: SW
 		var gx: float = 0.0
 		var gy: float = 0.0
-		var t: float = rng.randf_range(-1.0, 25.0)
+		var t: float = rng.randf_range(-1.0, 33.0)
 		
 		if side == 0: # NW border
 			gx = rng.randf_range(-5.5, -2.5)
@@ -39,7 +39,7 @@ func _init_mist_particles() -> void:
 			gy = rng.randf_range(-5.5, -2.5)
 		else: # SW border
 			gx = t
-			gy = 24.0 + rng.randf_range(2.5, 5.5)
+			gy = 32.0 + rng.randf_range(2.5, 5.5)
 			
 		var pos_px: Vector2 = Vector2(
 			FarmerMovement.ORIGIN_OFFSET.x + (gx - gy) * FarmerMovement.HALF_W,
@@ -87,39 +87,39 @@ func _draw() -> void:
 		var col_in := Color(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, a_in)
 		var col_out := Color(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, a_out)
 
-		# Quad A: North-West Border (-m to gy, gy from -m to 24+m)
+		# Quad A: North-West Border (-m to gy, gy from -m to 32+m)
 		var p1_in: Vector2 = get_pt.call(-m_in, -m_in)
-		var p2_in: Vector2 = get_pt.call(-m_in, 24.0 + m_in)
-		var p2_out: Vector2 = get_pt.call(-m_out, 24.0 + m_out)
+		var p2_in: Vector2 = get_pt.call(-m_in, 32.0 + m_in)
+		var p2_out: Vector2 = get_pt.call(-m_out, 32.0 + m_out)
 		var p1_out: Vector2 = get_pt.call(-m_out, -m_out)
 		_draw_gradient_quad(p1_in, p2_in, p2_out, p1_out, col_in, col_in, col_out, col_out)
 
-		# Quad B: North-East Border (gx from -m to 24, gy = -m)
+		# Quad B: North-East Border (gx from -m to 32, gy = -m)
 		var q1_in: Vector2 = get_pt.call(-m_in, -m_in)
-		var q2_in: Vector2 = get_pt.call(24.0 + m_in, -m_in)
-		var q2_out: Vector2 = get_pt.call(24.0 + m_out, -m_out)
+		var q2_in: Vector2 = get_pt.call(32.0 + m_in, -m_in)
+		var q2_out: Vector2 = get_pt.call(32.0 + m_out, -m_out)
 		var q1_out: Vector2 = get_pt.call(-m_out, -m_out)
 		_draw_gradient_quad(q1_in, q2_in, q2_out, q1_out, col_in, col_in, col_out, col_out)
 
-		# Quad C: South-West Border (gx from -m to 24, gy = 24+m)
-		var r1_in: Vector2 = get_pt.call(-m_in, 24.0 + m_in)
-		var r2_in: Vector2 = get_pt.call(24.0 + m_in, 24.0 + m_in)
-		var r2_out: Vector2 = get_pt.call(24.0 + m_out, 24.0 + m_out)
-		var r1_out: Vector2 = get_pt.call(-m_out, 24.0 + m_out)
+		# Quad C: South-West Border (gx from -m to 32, gy = 32+m)
+		var r1_in: Vector2 = get_pt.call(-m_in, 32.0 + m_in)
+		var r2_in: Vector2 = get_pt.call(32.0 + m_in, 32.0 + m_in)
+		var r2_out: Vector2 = get_pt.call(32.0 + m_out, 32.0 + m_out)
+		var r1_out: Vector2 = get_pt.call(-m_out, 32.0 + m_out)
 		_draw_gradient_quad(r1_in, r2_in, r2_out, r1_out, col_in, col_in, col_out, col_out)
 
-		# Quad D: North Headland to Ocean transition (gx >= 24, gy <= -m)
-		var nh1_in: Vector2 = get_pt.call(24.0, -m_in)
-		var nh2_in: Vector2 = get_pt.call(32.0 + m_in, -m_in)
-		var nh2_out: Vector2 = get_pt.call(32.0 + m_out, -m_out)
-		var nh1_out: Vector2 = get_pt.call(24.0, -m_out)
+		# Quad D: North Headland to Ocean transition (gx >= 32, gy <= -m)
+		var nh1_in: Vector2 = get_pt.call(32.0, -m_in)
+		var nh2_in: Vector2 = get_pt.call(40.0 + m_in, -m_in)
+		var nh2_out: Vector2 = get_pt.call(40.0 + m_out, -m_out)
+		var nh1_out: Vector2 = get_pt.call(32.0, -m_out)
 		_draw_gradient_quad(nh1_in, nh2_in, nh2_out, nh1_out, col_in, col_in, col_out, col_out)
 
-		# Quad E: South Headland to Ocean transition (gx >= 24, gy >= 24+m)
-		var sh1_in: Vector2 = get_pt.call(24.0, 24.0 + m_in)
-		var sh2_in: Vector2 = get_pt.call(32.0 + m_in, 24.0 + m_in)
-		var sh2_out: Vector2 = get_pt.call(32.0 + m_out, 24.0 + m_out)
-		var sh1_out: Vector2 = get_pt.call(24.0, 24.0 + m_out)
+		# Quad E: South Headland to Ocean transition (gx >= 32, gy >= 32+m)
+		var sh1_in: Vector2 = get_pt.call(32.0, 32.0 + m_in)
+		var sh2_in: Vector2 = get_pt.call(40.0 + m_in, 32.0 + m_in)
+		var sh2_out: Vector2 = get_pt.call(40.0 + m_out, 32.0 + m_out)
+		var sh1_out: Vector2 = get_pt.call(32.0, 32.0 + m_out)
 		_draw_gradient_quad(sh1_in, sh2_in, sh2_out, sh1_out, col_in, col_in, col_out, col_out)
 
 	# -----------------------------------------------------------------------

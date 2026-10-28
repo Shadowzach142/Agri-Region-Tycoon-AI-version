@@ -60,22 +60,23 @@ func _ready() -> void:
 	assert(parcel_unlocked, "east_meadows should unlock with ₱50000")
 
 	# Ensure test 4x4 coastline plots are clean EMPTY plots (clear any procedural rocks/trees)
+	var coast_x: int = farm_grid.GRID_SIZE.x - 4
 	for dx in range(4):
 		for dy in range(4):
-			var t: FarmTile = farm_grid.tiles[20 + dx][2 + dy]
+			var t: FarmTile = farm_grid.tiles[coast_x + dx][2 + dy]
 			t.state = FarmTile.TileState.EMPTY
 
 	farm_grid.placing_building_type = "gensan_seaport"
 	farm_grid.placing_footprint = Vector2i(4, 4)
 
-	# Try placing away from coast: at (14, 2) -> (14+4 = 18 != 24) -> invalid!
-	var invalid_pos := Vector2i(14, 2)
+	# Try placing away from coast: at (18, 2) -> (18+4 = 22 != GRID_SIZE.x) -> invalid!
+	var invalid_pos := Vector2i(18, 2)
 	assert(farm_grid.is_valid_building_placement(invalid_pos, Vector2i(4, 4)) == false, "Seaport must be rejected inland")
 
-	# Try placing at coast: at (20, 2) -> (20+4 = 24 == GRID_SIZE.x) -> valid!
-	var valid_coast_pos := Vector2i(20, 2)
+	# Try placing at coast: at (coast_x, 2) -> (coast_x+4 == GRID_SIZE.x) -> valid!
+	var valid_coast_pos := Vector2i(coast_x, 2)
 	assert(farm_grid.is_valid_building_placement(valid_coast_pos, Vector2i(4, 4)) == true, "Seaport must be allowed on eastern coastline")
-	print("✔ Check 4 Passed: Seaport is strictly restricted to the eastern coastline (x+4 == 24).")
+	print("✔ Check 4 Passed: Seaport is strictly restricted to the eastern coastline (x+4 == %d)." % farm_grid.GRID_SIZE.x)
 
 	# 6. Test Building Placement & Hub Activation
 	# Ensure Tacurong Mill test plots are clean

@@ -14,9 +14,9 @@ signal task_queued(task: Dictionary)
 signal parcel_unlocked(parcel_id: String)
 
 # ---------------------------------------------------------------------------
-# Grid constants (24x24 world island with expandable 12x12 parcels)
+# Grid constants (32x32 world island with expandable 16x16 parcels)
 # ---------------------------------------------------------------------------
-const GRID_SIZE:      Vector2i = Vector2i(24, 24)
+const GRID_SIZE:      Vector2i = Vector2i(32, 32)
 const TILE_PIXEL_SIZE: int     = 64
 const TILE_BORDER_SIZE: int    = 2
 
@@ -475,8 +475,9 @@ func _create_grid() -> void:
 		_create_parcel_signposts()
 
 func _seed_natural_obstacles() -> void:
-	# Starting 12x12 homestead: exactly 1 tree and 1 rock as requested
-	_procedural_generate_obstacles_in_rect(Rect2i(0, 0, 12, 12), 1, 1)
+	# Starting 16x16 homestead: exactly 1 tree and 1 rock as requested
+	var h_rect: Rect2i = Data.get_parcel("homestead").get("rect", Rect2i(0, 0, 16, 16))
+	_procedural_generate_obstacles_in_rect(h_rect, 1, 1)
 
 ## Procedurally places a balanced scattering of trees and rocks within a parcel rectangle.
 ## Guarantees obstacles NEVER layer on buildings, starting courtyard, signposts, or adjacent to other obstacles.
@@ -509,7 +510,7 @@ func _procedural_generate_obstacles_in_rect(rect: Rect2i, num_trees: int, num_ro
 				if p.get("sign_tile", Vector2i(-1, -1)) == pos:
 					is_sign_tile = true
 					break
-			if pos in [Vector2i(0, 4), Vector2i(12, 4), Vector2i(4, 12), Vector2i(12, 16)]:
+			if pos in [Vector2i(0, 4), Vector2i(16, 4), Vector2i(4, 16), Vector2i(16, 16)]:
 				is_sign_tile = true
 			if is_sign_tile:
 				continue

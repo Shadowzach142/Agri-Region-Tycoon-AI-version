@@ -99,14 +99,14 @@ func _create_procedural_particles() -> void:
 	_rain_particles.emitting = false
 	_atmos_layer.add_child(_rain_particles)
 
-	# 3. Ground Splashes (World Space — covers the full 24x24 isometric island centered at (768, 832))
+	# 3. Ground Splashes (World Space — covers the full 32x32 isometric island centered at (768, 1088))
 	_splash_particles = CPUParticles2D.new()
 	_splash_particles.name = "RainSplashParticles"
-	_splash_particles.amount = 160
+	_splash_particles.amount = 220
 	_splash_particles.lifetime = 0.3
 	_splash_particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	_splash_particles.emission_rect_extents = Vector2(1500, 750)
-	_splash_particles.position = Vector2(768, 832)
+	_splash_particles.emission_rect_extents = Vector2(2100, 1050)
+	_splash_particles.position = Vector2(768, 1088)
 	_splash_particles.direction = Vector2(0, -1.0)
 	_splash_particles.spread = 75.0
 	_splash_particles.gravity = Vector2(0, 450)
@@ -137,15 +137,15 @@ func _create_procedural_particles() -> void:
 	_dust_particles.emitting = false
 	_atmos_layer.add_child(_dust_particles)
 
-	# 5. Magical Night Fireflies (Alitaptap — World Space across the 24x24 farm island)
+	# 5. Magical Night Fireflies (Alitaptap — World Space across the 32x32 farm island)
 	_fireflies_particles = CPUParticles2D.new()
 	_fireflies_particles.name = "NightFireflies"
-	_fireflies_particles.amount = 55
+	_fireflies_particles.amount = 75
 	_fireflies_particles.lifetime = 4.5
 	_fireflies_particles.preprocess = 2.0
 	_fireflies_particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	_fireflies_particles.emission_rect_extents = Vector2(1400, 700)
-	_fireflies_particles.position = Vector2(768, 832)
+	_fireflies_particles.emission_rect_extents = Vector2(2000, 1000)
+	_fireflies_particles.position = Vector2(768, 1088)
 	_fireflies_particles.direction = Vector2(0.3, -0.3)
 	_fireflies_particles.spread = 180.0
 	_fireflies_particles.gravity = Vector2(0, -4)

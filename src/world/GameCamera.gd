@@ -17,14 +17,14 @@ extends Camera2D
 @export var keyboard_speed: float     = 620.0
 
 # Zoom settings
-@export var min_zoom: float           = 0.58
+@export var min_zoom: float           = 0.45
 @export var max_zoom: float           = 1.80
 @export var zoom_step: float          = 0.12
 @export var zoom_smoothness: float    = 14.0
 
 # World boundary limits (outer visible bounds that viewport edges must never cross)
-@export var world_bounds_min: Vector2 = Vector2(-950, -220)
-@export var world_bounds_max: Vector2 = Vector2(2500, 1880)
+@export var world_bounds_min: Vector2 = Vector2(-1550, -320)
+@export var world_bounds_max: Vector2 = Vector2(3400, 2480)
 
 # Backward compatibility aliases
 var limit_min: Vector2:
@@ -45,12 +45,12 @@ var is_dragging: bool        = false
 
 func _ready() -> void:
 	enabled = true
-	# Center camera on the 2.5D isometric farm island (homestead center is (768, 480))
+	# Center camera on the 2.5D isometric farm island (16x16 homestead center is (768, 576))
 	var farm = get_parent().get_node_or_null("FarmGrid")
 	if farm:
-		position = farm.position + Vector2(768.0, 480.0)
+		position = farm.position + Vector2(768.0, 576.0)
 	else:
-		position = Vector2(768.0, 480.0)
+		position = Vector2(768.0, 576.0)
 
 	target_zoom     = zoom
 	target_position = _clamp_to_world_bounds(position, target_zoom.x)
@@ -87,9 +87,9 @@ func pan_to(world_pos: Vector2) -> void:
 func center_on_homestead() -> void:
 	var farm = get_parent().get_node_or_null("FarmGrid")
 	if farm:
-		pan_to(farm.position + Vector2(768.0, 480.0))
+		pan_to(farm.position + Vector2(768.0, 576.0))
 	else:
-		pan_to(Vector2(768.0, 480.0))
+		pan_to(Vector2(768.0, 576.0))
 
 func _process(delta: float) -> void:
 	var move_dir := Vector2.ZERO

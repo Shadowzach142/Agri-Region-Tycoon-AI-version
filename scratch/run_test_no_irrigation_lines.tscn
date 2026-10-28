@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://blpfq5b5agbuu"]
+
+[ext_resource type="Script" path="res://scratch/test_no_irrigation_lines.gd" id="1_test"]
+
+[node name="TestRunner" type="Node"]
+script = ExtResource("1_test")

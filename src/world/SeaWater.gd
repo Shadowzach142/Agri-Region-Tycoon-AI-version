@@ -6,9 +6,9 @@
 class_name SeaWater
 extends Node2D
 
-const COAST_X: float = 24.0
+const COAST_X: float = 32.0
 const OCEAN_WIDTH: float = 14.0 # Extends 14 isometric tile lengths east
-const GRID_HEIGHT: float = 24.0
+const GRID_HEIGHT: float = 32.0
 
 var _ocean_polygon: PackedVector2Array = []
 var _coast_line: PackedVector2Array = []
@@ -24,13 +24,13 @@ func _rebuild_geometry() -> void:
 	_ocean_polygon.clear()
 	_coast_line.clear()
 
-	# Corner 1: (24, 0)
+	# Corner 1: (32, 0)
 	var p_top_shore := _get_iso_pt(COAST_X, 0.0)
-	# Corner 2: (24 + W, 0)
+	# Corner 2: (32 + W, 0)
 	var p_top_deep := _get_iso_pt(COAST_X + OCEAN_WIDTH, 0.0)
-	# Corner 3: (24 + W, 24)
+	# Corner 3: (32 + W, 32)
 	var p_bot_deep := _get_iso_pt(COAST_X + OCEAN_WIDTH, GRID_HEIGHT)
-	# Corner 4: (24, 24)
+	# Corner 4: (32, 32)
 	var p_bot_shore := _get_iso_pt(COAST_X, GRID_HEIGHT)
 
 	_ocean_polygon = PackedVector2Array([
@@ -40,7 +40,7 @@ func _rebuild_geometry() -> void:
 		p_bot_shore
 	])
 
-	# Shoreline vertices from (24, 0) to (24, 24)
+	# Shoreline vertices from (32, 0) to (32, 32)
 	for y in range(int(GRID_HEIGHT) + 1):
 		_coast_line.append(_get_iso_pt(COAST_X, float(y)))
 
@@ -103,7 +103,7 @@ func _draw() -> void:
 		draw_line(p1, p2, col, 2.0)
 
 	# 5. Navigational marker buoys floating in Sarangani bay
-	var buoy_positions := [Vector2(25.5, 6.0), Vector2(26.0, 14.0), Vector2(25.0, 20.0)]
+	var buoy_positions := [Vector2(33.5, 8.0), Vector2(34.0, 18.0), Vector2(33.0, 26.0)]
 	for bp in buoy_positions:
 		var pt := _get_iso_pt(bp.x, bp.y) + Vector2(0, sin(t * 2.5 + bp.y) * 2.5)
 		draw_circle(pt + Vector2(0, 3), 4.0, Color(0.02, 0.10, 0.18, 0.40))

@@ -152,7 +152,7 @@ mouse_filter = 2
 color = Color(0.38, 0.28, 0.18, 1)
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=857115497]
-position = Vector2(768, 480)
+position = Vector2(768, 576)
 zoom = Vector2(1.25, 1.25)
 script = ExtResource("8_camera")
 

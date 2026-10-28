@@ -121,7 +121,7 @@ func _build_ui() -> void:
 	title_vbox.add_child(_title_lbl)
 
 	_subtitle_lbl = Label.new()
-	_subtitle_lbl.text = "Central Homestead (12×12 Plots)"
+	_subtitle_lbl.text = "Central Homestead (16×16 Plots)"
 	_subtitle_lbl.add_theme_font_size_override("font_size", 10)
 	_subtitle_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 	title_vbox.add_child(_subtitle_lbl)
