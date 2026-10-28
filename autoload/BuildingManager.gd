@@ -227,17 +227,18 @@ func unlock_crop(crop_key: String) -> bool:
 	AudioManager.play_tech("unlock")
 	return true
 
-## Returns the owned Farm Drone level derived from placed & upgraded Drone Landing Pads:
-## 0 = no active pad, 1 = plow & water, 2 = +seeder & IPM, 3 = +master harvester
+## Returns the owned Farm Drone level derived from placed Drone Command Hangar:
+## - The Drone Command Hangar levels up ALL drones fleet-wide (Lv.1 to Lv.3)
+## - If landing pads exist without a hangar, drones operate at basic Lv.1 (plowing & watering)
+## - 0 = no active drone infrastructure
 func get_drone_level() -> int:
 	if Data.game_mode == "sandbox":
 		return 3
-	var max_lvl: int = 0
-	for b in placed_buildings:
-		if is_instance_valid(b) and (b.building_type == "drone_pad" or b.building_type == "drone_station") and b.state == b.BuildingState.ACTIVE:
-			max_lvl = maxi(max_lvl, b.level)
-	if max_lvl > 0:
-		return clampi(max_lvl, 1, 3)
+	var hangar = get_drone_hangar()
+	if is_instance_valid(hangar) and hangar.state == hangar.BuildingState.ACTIVE:
+		return clampi(hangar.level, 1, 3)
+	if get_drone_pad_count() > 0:
+		return 1
 
 	# Fallback check for legacy unlocked tech
 	if unlocked_techs.has("farm_drone_3"):
@@ -248,10 +249,19 @@ func get_drone_level() -> int:
 		return 1
 	return 0
 
+func get_drone_hangar() -> Node:
+	for b in placed_buildings:
+		if is_instance_valid(b) and b.building_type == "drone_station" and b.state == b.BuildingState.ACTIVE:
+			return b
+	return null
+
+func has_drone_hangar() -> bool:
+	return get_drone_hangar() != null
+
 func get_drone_stations() -> Array:
 	var list: Array = []
 	for b in placed_buildings:
-		if is_instance_valid(b) and (b.building_type == "drone_station" or b.building_type == "drone_pad") and b.state == b.BuildingState.ACTIVE:
+		if is_instance_valid(b) and b.building_type == "drone_station" and b.state == b.BuildingState.ACTIVE:
 			list.append(b)
 	return list
 
@@ -259,14 +269,13 @@ func get_drone_station_count() -> int:
 	return get_drone_stations().size()
 
 func get_drone_station() -> Node:
-	var stations := get_drone_stations()
-	return stations[0] if not stations.is_empty() else null
+	return get_drone_hangar()
 
 func has_drone_station() -> bool:
-	return get_drone_pad_count() > 0 or get_drone_station_count() > 0
+	return has_drone_hangar() or has_drone_pad()
 
 func has_drone_pad() -> bool:
-	return get_drone_pad_count() > 0 or get_drone_station_count() > 0
+	return get_drone_pad_count() > 0
 
 func get_drone_pads() -> Array:
 	var list: Array = []
@@ -278,20 +287,15 @@ func get_drone_pads() -> Array:
 func get_drone_pad_count() -> int:
 	return get_drone_pads().size()
 
-func get_drone_pads_capacity() -> int:
-	var total: int = 0
-	for b in placed_buildings:
-		if is_instance_valid(b) and b.building_type == "drone_pad" and b.state == b.BuildingState.ACTIVE:
-			total += clampi(b.level, 1, 3)
-	return total
-
 ## Returns total drone capacity across the farm:
-## - Drone Landing Pads store 1..3 drones per pad (like Bahay Kubo for drones)
-## - Upgrades advance drone level (Lv.1, Lv.2, Lv.3) and capacity
+## Each Drone Landing Pad provides 1 drone dock/berth into your active fleet.
 func get_drone_capacity() -> int:
 	if Data.game_mode == "sandbox":
-		return maxi(get_drone_pads_capacity(), 3)
-	return get_drone_pads_capacity()
+		return maxi(get_drone_pad_count(), 3)
+	return get_drone_pad_count()
+
+func get_drone_pads_capacity() -> int:
+	return get_drone_capacity()
 
 func can_commission_drone() -> bool:
 	if Data.game_mode == "sandbox":

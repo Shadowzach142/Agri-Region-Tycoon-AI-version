@@ -239,14 +239,23 @@ var close_btn: Button = null
 
 var tex_dark_box: Texture2D = null
 var tex_light_box: Texture2D = null
+var tex_drone_dark_box: Texture2D = null
+var tex_drone_light_box: Texture2D = null
 var tex_info_box: Texture2D = null
+var tex_tab_arrow_left: Texture2D = null
+var tex_tab_arrow_left_hov: Texture2D = null
+var tex_tab_arrow_right: Texture2D = null
+var tex_tab_arrow_right_hov: Texture2D = null
+var style_brown_btn: StyleBox = null
+var style_brown_btn_hov: StyleBox = null
+var style_brown_btn_press: StyleBox = null
 var _texture_cache: Dictionary = {}
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(160, 52)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# Load HUD square button textures from Squarebutton folder (fallback to Hopbar)
+	# Load HUD square button textures for farmer (wood/brown)
 	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Squarebutton/brown-button.png"):
 		tex_dark_box = load("res://assets/sprites/hud/Buttons/Squarebutton/brown-button.png")
 	elif ResourceLoader.exists("res://assets/sprites/hud/Hopbar/small-dark-box.png"):
@@ -260,6 +269,30 @@ func _ready() -> void:
 		tex_light_box = load("res://assets/sprites/hud/Hopbar/small-ligh-box.png")
 	elif ResourceLoader.exists("res://assets/sprites/hud/Small-Rectangular-Box/small-ligh-box.png"):
 		tex_light_box = load("res://assets/sprites/hud/Small-Rectangular-Box/small-ligh-box.png")
+
+	# Load HUD square button textures for drone (sleek grey/silver metallic chassis)
+	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/drone-dark-box.png"):
+		tex_drone_dark_box = load("res://assets/sprites/hud/Hopbar/drone-dark-box.png")
+	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/drone-light-box.png"):
+		tex_drone_light_box = load("res://assets/sprites/hud/Hopbar/drone-light-box.png")
+
+	# Load official HUD arrow buttons
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_normal.png"):
+		tex_tab_arrow_left = load("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_normal.png")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_hover.png"):
+		tex_tab_arrow_left_hov = load("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_hover.png")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_normal.png"):
+		tex_tab_arrow_right = load("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_normal.png")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_hover.png"):
+		tex_tab_arrow_right_hov = load("res://assets/sprites/hud/Buttons/Arrows/tab_arrow_right_hover.png")
+
+	# Load official HUD wooden button styles
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"):
+		style_brown_btn = load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres"):
+		style_brown_btn_hov = load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres")
+	if ResourceLoader.exists("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"):
+		style_brown_btn_press = load("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres")
 
 	if ResourceLoader.exists("res://assets/sprites/hud/Hopbar/information-box.png"):
 		tex_info_box = load("res://assets/sprites/hud/Hopbar/information-box.png")
@@ -297,38 +330,129 @@ func _get_selected_drone() -> FarmDrone:
 		return farm_grid.get_selected_drone()
 	return null
 
+func _get_drone_capability_level() -> int:
+	var sel_drone := _get_selected_drone()
+	if sel_drone:
+		return sel_drone.get_level()
+	return BuildingManager.get_drone_level()
+
+func _is_category_locked_for_unit(cat_id: String) -> bool:
+	if not _is_drone_mode():
+		return false
+	var lvl := _get_drone_capability_level()
+	if cat_id == "seeds":
+		return lvl < 2 # Requires Drone Command Hangar Lv. 2 for Precision Seeding
+	if cat_id == "treatments":
+		return lvl < 2 # Requires Drone Command Hangar Lv. 2 for IPM Spray
+	return false
+
+func _is_flyout_item_locked_for_drone(item_id: String) -> bool:
+	if not _is_drone_mode():
+		return false
+	var lvl := _get_drone_capability_level()
+	match item_id:
+		"plant":
+			return lvl < 2 # Requires Drone Command Hangar Lv. 2
+		"harvest":
+			return lvl < 3 # Requires Drone Command Hangar Lv. 3
+		"auto_loop":
+			return lvl < 2 # Requires at least Lv. 2 for seeding
+	return false
+
+func _get_slot_texture(is_active: bool) -> Texture2D:
+	if _is_drone_mode():
+		return (tex_drone_light_box if tex_drone_light_box else tex_light_box) if is_active else (tex_drone_dark_box if tex_drone_dark_box else tex_dark_box)
+	return tex_light_box if is_active else tex_dark_box
+
 func _get_active_category_data(cat_id: String) -> Dictionary:
 	if _is_drone_mode() and DRONE_CATEGORY_DATA.has(cat_id):
 		return DRONE_CATEGORY_DATA[cat_id]
 	return CATEGORY_DATA.get(cat_id, {})
 
-func _style_mini_button(btn: Button, text_color: Color = Color(0.92, 0.88, 0.82)) -> void:
+func _style_arrow_button(btn: Button, is_left: bool) -> void:
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	btn.flat = true
+	var s_empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", s_empty)
+	btn.add_theme_stylebox_override("hover", s_empty)
+	btn.add_theme_stylebox_override("pressed", s_empty)
+	btn.add_theme_stylebox_override("focus", s_empty)
+	btn.mouse_entered.connect(func():
+		if is_left and tex_tab_arrow_left_hov:
+			btn.icon = tex_tab_arrow_left_hov
+		elif not is_left and tex_tab_arrow_right_hov:
+			btn.icon = tex_tab_arrow_right_hov
+	)
+	btn.mouse_exited.connect(func():
+		if is_left and tex_tab_arrow_left:
+			btn.icon = tex_tab_arrow_left
+		elif not is_left and tex_tab_arrow_right:
+			btn.icon = tex_tab_arrow_right
+	)
+
+func _style_capsule_button(btn: Button, is_drone: bool, _is_switch_action: bool = false) -> void:
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	btn.add_theme_font_size_override("font_size", 9)
-	btn.add_theme_color_override("font_color", text_color)
-	btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.6))
-	var s_norm := StyleBoxFlat.new()
-	s_norm.bg_color = Color(0.12, 0.09, 0.06, 0.92)
-	s_norm.border_color = Color(0.65, 0.50, 0.25, 0.80)
-	s_norm.border_width_left = 1
-	s_norm.border_width_top = 1
-	s_norm.border_width_right = 1
-	s_norm.border_width_bottom = 1
-	s_norm.corner_radius_top_left = 3
-	s_norm.corner_radius_top_right = 3
-	s_norm.corner_radius_bottom_left = 3
-	s_norm.corner_radius_bottom_right = 3
-	s_norm.content_margin_left = 4
-	s_norm.content_margin_right = 4
-	s_norm.content_margin_top = 1
-	s_norm.content_margin_bottom = 1
-	btn.add_theme_stylebox_override("normal", s_norm)
-	var s_hov := s_norm.duplicate()
-	s_hov.bg_color = Color(0.24, 0.18, 0.10, 0.95)
-	s_hov.border_color = Color(0.95, 0.80, 0.35, 1.0)
-	btn.add_theme_stylebox_override("hover", s_hov)
-	btn.add_theme_stylebox_override("pressed", s_hov)
+	if is_drone:
+		# High-tech gunmetal & cyan-silver border
+		btn.add_theme_color_override("font_color", Color(0.45, 0.92, 1.0))
+		btn.add_theme_color_override("font_hover_color", Color(0.85, 0.98, 1.0))
+		var s_norm := StyleBoxFlat.new()
+		s_norm.bg_color = Color(0.18, 0.22, 0.27, 0.95)
+		s_norm.border_color = Color(0.40, 0.85, 1.0, 0.90)
+		s_norm.border_width_left = 1
+		s_norm.border_width_top = 1
+		s_norm.border_width_right = 1
+		s_norm.border_width_bottom = 1
+		s_norm.corner_radius_top_left = 3
+		s_norm.corner_radius_top_right = 3
+		s_norm.corner_radius_bottom_left = 3
+		s_norm.corner_radius_bottom_right = 3
+		s_norm.content_margin_left = 6
+		s_norm.content_margin_right = 6
+		s_norm.content_margin_top = 2
+		s_norm.content_margin_bottom = 2
+		btn.add_theme_stylebox_override("normal", s_norm)
+		var s_hov := s_norm.duplicate()
+		s_hov.bg_color = Color(0.24, 0.30, 0.38, 0.98)
+		s_hov.border_color = Color(0.70, 0.95, 1.0, 1.0)
+		btn.add_theme_stylebox_override("hover", s_hov)
+		btn.add_theme_stylebox_override("pressed", s_hov)
+	else:
+		# Warm wooden HUD button style
+		btn.add_theme_color_override("font_color", Color(1.0, 0.90, 0.55))
+		btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.75))
+		if style_brown_btn:
+			btn.add_theme_stylebox_override("normal", style_brown_btn)
+			btn.add_theme_stylebox_override("hover", style_brown_btn_hov if style_brown_btn_hov else style_brown_btn)
+			btn.add_theme_stylebox_override("pressed", style_brown_btn_press if style_brown_btn_press else style_brown_btn)
+		else:
+			var s_norm := StyleBoxFlat.new()
+			s_norm.bg_color = Color(0.18, 0.12, 0.08, 0.95)
+			s_norm.border_color = Color(0.75, 0.55, 0.28, 0.90)
+			s_norm.border_width_left = 1
+			s_norm.border_width_top = 1
+			s_norm.border_width_right = 1
+			s_norm.border_width_bottom = 1
+			s_norm.corner_radius_top_left = 3
+			s_norm.corner_radius_top_right = 3
+			s_norm.corner_radius_bottom_left = 3
+			s_norm.corner_radius_bottom_right = 3
+			s_norm.content_margin_left = 6
+			s_norm.content_margin_right = 6
+			s_norm.content_margin_top = 2
+			s_norm.content_margin_bottom = 2
+			btn.add_theme_stylebox_override("normal", s_norm)
+			var s_hov := s_norm.duplicate()
+			s_hov.bg_color = Color(0.28, 0.19, 0.12, 0.98)
+			s_hov.border_color = Color(0.95, 0.80, 0.35, 1.0)
+			btn.add_theme_stylebox_override("hover", s_hov)
+			btn.add_theme_stylebox_override("pressed", s_hov)
+
+func _style_mini_button(btn: Button, text_color: Color = Color(0.92, 0.88, 0.82)) -> void:
+	_style_capsule_button(btn, false)
 
 func _on_cycle_unit_next() -> void:
 	var farm_grid = get_tree().root.find_child("FarmGrid", true, false)
@@ -371,6 +495,11 @@ func _on_switch_unit_type() -> void:
 		if farm_grid and not farm_grid.drones.is_empty():
 			TaskManager.deselect_all_farmers()
 			farm_grid.select_drone_by_index(1)
+			var d_lvl: int = BuildingManager.get_drone_level()
+			if d_lvl < 2:
+				active_category = "tools"
+				selected_category_items["tools"] = "plow"
+				selected_tool = "plow"
 		else:
 			AudioManager.play_ui("error")
 			LogManager.log_event("buildings", "Build a Drone Landing Pad in Agri-Shop to get drones!", "🛸", Color(1.0, 0.4, 0.4))
@@ -413,16 +542,29 @@ func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
 	var active_drone_count: int = farm_grid.drones.size() if (farm_grid and "drones" in farm_grid) else 0
 
 	if sel_drone != null:
+		var d_lvl := sel_drone.get_level()
 		var crop_disp: String = str(Data.get_crop(sel_drone.crop_type).get("display_name", sel_drone.crop_type))
-		_unit_pill_btn.text = "🛸 %s (Lv.%d)" % [sel_drone.get_drone_name(), sel_drone.get_level()]
-		_unit_pill_btn.tooltip_text = "%s assigned to %s\nClick to cycle to next drone" % [sel_drone.get_drone_name(), crop_disp]
+		_unit_pill_btn.text = "🛸 %s (Lv.%d)" % [sel_drone.get_drone_name(), d_lvl]
+		_unit_pill_btn.tooltip_text = "%s (Lv.%d)\nClick to cycle to next drone" % [sel_drone.get_drone_name(), d_lvl]
+		_style_capsule_button(_unit_pill_btn, true, false)
+
 		_unit_switch_type_btn.text = "👨‍🌾 Workers"
 		_unit_switch_type_btn.tooltip_text = "Switch command to human farm workers"
 		_unit_switch_type_btn.visible = true
+		_style_capsule_button(_unit_switch_type_btn, false, true)
+
+		# If Lv.1, ensure selected tool in slot 2 is valid for Lv.1 (e.g. plow)
+		if d_lvl < 2 and selected_category_items.get("tools", "") in ["auto_loop", "plant", "harvest"]:
+			selected_category_items["tools"] = "plow"
+			if selected_tool in ["auto_loop", "plant", "harvest"]:
+				selected_tool = "plow"
+
 		if worker_header_label:
-			worker_header_label.text = "🛸 %s Ready • Assigned: %s • Field: %s" % [
+			var task_status: String = "Plow & Water" if d_lvl == 1 else ("Seeder & Spray" if d_lvl == 2 else "Full Harvest Loop")
+			worker_header_label.text = "🛸 %s Ready (Lv.%d %s) • Field: %s" % [
 				sel_drone.get_drone_name(),
-				crop_disp,
+				d_lvl,
+				task_status,
 				("%d Plots" % sel_drone.zone.size()) if not sel_drone.zone.is_empty() else "None (Drag Box on Farm)"
 			]
 	else:
@@ -441,10 +583,12 @@ func _update_unit_header(selected: Array, sel_drone: FarmDrone = null) -> void:
 		else:
 			_unit_pill_btn.text = "👨‍🌾 Squad (%d)" % selected.size()
 			_unit_pill_btn.tooltip_text = "Click to cycle workers"
+		_style_capsule_button(_unit_pill_btn, false, false)
 
 		_unit_switch_type_btn.text = "🛸 Drones"
 		_unit_switch_type_btn.visible = (active_drone_count > 0)
 		_unit_switch_type_btn.tooltip_text = "Switch command to autonomous drone fleet"
+		_style_capsule_button(_unit_switch_type_btn, true, true)
 		if worker_header_label:
 			worker_header_label.text = "👨‍🌾 %s Ready • Click Slot to Choose & Click/Drag Field" % w_name
 
@@ -528,9 +672,14 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 
 	_unit_prev_btn = Button.new()
 	_unit_prev_btn.name = "UnitPrevBtn"
-	_unit_prev_btn.text = "◀"
 	_unit_prev_btn.custom_minimum_size = Vector2(18, 20)
-	_style_mini_button(_unit_prev_btn)
+	_unit_prev_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unit_prev_btn.expand_icon = true
+	if tex_tab_arrow_left:
+		_unit_prev_btn.icon = tex_tab_arrow_left
+	else:
+		_unit_prev_btn.text = "◀"
+	_style_arrow_button(_unit_prev_btn, true)
 	_unit_prev_btn.pressed.connect(_on_cycle_unit_prev)
 	unit_bar.add_child(_unit_prev_btn)
 
@@ -538,15 +687,20 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 	_unit_pill_btn.name = "UnitPillBtn"
 	_unit_pill_btn.text = "👨‍🌾 Worker 1"
 	_unit_pill_btn.custom_minimum_size = Vector2(104, 20)
-	_style_mini_button(_unit_pill_btn, Color(1.0, 0.88, 0.45))
+	_style_capsule_button(_unit_pill_btn, false, false)
 	_unit_pill_btn.pressed.connect(_on_cycle_unit_next)
 	unit_bar.add_child(_unit_pill_btn)
 
 	_unit_next_btn = Button.new()
 	_unit_next_btn.name = "UnitNextBtn"
-	_unit_next_btn.text = "▶"
 	_unit_next_btn.custom_minimum_size = Vector2(18, 20)
-	_style_mini_button(_unit_next_btn)
+	_unit_next_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_unit_next_btn.expand_icon = true
+	if tex_tab_arrow_right:
+		_unit_next_btn.icon = tex_tab_arrow_right
+	else:
+		_unit_next_btn.text = "▶"
+	_style_arrow_button(_unit_next_btn, false)
 	_unit_next_btn.pressed.connect(_on_cycle_unit_next)
 	unit_bar.add_child(_unit_next_btn)
 
@@ -554,7 +708,7 @@ func _setup_primary_dock(parent: VBoxContainer) -> void:
 	_unit_switch_type_btn.name = "UnitSwitchTypeBtn"
 	_unit_switch_type_btn.text = "🛸 Drones"
 	_unit_switch_type_btn.custom_minimum_size = Vector2(64, 20)
-	_style_mini_button(_unit_switch_type_btn, Color(0.4, 0.88, 1.0))
+	_style_capsule_button(_unit_switch_type_btn, true, true)
 	_unit_switch_type_btn.pressed.connect(_on_switch_unit_type)
 	unit_bar.add_child(_unit_switch_type_btn)
 
@@ -922,6 +1076,14 @@ func _setup_hover_card(parent: VBoxContainer) -> void:
 # Category Slot Interactions & Flyout Populating
 # ---------------------------------------------------------------------------
 func _on_category_slot_pressed(cat_id: String) -> void:
+	if _is_drone_mode() and _is_category_locked_for_unit(cat_id):
+		AudioManager.play_ui("error")
+		if cat_id == "seeds":
+			show_hotbar_feedback("🔒 Drone Seeder Locked: Requires Drone Command Hangar Lv. 2", Color(1.0, 0.45, 0.45))
+		elif cat_id == "treatments":
+			show_hotbar_feedback("🔒 Drone IPM Locked: Requires Drone Command Hangar Lv. 2", Color(1.0, 0.45, 0.45))
+		return
+
 	if open_flyout_category == cat_id:
 		_close_flyout()
 	else:
@@ -956,7 +1118,7 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		if cat_id == "seeds":
 			cur_sel = sel_drone.crop_type
 		elif cat_id == "tools":
-			cur_sel = selected_category_items.get("tools", "auto_loop")
+			cur_sel = selected_category_items.get("tools", "plow" if _get_drone_capability_level() < 2 else "auto_loop")
 		elif cat_id == "treatments":
 			cur_sel = selected_category_items.get("treatments", "spray_chemical")
 	else:
@@ -966,6 +1128,7 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		var item_id: String = item.id
 		if cat_id == "seeds" and not BuildingManager.is_crop_unlocked(item_id):
 			continue
+		var is_locked: bool = _is_flyout_item_locked_for_drone(item_id)
 		var btn := Button.new()
 		btn.name = "FlyoutItem_" + item_id
 		btn.custom_minimum_size = Vector2(40, 40) # Pure square box like Minecraft!
@@ -974,11 +1137,16 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 		var is_cur: bool = (item_id == cur_sel)
-		var s_item := _create_stylebox_from_texture(tex_light_box if is_cur else tex_dark_box, is_cur, false)
-		var s_item_hov := _create_stylebox_from_texture(tex_light_box, is_cur, true)
+		var norm_tex: Texture2D = _get_slot_texture(is_cur)
+		var hov_tex: Texture2D = _get_slot_texture(true)
+		var s_item := _create_stylebox_from_texture(norm_tex, is_cur, false)
+		var s_item_hov := _create_stylebox_from_texture(hov_tex, is_cur, true)
 		btn.add_theme_stylebox_override("normal", s_item)
 		btn.add_theme_stylebox_override("hover", s_item_hov)
 		btn.add_theme_stylebox_override("pressed", s_item_hov)
+
+		if is_locked:
+			btn.modulate = Color(0.65, 0.65, 0.75, 0.75)
 
 		# CenterContainer inside the square flyout button guarantees perfect centering IN THE BOX!
 		var center_box := CenterContainer.new()
@@ -1026,6 +1194,17 @@ func _open_flyout_for_category(cat_id: String) -> void:
 			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			center_box.add_child(ic)
 
+		# If locked for drone, overlay padlock icon
+		if is_locked:
+			var lock_badge := Label.new()
+			lock_badge.text = "🔒"
+			lock_badge.add_theme_font_size_override("font_size", 10)
+			lock_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+			lock_badge.offset_left = -14
+			lock_badge.offset_top = 2
+			lock_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(lock_badge)
+
 		# Price label at bottom right (Minecraft stack count style!)
 		if item.cost > 0:
 			var price_lbl := Label.new()
@@ -1062,8 +1241,10 @@ func _open_flyout_for_category(cat_id: String) -> void:
 		shop_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		shop_btn.tooltip_text = "Unlock more seed varieties in the Agri-Shop!"
 
-		var s_item := _create_stylebox_from_texture(tex_dark_box, false, false)
-		var s_item_hov := _create_stylebox_from_texture(tex_light_box, false, true)
+		var norm_tex: Texture2D = _get_slot_texture(false)
+		var hov_tex: Texture2D = _get_slot_texture(true)
+		var s_item := _create_stylebox_from_texture(norm_tex, false, false)
+		var s_item_hov := _create_stylebox_from_texture(hov_tex, false, true)
 		shop_btn.add_theme_stylebox_override("normal", s_item)
 		shop_btn.add_theme_stylebox_override("hover", s_item_hov)
 		shop_btn.add_theme_stylebox_override("pressed", s_item_hov)
@@ -1109,6 +1290,12 @@ func _open_flyout_for_category(cat_id: String) -> void:
 	flyout_drawer.visible = true
 
 func _on_flyout_item_selected(cat_id: String, item_id: String) -> void:
+	if _is_drone_mode() and _is_flyout_item_locked_for_drone(item_id):
+		AudioManager.play_ui("error")
+		var req_lvl: int = 2 if item_id in ["plant", "auto_loop"] else 3
+		show_hotbar_feedback("🔒 Feature Locked: Requires Drone Command Hangar Lv. %d" % req_lvl, Color(1.0, 0.45, 0.45))
+		return
+
 	selected_category_items[cat_id] = item_id
 	active_category = cat_id
 
@@ -1157,12 +1344,13 @@ func _update_category_slots_display() -> void:
 	var sel_drone: FarmDrone = _get_selected_drone() if _is_drone_mode() else null
 	for cat_id in CATEGORY_ORDER:
 		var c_data: Dictionary = _get_active_category_data(cat_id)
+		var is_locked: bool = _is_category_locked_for_unit(cat_id)
 		var cur_item_id: String = ""
 		if sel_drone != null:
 			if cat_id == "seeds":
 				cur_item_id = sel_drone.crop_type
 			elif cat_id == "tools":
-				cur_item_id = selected_category_items.get("tools", "auto_loop")
+				cur_item_id = selected_category_items.get("tools", "plow" if _get_drone_capability_level() < 2 else "auto_loop")
 			elif cat_id == "treatments":
 				cur_item_id = selected_category_items.get("treatments", "spray_chemical")
 		else:
@@ -1175,13 +1363,33 @@ func _update_category_slots_display() -> void:
 		var is_cur_cat: bool = (cat_id == active_category)
 		var btn: Button = category_slots.get(cat_id, null)
 		if is_instance_valid(btn):
-			var s_norm := _create_stylebox_from_texture(tex_light_box if is_cur_cat else tex_dark_box, is_cur_cat, false)
-			var s_hov := _create_stylebox_from_texture(tex_light_box, is_cur_cat, true)
+			var norm_tex: Texture2D = _get_slot_texture(is_cur_cat)
+			var hov_tex: Texture2D = _get_slot_texture(true)
+			var s_norm := _create_stylebox_from_texture(norm_tex, is_cur_cat, false)
+			var s_hov := _create_stylebox_from_texture(hov_tex, is_cur_cat, true)
 			btn.add_theme_stylebox_override("normal", s_norm)
 			btn.add_theme_stylebox_override("hover", s_hov)
+			if is_locked:
+				btn.modulate = Color(0.70, 0.70, 0.80, 0.85)
+			else:
+				btn.modulate = Color.WHITE
 
 		for ch in icon_container.get_children():
 			ch.queue_free()
+
+		var price_lbl: Label = category_price_labels.get(cat_id, null)
+
+		if is_locked:
+			var lock_ic := Label.new()
+			lock_ic.text = "🔒"
+			lock_ic.add_theme_font_size_override("font_size", 16)
+			lock_ic.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lock_ic.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			lock_ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon_container.add_child(lock_ic)
+			if is_instance_valid(price_lbl):
+				price_lbl.text = ""
+			continue
 
 		var item_data: Dictionary = {}
 		for it in c_data.get("items", []):
@@ -1228,7 +1436,6 @@ func _update_category_slots_display() -> void:
 			icon_container.add_child(ic)
 
 		# Update corner price tag for this category slot
-		var price_lbl: Label = category_price_labels.get(cat_id, null)
 		if is_instance_valid(price_lbl):
 			var cost: int = int(item_data.get("cost", 0))
 			if cost > 0:
@@ -1242,10 +1449,14 @@ func _highlight_active_selection() -> void:
 		if not is_instance_valid(btn):
 			continue
 		var is_cur: bool = (cat_id == active_category)
-		var s_norm := _create_stylebox_from_texture(tex_light_box if is_cur else tex_dark_box, is_cur, false)
-		var s_hov := _create_stylebox_from_texture(tex_light_box, is_cur, true)
+		var is_locked: bool = _is_category_locked_for_unit(cat_id)
+		var norm_tex: Texture2D = _get_slot_texture(is_cur)
+		var hov_tex: Texture2D = _get_slot_texture(true)
+		var s_norm := _create_stylebox_from_texture(norm_tex, is_cur, false)
+		var s_hov := _create_stylebox_from_texture(hov_tex, is_cur, true)
 		btn.add_theme_stylebox_override("normal", s_norm)
 		btn.add_theme_stylebox_override("hover", s_hov)
+		btn.modulate = Color(0.70, 0.70, 0.80, 0.85) if is_locked else Color.WHITE
 
 func select_tool(tool_id: String) -> void:
 	selected_tool = tool_id
@@ -1298,6 +1509,12 @@ func _update_affordability() -> void:
 # Hover Card Timing & Display
 # ---------------------------------------------------------------------------
 func _on_category_hover_entered(cat_id: String) -> void:
+	if _is_drone_mode() and _is_category_locked_for_unit(cat_id):
+		hovered_item_id = "drone_locked_" + cat_id
+		_populate_drone_locked_hover(cat_id)
+		if hover_card:
+			hover_card.visible = true
+		return
 	var item_id: String = selected_category_items.get(cat_id, "")
 	_on_item_hover_entered(item_id)
 
@@ -1305,13 +1522,18 @@ func _on_item_hover_entered(item_id: String) -> void:
 	if item_id.is_empty():
 		return
 	hovered_item_id = item_id
+	if _is_drone_mode() and _is_flyout_item_locked_for_drone(item_id):
+		_populate_drone_locked_item_hover(item_id)
+		if hover_card:
+			hover_card.visible = true
+		return
 	if hover_card and hover_card.visible:
 		_populate_hover_card(item_id)
 	else:
 		hover_timer.start(HOVER_DELAY)
 
 func _on_item_hover_exited(item_id: String) -> void:
-	if hovered_item_id == item_id:
+	if hovered_item_id == item_id or hovered_item_id.begins_with("drone_locked_"):
 		hover_timer.stop()
 		hovered_item_id = ""
 		if hover_card:
@@ -1322,6 +1544,72 @@ func _on_hover_timer_timeout() -> void:
 		_populate_hover_card(hovered_item_id)
 		if hover_card:
 			hover_card.visible = true
+
+func _populate_drone_locked_hover(cat_id: String) -> void:
+	if not hover_card:
+		return
+	card_texture.visible = false
+	card_icon.visible = true
+	card_icon.text = "🔒"
+	card_region_title.visible = true
+	card_buffs.visible = false
+	card_debuffs.visible = false
+	var d_lvl := _get_drone_capability_level()
+	if cat_id == "seeds":
+		card_title.text = "Automated Seeder (Locked)"
+		card_price.text = "Req. Hangar Lv.2"
+		card_type.text = "Drone Avionics Module"
+		card_stats.text = "Current Fleet: Level %d (Basic Tillage)" % d_lvl
+		card_desc.text = "Automated seed sowing requires Drone Command Hangar Lv. 2. At Level 1, drones only perform basic soil tillage (plowing and watering). Upgrade the Hangar in Agri-Shop to unlock precision seeding!"
+		card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
+	elif cat_id == "treatments":
+		card_title.text = "IPM Biocontrol Spray (Locked)"
+		card_price.text = "Req. Hangar Lv.2"
+		card_type.text = "Drone Avionics Module"
+		card_stats.text = "Current Fleet: Level %d (Basic Tillage)" % d_lvl
+		card_desc.text = "Automated pest eradication requires Drone Command Hangar Lv. 2. Upgrade the Hangar in the Agri-Shop to enable autonomous crop treatments."
+		card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
+
+func _populate_drone_locked_item_hover(item_id: String) -> void:
+	if not hover_card:
+		return
+	card_texture.visible = false
+	card_icon.visible = true
+	card_icon.text = "🔒"
+	card_region_title.visible = true
+	card_buffs.visible = false
+	card_debuffs.visible = false
+	var req_lvl: int = 2 if item_id in ["plant", "auto_loop"] else 3
+	var d_lvl := _get_drone_capability_level()
+	match item_id:
+		"plant":
+			card_title.text = "Sow Crops Directive (Locked)"
+			card_price.text = "Req. Hangar Lv.2"
+			card_type.text = "Autonomous Seeding Directive"
+			card_stats.text = "Current Fleet: Level %d • Requires Level 2" % d_lvl
+			card_desc.text = "Orders drone to sow designated seed varieties onto tilled soil. Requires Drone Command Hangar Lv. 2."
+			card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
+		"harvest":
+			card_title.text = "Harvest Crops Directive (Locked)"
+			card_price.text = "Req. Hangar Lv.3"
+			card_type.text = "Autonomous Harvesting Directive"
+			card_stats.text = "Current Fleet: Level %d • Requires Level 3" % d_lvl
+			card_desc.text = "Orders drone to reap ripe mature crops and deliver them directly to bodega storage. Requires Drone Command Hangar Lv. 3."
+			card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
+		"auto_loop":
+			card_title.text = "Auto-Farm Loop (Locked)"
+			card_price.text = "Req. Hangar Lv.2+"
+			card_type.text = "Autonomous Cycle Directive"
+			card_stats.text = "Current Fleet: Level %d • Requires Level 2+" % d_lvl
+			card_desc.text = "Full cycle automation requires at least Drone Command Hangar Lv. 2 (to seed) and Lv. 3 (to harvest)."
+			card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
+		_:
+			card_title.text = "Directive (Locked)"
+			card_price.text = "Req. Hangar Lv.%d" % req_lvl
+			card_type.text = "Drone Capability"
+			card_stats.text = "Requires Level %d" % req_lvl
+			card_desc.text = "Upgrade Drone Command Hangar in Agri-Shop to unlock."
+			card_region_title.text = "🔧 Upgrade in Agri-Shop ➜ Machinery"
 
 func _populate_hover_card(item_id: String) -> void:
 	if item_id in CROP_KEYS:

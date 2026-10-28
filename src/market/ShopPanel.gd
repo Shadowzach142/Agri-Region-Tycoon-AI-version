@@ -844,7 +844,7 @@ func _populate_labor() -> void:
 		false,
 		"Build Pad ➜",
 		"Autonomous Precision Drone Fleet",
-		"Drones operate 100% autonomously. Build Drone Landing Pads in Machinery to house 1..3 drones per pad (Lv.1 Plow & Water, Lv.2 Plant & IPM, Lv.3 Harvest).",
+		"Drones operate 100% autonomously. Build Drone Landing Pads in Machinery (+1 drone berth per pad), and construct the Drone Command Hangar to level up fleet avionics (Lv.1 Plow & Water, Lv.2 Plant & IPM, Lv.3 Harvest).",
 		func():
 			var tab_container: TabContainer = find_child("TabContainer", true, false)
 			if tab_container:
@@ -900,9 +900,9 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	elif b_data.get("worker_capacity", 0) > 0:
 		meta_right = "+%d Worker" % b_data.get("worker_capacity", 0)
 	elif b_data.get("unlocks_drones", false):
-		meta_right = "★ Fleet Avionics"
+		meta_right = "★ Fleet Avionics (Lv.1-3)"
 	elif b_data.get("drone_capacity", 0) > 0:
-		meta_right = "🛸 +1..3 Drone Berths"
+		meta_right = "🛸 +1 Drone Berth"
 	elif b_data.get("forecast_equipment", false):
 		meta_right = "★ One-time • Radar"
 	elif b_data.get("irrigation_equipment", false):

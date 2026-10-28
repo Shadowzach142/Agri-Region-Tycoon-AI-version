@@ -948,8 +948,8 @@ func _format_stats(b_type: String, lvl: int) -> String:
 		lines.append("⚡ Upgrades ALL drones fleet-wide")
 
 	if b_type == "drone_pad" or b_data.get("drone_capacity", 0) > 0:
-		lines.append("🛸 Drone Berths: %d / 3" % lvl)
-		lines.append("🏠 Houses %d autonomous drone%s" % [lvl, "s" if lvl > 1 else ""])
+		lines.append("🛸 Drone Berth: 1 Active Drone")
+		lines.append("🏠 Adds +1 autonomous drone to your fleet")
 
 	if b_type == "weather_station" or b_data.get("forecast_equipment", false):
 		var tier_desc: String = ["1-Day Radar (60%)", "3-Day Station (90%)", "7-Day Satellite (100%)"][clampi(lvl - 1, 0, 2)]

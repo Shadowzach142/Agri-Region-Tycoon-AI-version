@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 135 — 8-Bit Peaceful Retro Chiptune Soundtracks & Background Music System)
+> **Last Updated**: 2026-10-28 (Session 136 — Drone Command Hangar & Landing Pad Separation, Silver Cyber Hotbar & Level-Gated Avionics)
 
 ---
 
@@ -1704,3 +1704,42 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
   - `scratch/test_maingame_audio.tscn`: Verified that `MainGame.tscn` immediately plays `countryside_morning.wav` at -20.02 dB upon launch.
   - `scratch/test_soundtracks_scene.tscn`: 100% assertions passed across all 3 tracks, looping boundaries, volume/mute toggles, and time period transitions.
   - `MainMenu.tscn` headless test-menu run passed with 0 errors.
+
+- **Session 136 (2026-10-28)**:
+  - **Drone Fleet Infrastructure Separation (Drone Command Hangar vs Drone Landing Pad)**:
+    - **Drone Command Hangar (`drone_station`) Restored**:
+      - Re-enabled in `autoload/Data.gd` under Machinery (`cost = ₱650`, `build_time = 15s`, `unique = true`, `max_level = 3`, `unlocks_drones = true`).
+      - Dictates fleet-wide avionics levels (Lv. 1–3) for ALL drones on the farm:
+        - **Level 1**: Basic Tillage (Plowing untilled soil and hydrating with Watering Can).
+        - **Level 2 (₱800 upgrade)**: Precision Seeder & IPM Spraying (Unlocks seed sowing and biocontrol treatments).
+        - **Level 3 (₱1000 upgrade)**: Master Harvester (Unlocks automated crop reaping and direct bodega transit).
+    - **Drone Landing Pad (`drone_pad`)**:
+      - Defined in `autoload/Data.gd` as repeatable infrastructure (`cost = ₱350`, `max_level = 1`, `unique = false`, `drone_capacity = 1`).
+      - Responsible strictly for drone capacity / berth count: 1 pad = 1 active drone. Players expand their fleet size by buying additional landing pads.
+    - **BuildingManager Upgrades (`autoload/BuildingManager.gd`)**:
+      - `get_drone_hangar() -> Node` and `has_drone_hangar() -> bool`: Retrieves the unique hangar node.
+      - `get_drone_level() -> int`: Returns Hangar level (1–3); if pads exist without a hangar, defaults to Level 1 basic tillage; returns Level 3 in Creative/Sandbox mode.
+      - `get_drone_capacity() -> int`: Counts active `drone_pad` instances (sandbox baseline minimum 3).
+  - **Dynamic Hotbar Texture Swapping & Silver Cyber-Chassis (`src/ui/PlantHotbar.gd`)**:
+    - Handcrafted 32×32 pixel-art brushed metal slot textures: `assets/sprites/hud/Hopbar/drone-dark-box.png` (dark graphite steel) and `drone-light-box.png` (illuminated chrome-cyan active chassis).
+    - Implemented dynamic slot texture switching: `_get_slot_texture(is_active) -> Texture2D` serves warm wood textures when commanding human farm workers, and instantly swaps to sleek metallic silver/grey when controlling drones.
+  - **Polished Pixel-Art Unit Switcher Controls**:
+    - Retained exact button dimensions requested by user (18×20 arrows, 104×20 unit pill, 64×20 switch button).
+    - Replaced flat unicode arrows with official HUD assets: `res://assets/sprites/hud/Buttons/Arrows/tab_arrow_left_normal.png` and `tab_arrow_right_normal.png` with interactive hover states.
+    - Styled the worker mode pill with the authentic NinePatch `BrownButton.tres` wood style, and drone mode with a high-tech gunmetal cyan-glow capsule.
+  - **Comprehensive Level-Gated Feature Locking**:
+    - **At Level 1**:
+      - Slot 1 (Seeds): Locked with padlock `🔒`, blank price label, dimmed modulate (`0.7, 0.7, 0.8`), error sound on click, and hover card tooltip explaining Hangar Lv. 2 is required.
+      - Slot 3 (IPM Spray): Locked with `🔒` (requires Hangar Lv. 2).
+      - Slot 2 (Actions Flyout): Directives `plant` (< Lv.2), `harvest` (< Lv.3), and `auto_loop` (< Lv.2) show padlock badges and cannot be equipped. Default tool is `plow`.
+    - **At Level 2**:
+      - Slot 1 (Seeds) and Slot 3 (IPM) unlock. Drone can now sow assigned seeds and spray treatments.
+    - **At Level 3**:
+      - Autonomous harvesting and full auto-farm loop unlock fleet-wide.
+  - **Automated & Visual Verification**:
+    - `scratch/run_test_drone_hangar_and_hotbar.tscn`: 14/14 automated assertions passed covering hangar/pad data, level calculations, capacity scaling, silver texture swapping, and capability lockouts.
+    - `scratch/run_capture_drone_silver_hotbar.tscn`: Rendered and visually inspected screenshots:
+      - `scratch/capture_worker_wood_hotbar.png`: Classic wood hotbar with pixel-art arrow buttons and worker capsule.
+      - `scratch/capture_drone_lv1_silver_hotbar.png`: Silver chassis hotbar at Lv.1 with `🔒` on seeds and IPM, and plow active.
+      - `scratch/capture_drone_flyout_lv1.png`: Flyout at Lv.1 showing locks on Plant, Harvest, Auto Loop.
+      - `scratch/capture_drone_lv2_silver_hotbar.png`: Silver chassis hotbar at Lv.2 with seeds and IPM cleanly unlocked.

@@ -583,16 +583,16 @@ const BUILDINGS = {
 	},
 	"drone_station": {
 		"display_name": "Drone Command Hangar",
-		"shop_category": "", # Retired in favor of repeatable Drone Landing Pads
+		"shop_category": "machinery",
 		"unique": true,
 		"icon": "🛸",
 		"grid_size": Vector2i(2, 2),
-		"cost": 800,
+		"cost": 650,
 		"build_time": 20.0,
 		"max_level": 3,
 		"storage_limit": 0,
 		"unlocks_drones": true,
-		"description": "Legacy drone hangar.",
+		"description": "Central flight avionics & telemetry command hangar. One-time purchase that unlocks and upgrades drone capabilities fleet-wide: Lv.1 Basic Tillage (Plow & Water), Lv.2 Precision Seeder & IPM Spray (unlocks seeds), Lv.3 Autonomous Harvester. Build Drone Landing Pads to commission additional drones!",
 	},
 	"drone_pad": {
 		"display_name": "Drone Landing Pad",
@@ -602,10 +602,10 @@ const BUILDINGS = {
 		"grid_size": Vector2i(2, 2),
 		"cost": 350,
 		"build_time": 10.0,
-		"max_level": 3,
+		"max_level": 1,
 		"storage_limit": 0,
 		"drone_capacity": 1,
-		"description": "Landing dock and solar recharge berth for autonomous farm drones. Like the Bahay Kubo for drones: houses 1 drone at Lv.1, 2 at Lv.2, and 3 at Lv.3. Upgrades advance fleet avionics (Lv.1 Plow & Water, Lv.2 Seeder & IPM, Lv.3 Harvester). Buy additional landing pads to commission more drones and control them from the hotbar!",
+		"description": "Dedicated solar recharge pad and landing berth for 1 autonomous farm drone. Each pad commissions +1 drone into your active fleet. Drones inherit tech capabilities (Lv.1 to Lv.3) from the Drone Command Hangar!",
 	},
 	"weather_station": {
 		"display_name": "PAGASA Telemetry Station",
