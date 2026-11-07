@@ -44,6 +44,15 @@ var _saved_cash: int = 250
 var _saved_speed_scale: float = 1.0
 var _saved_hour: int = 8
 var _saved_muted: bool = false
+var _saved_soundtrack: String = "countryside_morning"
+
+# Trailer Dedicated Audio Players & Procedural SFX
+var _trailer_bgm_player: AudioStreamPlayer = null
+var _trailer_sfx_players: Array[AudioStreamPlayer] = []
+var _trailer_sfx_idx: int = 0
+var _trailer_streams: Dictionary = {}
+var _triggered_cues: Dictionary = {}
+var _last_caption_text: String = ""
 
 # UI Nodes
 var _root_ctrl: Control = null
@@ -58,6 +67,11 @@ var _farmers: Array[CharacterBody2D] = []
 # Intro & Finale Overlays (rendered above SubViewport when in Chapter I or V)
 var _intro_canvas: Control = null
 var _cut_fade_rect: ColorRect = null
+var _top_bar: PanelContainer = null
+var _caption_panel: PanelContainer = null
+var _bot_bar: PanelContainer = null
+var _clean_recording_mode: bool = false
+var _saved_window_mode: int = -1
 var _chapter_pill_btns: Array[Button] = []
 var _chapter_badge_lbl: Label = null
 var _subtitle_lbl: Label = null
@@ -70,7 +84,19 @@ var _progress_bar: ProgressBar = null
 var _finale_cta_box: HBoxContainer = null
 
 # Cached textures for Intro (Chapter I) & Finale (Chapter V)
-var _globe_frames: Array[ImageTexture] = []
+const GLOBE_VP_W: int = 160
+const GLOBE_VP_H: int = 90
+const PH_BM_W: int = 180
+const PH_BM_H: int = 240
+
+var _globe_img: Image = null
+var _globe_tex: ImageTexture = null
+var _last_globe_step: int = -9999
+var _ph_bitmap: PackedByteArray = PackedByteArray()
+var _cloud_tex: ImageTexture = null
+var _cloud_puffs: Array[Dictionary] = []
+var _tex_game_logo: Texture2D = null
+var _corner_logo_watermark: TextureRect = null
 var _tex_ph_map: Texture2D = null
 var _tex_cotabato_loc: Texture2D = null
 var _region_bg_textures: Dictionary = {}
@@ -78,6 +104,7 @@ var _region_monument_textures: Dictionary = {}
 
 # Real gameplay choreography flags
 var _scene2_choreo_step: int = 0
+var _scene2_tasks_started: bool = false
 var _scene2_crop_timer: float = 0.0
 var _worker_loop_timer: float = 0.0
 
@@ -88,14 +115,19 @@ func _ready() -> void:
 		_pixel_font = load("res://assets/font/quill_and_antler/quill-and-antler.ttf")
 
 	_save_autoload_state()
+	if _au():
+		_au().trailer_mode_active = true
 	_load_trailer_textures()
-	_generate_pixel_globe_frames()
+	_init_continuous_pixel_globe()
+	_generate_pixel_clouds()
+	_init_trailer_audio()
 	_build_ui()
 	_setup_real_gameplay_world()
 	_sync_timeline(0.0, true)
 
 	if _au():
 		_au().play_ui("click")
+	_start_trailer_bgm()
 
 func _save_autoload_state() -> void:
 	if _da():
@@ -108,9 +140,27 @@ func _save_autoload_state() -> void:
 		_saved_hour = _ti().current_hour
 	if _au():
 		_saved_muted = _au().is_muted
+		if _au().has_method("get_current_soundtrack"):
+			_saved_soundtrack = _au().get_current_soundtrack()
 
 func _restore_autoload_state() -> void:
+	if DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		if _saved_window_mode != -1:
+			DisplayServer.window_set_mode(_saved_window_mode as DisplayServer.WindowMode)
+			_saved_window_mode = -1
+
+	if _trailer_bgm_player:
+		_trailer_bgm_player.stop()
+		_trailer_bgm_player.stream = null
+	for p in _trailer_sfx_players:
+		if p:
+			p.stop()
+			p.stream = null
+	_trailer_streams.clear()
+
 	if _au():
+		_au().trailer_mode_active = false
 		_au().stop_build_loop()
 		_au().is_muted = true
 
@@ -145,8 +195,18 @@ func _restore_autoload_state() -> void:
 
 	if _au():
 		_au().is_muted = _saved_muted
+		if not _saved_muted and not _saved_soundtrack.is_empty() and _au().has_method("play_soundtrack"):
+			_au().play_soundtrack(_saved_soundtrack, 0.8)
 
 func _load_trailer_textures() -> void:
+	var logo_path := "res://assets/sprites/StartMenu/game_logo.png"
+	if ResourceLoader.exists(logo_path):
+		_tex_game_logo = load(logo_path)
+	if _tex_game_logo == null:
+		var l_img := Image.new()
+		if l_img.load(ProjectSettings.globalize_path(logo_path)) == OK:
+			_tex_game_logo = ImageTexture.create_from_image(l_img)
+
 	var ph_path := "res://assets/Regions Art/Cotabto/ph_transparent.png"
 	if ResourceLoader.exists(ph_path):
 		_tex_ph_map = load(ph_path)
@@ -178,54 +238,306 @@ func _load_trailer_textures() -> void:
 		if ResourceLoader.exists(p):
 			_region_monument_textures[k] = load(p)
 
-func _generate_pixel_globe_frames() -> void:
-	# Pre-renders 24 crisp nearest-neighbor pixel-art frames of Earth rotating toward SE Asia / Philippines
-	var size: int = 120
-	var half: float = float(size) * 0.5
-	var radius: float = 52.0
-	var num_frames: int = 24
-	for f in range(num_frames):
-		var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-		var rot_lon: float = lerpf(-75.0, 122.0, float(f) / float(num_frames - 1))
-		for py in range(size):
-			for px in range(size):
-				var dx: float = (float(px) - half) / radius
-				var dy: float = (float(py) - half) / radius
-				var d2: float = dx * dx + dy * dy
-				if d2 > 1.08:
-					continue
-				if d2 > 1.0:
-					# Outer atmosphere pixel rim
-					img.set_pixel(px, py, Color(0.28, 0.68, 0.96, 0.45))
-					continue
-				var dz: float = sqrt(maxf(0.0, 1.0 - d2))
-				var lat: float = rad_to_deg(asin(clampf(-dy, -1.0, 1.0)))
-				var lon: float = rot_lon + rad_to_deg(atan2(dx, dz))
-				while lon > 180.0:
-					lon -= 360.0
-				while lon < -180.0:
-					lon += 360.0
+func _init_continuous_pixel_globe() -> void:
+	_globe_img = Image.create(GLOBE_VP_W, GLOBE_VP_H, false, Image.FORMAT_RGBA8)
+	_globe_tex = ImageTexture.create_from_image(_globe_img)
+	_last_globe_step = -9999
 
-				var is_land: bool = _is_world_land_pixel(lat, lon)
-				var is_ph: bool = (lat >= 5.0 and lat <= 19.0 and lon >= 118.0 and lon <= 127.0)
-				var light: float = clampf(dz * 0.85 + (-dx * 0.25) + (-dy * 0.20), 0.22, 1.0)
-				# Quantize lighting into 4 retro pixel-art bands
-				light = floor(light * 4.0) / 4.0
+	# Bake a 180x240 pixel-art geographic lookup bitmap for the Philippines (4.6°N..19.0°N, 116.8°E..126.8°E)
+	# Directly samples ph_transparent.png so the pixel-art globe has 100% authentic island shapes at every zoom level!
+	_ph_bitmap.resize(PH_BM_W * PH_BM_H)
+	_ph_bitmap.fill(0)
 
-				var col: Color
-				if is_ph:
-					col = Color(0.45, 0.92, 0.36, 1.0).darkened(1.0 - light)
-				elif is_land:
-					col = Color(0.24, 0.62, 0.30, 1.0).darkened(1.0 - light)
+	var src_img: Image = _tex_ph_map.get_image() if _tex_ph_map != null else null
+	if src_img != null and src_img.is_compressed():
+		src_img.decompress()
+
+	var min_x: int = 0
+	var min_y: int = 0
+	var max_x: int = 1
+	var max_y: int = 1
+	var has_valid_src: bool = false
+
+	if src_img != null and src_img.get_width() > 16 and src_img.get_height() > 16:
+		var sw: int = src_img.get_width()
+		var sh: int = src_img.get_height()
+		min_x = sw
+		min_y = sh
+		max_x = 0
+		max_y = 0
+		for sy in range(0, sh, 2):
+			for sx in range(0, sw, 2):
+				if src_img.get_pixel(sx, sy).a > 0.25:
+					if sx < min_x: min_x = sx
+					if sx > max_x: max_x = sx
+					if sy < min_y: min_y = sy
+					if sy > max_y: max_y = sy
+		if max_x > min_x + 10 and max_y > min_y + 10:
+			has_valid_src = true
+
+	# Pass 1: Raw land mask (code 3 = lowland land)
+	for by in range(PH_BM_H):
+		var v: float = float(by) / float(PH_BM_H - 1)
+		var lat: float = lerpf(19.0, 4.6, v)
+		for bx in range(PH_BM_W):
+			var u: float = float(bx) / float(PH_BM_W - 1)
+			var lon: float = lerpf(116.8, 126.8, u)
+			var is_land: bool = false
+			if has_valid_src:
+				var sx: int = clampi(int(lerpf(float(min_x), float(max_x), u)), 0, src_img.get_width() - 1)
+				var sy: int = clampi(int(lerpf(float(min_y), float(max_y), v)), 0, src_img.get_height() - 1)
+				is_land = src_img.get_pixel(sx, sy).a > 0.30
+			else:
+				is_land = _is_philippines_pixel(lat, lon)
+			if is_land:
+				_ph_bitmap[by * PH_BM_W + bx] = 3
+
+	# Pass 2: Coastlines (code 2), Shallow Coral Reefs (code 1), Highland Interiors (code 4),
+	# Region XII / Cotabato Basin (code 5 & golden border code 6), and Pulangi River / Lakes (code 7)
+	var refined := _ph_bitmap.duplicate()
+	for by in range(1, PH_BM_H - 1):
+		var v: float = float(by) / float(PH_BM_H - 1)
+		var lat: float = lerpf(19.0, 4.6, v)
+		for bx in range(1, PH_BM_W - 1):
+			var u: float = float(bx) / float(PH_BM_W - 1)
+			var lon: float = lerpf(116.8, 126.8, u)
+			var idx: int = by * PH_BM_W + bx
+			var cur: int = _ph_bitmap[idx]
+
+			if cur == 0:
+				# Ocean pixel: check if within 2 cells of land for shallow coastal turquoise reef (code 1)
+				var near_land: bool = false
+				for dy in range(-2, 3):
+					var ny: int = clampi(by + dy, 0, PH_BM_H - 1)
+					for dx in range(-2, 3):
+						var nx: int = clampi(bx + dx, 0, PH_BM_W - 1)
+						if _ph_bitmap[ny * PH_BM_W + nx] >= 3:
+							near_land = true
+							break
+					if near_land:
+						break
+				if near_land:
+					refined[idx] = 1
+			else:
+				# Land pixel: check if adjacent to ocean for crisp pixel coastline (code 2)
+				var adj_water: bool = (
+					_ph_bitmap[(by - 1) * PH_BM_W + bx] == 0 or
+					_ph_bitmap[(by + 1) * PH_BM_W + bx] == 0 or
+					_ph_bitmap[by * PH_BM_W + (bx - 1)] == 0 or
+					_ph_bitmap[by * PH_BM_W + (bx + 1)] == 0
+				)
+				if adj_water:
+					refined[idx] = 2
 				else:
-					col = Color(0.08, 0.28, 0.56, 1.0).darkened((1.0 - light) * 0.75)
+					# Check if inside Mindanao's Pulangi / Rio Grande River or Lake Buluan / Lake Sebu (code 7)
+					var is_river: bool = false
+					if lon >= 124.08 and lon <= 125.12 and absf((lat - 7.12) - (lon - 124.15) * 0.42 - sin(lon * 14.0) * 0.04) < 0.065:
+						is_river = true
+					elif Vector2(lon - 124.82, lat - 6.66).length() < 0.095 or Vector2(lon - 124.70, lat - 6.23).length() < 0.085:
+						is_river = true
 
-				# Subtle latitude/longitude grid lines every 30 deg
-				if absf(fmod(absf(lat), 30.0)) < 1.4 or absf(fmod(absf(lon), 30.0)) < 1.4:
-					col = col.lightened(0.08)
+					if is_river:
+						refined[idx] = 7
+					else:
+						# Check if inside Region XII / Cotabato Basin highlight on Mindanao (lat 6.05..7.65N, lon 124.02..125.22E)
+						var in_reg12: bool = (lat >= 6.05 and lat <= 7.65 and lon >= 124.02 and lon <= 125.22)
+						if in_reg12:
+							var on_reg_edge: bool = (
+								absf(lat - 6.05) < 0.09 or absf(lat - 7.65) < 0.09 or
+								absf(lon - 124.02) < 0.09 or absf(lon - 125.22) < 0.09
+							)
+							refined[idx] = 6 if on_reg_edge else 5
+						else:
+							# Interior mountain ridge vs emerald lowland
+							var elev_noise: float = sin(lat * 3.8) * cos(lon * 4.1)
+							refined[idx] = 4 if elev_noise > 0.18 else 3
+	_ph_bitmap = refined
 
-				img.set_pixel(px, py, col)
-		_globe_frames.append(ImageTexture.create_from_image(img))
+func _render_continuous_pixel_globe(t: float) -> void:
+	# Quantize to 24 FPS pixel-art steps so it runs ultra-fast while looking silky smooth
+	var step_idx: int = int(floor(t * 24.0))
+	if step_idx == _last_globe_step and _globe_tex != null:
+		return
+	_last_globe_step = step_idx
+
+	# 1. Continuous 3D Spherical Camera Trajectory (0.0s -> 18.0s):
+	#    - 0.0s..6.2s: Globe spins in space from -58° lon to 122.0°E, 12.2°N (Philippines), radius 35 -> 48
+	#    - 6.2s..12.2s: Globe zooms continuously into the Philippine Archipelago (radius 48 -> 240) while panning down to Mindanao (7.5°N, 124.3°E)
+	#    - 12.2s..18.0s: Globe zooms continuously into Mindanao & the Cotabato Basin (7.18°N, 124.38°E, radius 240 -> 1150)
+	var u_spin: float = smoothstep(0.0, 6.4, t)
+	var u_pan_mindanao: float = smoothstep(7.2, 13.0, t)
+	var u_pan_cotabato: float = smoothstep(12.2, 16.8, t)
+
+	var center_lon: float = lerpf(-58.0, 122.0, u_spin)
+	center_lon = lerpf(center_lon, 124.30, u_pan_mindanao)
+	center_lon = lerpf(center_lon, 124.38, u_pan_cotabato)
+
+	var center_lat: float = lerpf(4.0, 12.2, smoothstep(1.2, 6.4, t))
+	center_lat = lerpf(center_lat, 7.55, u_pan_mindanao)
+	center_lat = lerpf(center_lat, 7.15, u_pan_cotabato)
+
+	var radius: float = 35.0
+	if t < 5.2:
+		radius = lerpf(35.0, 46.0, smoothstep(0.0, 5.2, t))
+	else:
+		# Unbroken exponential zoom on the pixel-art sphere from 46px (full globe) -> 1,150px (Cotabato Valley closeup)
+		var u_z: float = clampf((t - 5.2) / 12.8, 0.0, 1.0)
+		radius = 46.0 * pow(25.0, pow(u_z, 1.48))
+
+	var half_w: float = float(GLOBE_VP_W) * 0.5
+	var half_h: float = float(GLOBE_VP_H) * 0.5
+	var inv_r: float = 1.0 / radius
+	var clat_rad: float = deg_to_rad(center_lat)
+	var sin_clat: float = sin(clat_rad)
+	var cos_clat: float = cos(clat_rad)
+
+	_globe_img.fill(Color(0, 0, 0, 0))
+
+	for py in range(GLOBE_VP_H):
+		var dy: float = (float(py) - half_h) * inv_r
+		var dy2: float = dy * dy
+		if dy2 > 1.08:
+			continue
+		for px in range(GLOBE_VP_W):
+			var dx: float = (float(px) - half_w) * inv_r
+			var d2: float = dx * dx + dy2
+			if d2 > 1.06:
+				continue
+			if d2 > 1.0:
+				# Crisp pixel-art atmosphere rim around the globe when visible in space
+				_globe_img.set_pixel(px, py, Color(0.30, 0.72, 0.98, 0.55))
+				continue
+
+			var dz: float = sqrt(maxf(0.0, 1.0 - d2))
+			# True 3D spherical rotation around center_lat and center_lon
+			var ny: float = -dy
+			var sin_lat: float = clampf(ny * cos_clat + dz * sin_clat, -1.0, 1.0)
+			var lat: float = rad_to_deg(asin(sin_lat))
+			var cos_lon_z: float = dz * cos_clat - ny * sin_clat
+			var lon: float = center_lon + rad_to_deg(atan2(dx, cos_lon_z))
+			while lon > 180.0:
+				lon -= 360.0
+			while lon < -180.0:
+				lon += 360.0
+
+			# Quantized 4-band pixel-art spherical sunlight
+			var light: float = clampf(dz * 0.86 + (-dx * 0.22) + (-dy * 0.18), 0.26, 1.0)
+			light = floor(light * 4.0) / 4.0
+			var dark_f: float = (1.0 - light) * 0.68
+
+			var col: Color
+			# Check if inside the high-detail Philippines spherical bounding box (4.6..19.0N, 116.8..126.8E)
+			if lat >= 4.6 and lat <= 19.0 and lon >= 116.8 and lon <= 126.8:
+				var bx: int = clampi(int(((lon - 116.8) / 10.0) * float(PH_BM_W - 1)), 0, PH_BM_W - 1)
+				var by: int = clampi(int(((19.0 - lat) / 14.4) * float(PH_BM_H - 1)), 0, PH_BM_H - 1)
+				var code: int = _ph_bitmap[by * PH_BM_W + bx]
+				match code:
+					1: # Shallow coastal coral reef water
+						col = Color(0.14, 0.46, 0.74, 1.0).darkened(dark_f * 0.7)
+					2: # Crisp dark pixel coastline edge
+						col = Color(0.16, 0.44, 0.22, 1.0).darkened(dark_f * 0.6)
+					3: # Lush emerald Philippine lowland
+						col = Color(0.38, 0.86, 0.34, 1.0).darkened(dark_f * 0.65)
+					4: # Deep tropical highland forest spine
+						col = Color(0.24, 0.66, 0.28, 1.0).darkened(dark_f * 0.65)
+					5: # Region XII / Cotabato Basin fertile valley highlight
+						col = Color(0.52, 0.94, 0.38, 1.0).darkened(dark_f * 0.5)
+					6: # Golden pixel border around Region XII / Cotabato
+						col = Color(0.98, 0.84, 0.28, 1.0)
+					7: # Pulangi / Rio Grande de Mindanao River & Lakes
+						col = Color(0.22, 0.74, 0.92, 1.0)
+					_: # Deep Philippine Sea / South China Sea
+						col = Color(0.08, 0.28, 0.56, 1.0).darkened(dark_f * 0.75)
+			else:
+				if _is_world_land_pixel(lat, lon):
+					col = Color(0.24, 0.60, 0.30, 1.0).darkened(dark_f)
+				else:
+					col = Color(0.08, 0.28, 0.56, 1.0).darkened(dark_f * 0.75)
+
+			# Subtle pixel-art latitude/longitude grid lines (adaptive spacing as we zoom in)
+			var grid_step: float = 30.0 if radius < 110.0 else (10.0 if radius < 320.0 else 2.0)
+			var grid_thick: float = 42.0 / radius
+			if absf(fmod(absf(lat), grid_step)) < grid_thick or absf(fmod(absf(lon), grid_step)) < grid_thick:
+				col = col.lightened(0.07)
+
+			_globe_img.set_pixel(px, py, col)
+
+	_globe_tex.update(_globe_img)
+
+func _is_philippines_pixel(lat: float, lon: float) -> bool:
+	# Recognizable pixel silhouette of Luzon, Visayas, Palawan, and Mindanao for smooth zoom-in
+	if lat < 5.2 or lat > 18.8 or lon < 117.2 or lon > 126.6:
+		return false
+	# Luzon (13.0..18.5N, 119.8..124.2E)
+	if lat >= 13.0 and lat <= 18.5 and lon >= 119.8 and lon <= 122.6:
+		return true
+	if lat >= 12.8 and lat <= 14.5 and lon >= 122.2 and lon <= 124.3:
+		return true
+	# Visayas cluster (9.5..12.6N, 121.8..125.5E)
+	if lat >= 9.5 and lat <= 12.5 and lon >= 121.8 and lon <= 125.4:
+		return sin(lat * 2.2) + cos(lon * 2.4) > -0.25
+	# Palawan diagonal (8.5..11.5N, 117.5..119.8E)
+	if lat >= 8.5 and lat <= 11.5 and absf((lon - 117.5) - (lat - 8.5) * 0.75) < 0.65:
+		return true
+	# Mindanao (5.5..9.8N, 121.8..126.4E)
+	if lat >= 5.6 and lat <= 9.6 and lon >= 123.5 and lon <= 126.3:
+		return true
+	if lat >= 6.8 and lat <= 8.6 and lon >= 121.8 and lon <= 123.8:
+		return true
+	return false
+
+func _generate_pixel_clouds() -> void:
+	# Generates a crisp nearest-neighbor pixel-art cumulus cloud sprite & radial cloud canopy puffs
+	var w: int = 96
+	var h: int = 56
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var blobs: Array[Vector3] = [
+		Vector3(48, 28, 22),
+		Vector3(28, 32, 17),
+		Vector3(68, 32, 17),
+		Vector3(16, 37, 12),
+		Vector3(80, 37, 12),
+		Vector3(38, 20, 15),
+		Vector3(58, 21, 14)
+	]
+	for py in range(h):
+		for px in range(w):
+			var max_v: float = 0.0
+			for b in blobs:
+				var dx: float = (float(px) - b.x) / b.z
+				var dy: float = (float(py) - b.y) / (b.z * 0.82)
+				var d2: float = dx * dx + dy * dy
+				if d2 < 1.0:
+					max_v = maxf(max_v, 1.0 - d2)
+			if max_v <= 0.0:
+				continue
+			# Pixel-art 3-tone cumulus shading (bright sunlit top, warm cream mid, cool misty blue-grey base)
+			var col: Color
+			if py < 22 and max_v > 0.35:
+				col = Color(0.99, 0.99, 1.00, 0.96)
+			elif py < 34:
+				col = Color(0.93, 0.96, 0.99, 0.94)
+			elif py < 42:
+				col = Color(0.82, 0.88, 0.95, 0.90)
+			else:
+				col = Color(0.70, 0.78, 0.88, 0.84)
+			img.set_pixel(px, py, col)
+	_cloud_tex = ImageTexture.create_from_image(img)
+
+	_cloud_puffs.clear()
+	# 24 cloud puffs arranged in 3 concentric altitude rings so they envelop the screen and part outward cleanly
+	for i in range(24):
+		var ring: int = i / 8 # 0 = inner core, 1 = mid canopy, 2 = outer rim
+		var angle: float = (float(i % 8) / 8.0) * TAU + float(ring) * 0.42
+		var base_dist: float = 45.0 if ring == 0 else (165.0 if ring == 1 else 310.0)
+		var dir := Vector2(cos(angle), sin(angle) * 0.68)
+		_cloud_puffs.append({
+			"dir": dir,
+			"base_dist": base_dist,
+			"part_speed": 460.0 + float(ring) * 210.0 + float((i * 37) % 90),
+			"base_scale": 3.4 if ring == 0 else (2.9 if ring == 1 else 2.5),
+			"delay": float(ring) * 0.22 + float(i % 4) * 0.08
+		})
 
 func _is_world_land_pixel(lat: float, lon: float) -> bool:
 	# Simplified pixel continent masks so the rotating pixel globe has recognizable continents + Philippines
@@ -257,6 +569,286 @@ func _is_world_land_pixel(lat: float, lon: float) -> bool:
 			return false
 		return true
 	return false
+
+# =============================================================================
+# TRAILER CINEMATIC AUDIO ENGINE (Custom Trailer BGM + Camera/Cloud/Text SFX)
+# =============================================================================
+func _init_trailer_audio() -> void:
+	# Stop peaceful menu music so the driving Factorio-style trailer score takes over
+	if _au() and _au().has_method("stop_soundtrack"):
+		_au().stop_soundtrack(0.25)
+
+	_trailer_bgm_player = AudioStreamPlayer.new()
+	_trailer_bgm_player.name = "TrailerBGMPlayer"
+	_trailer_bgm_player.bus = "Master"
+	_trailer_bgm_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_trailer_bgm_player)
+
+	for i in range(6):
+		var sp := AudioStreamPlayer.new()
+		sp.name = "TrailerSFX_%d" % i
+		sp.bus = "Master"
+		sp.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(sp)
+		_trailer_sfx_players.append(sp)
+
+	_trailer_streams["bgm"] = _build_trailer_bgm_stream()
+	_trailer_streams["camera_zoom"] = _build_sfx_camera_zoom()
+	_trailer_streams["reticle_lock"] = _build_sfx_reticle_lock()
+	_trailer_streams["cloud_whoosh"] = _build_sfx_cloud_whoosh()
+	_trailer_streams["text_appear"] = _build_sfx_text_appear()
+	_trailer_streams["card_appear"] = _build_sfx_card_appear()
+	_trailer_streams["title_impact"] = _build_sfx_title_impact()
+
+func _start_trailer_bgm() -> void:
+	if _trailer_bgm_player == null or not _trailer_streams.has("bgm"):
+		return
+	if _au() and (_au().is_muted or _au().is_music_muted):
+		return
+	_trailer_bgm_player.stream = _trailer_streams["bgm"]
+	var vol_lin: float = 0.55
+	if _au():
+		vol_lin = clampf(_au().music_volume * _au().master_volume, 0.05, 1.0)
+	_trailer_bgm_player.volume_db = clampf(linear_to_db(vol_lin) - 7.5, -40.0, -5.0)
+	_trailer_bgm_player.play()
+
+func _play_trailer_sfx(cue_name: String, pitch: float = 1.0, vol_offset_db: float = 0.0) -> void:
+	if _au() and _au().is_muted:
+		return
+	if not _trailer_streams.has(cue_name) or _trailer_sfx_players.is_empty():
+		return
+	var p: AudioStreamPlayer = _trailer_sfx_players[_trailer_sfx_idx % _trailer_sfx_players.size()]
+	_trailer_sfx_idx += 1
+	p.stop()
+	p.stream = _trailer_streams[cue_name]
+	p.pitch_scale = pitch
+	var sfx_lin: float = 0.85
+	if _au():
+		sfx_lin = clampf(_au().sfx_volume * _au().master_volume, 0.05, 1.0)
+	p.volume_db = clampf(linear_to_db(sfx_lin) + vol_offset_db, -45.0, 2.0)
+	p.play()
+
+func _make_wav_from_pcm(pcm: PackedByteArray, mix_rate: int = 22050, loop: bool = false) -> AudioStreamWAV:
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = mix_rate
+	wav.stereo = false
+	wav.data = pcm
+	if loop:
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		wav.loop_begin = 0
+		wav.loop_end = pcm.size() / 2
+	return wav
+
+func _build_trailer_bgm_stream() -> AudioStreamWAV:
+	# 16-second seamless loop (32 beats @ 120 BPM) — Upbeat Factorio/Tycoon Industrial-Synth Chiptune Anthem in D Dorian / D Minor
+	var rate: int = 22050
+	var dur: float = 16.0
+	var total_samples: int = int(dur * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total_samples * 2)
+
+	var bass_freqs: Array[float] = [
+		73.42, 73.42, 87.31, 98.00,   # D2, D2, F2, G2
+		110.00, 110.00, 98.00, 87.31, # A2, A2, G2, F2
+		58.27, 58.27, 65.41, 73.42,   # Bb1, Bb1, C2, D2
+		87.31, 98.00, 110.00, 73.42   # F2, G2, A2, D2
+	]
+	var arp_notes: Array[float] = [
+		293.66, 349.23, 440.00, 587.33, # D4, F4, A4, D5
+		293.66, 440.00, 523.25, 659.25, # D4, A4, C5, E5
+		349.23, 440.00, 587.33, 698.46, # F4, A4, D5, F5
+		392.00, 493.88, 587.33, 659.25  # G4, B4, D5, E5
+	]
+	var lead_melody: Array[float] = [
+		587.33, 0.0, 659.25, 698.46, 880.00, 0.0, 698.46, 659.25,
+		587.33, 523.25, 440.00, 0.0, 523.25, 587.33, 659.25, 0.0,
+		698.46, 0.0, 880.00, 783.99, 698.46, 659.25, 587.33, 0.0,
+		523.25, 587.33, 659.25, 523.25, 440.00, 0.0, 293.66, 0.0
+	]
+
+	var bass_phase: float = 0.0
+	var arp_phase: float = 0.0
+	var lead_phase: float = 0.0
+	var pad_phase1: float = 0.0
+	var pad_phase2: float = 0.0
+
+	for i in range(total_samples):
+		var t: float = float(i) / float(rate)
+		var beat_f: float = t * 2.0 # 120 BPM = 2 beats/sec
+		var beat_idx: int = int(beat_f)
+		var beat_frac: float = fmod(beat_f, 1.0)
+		var step16_f: float = t * 8.0 # 16th notes (8 per sec)
+		var step16_idx: int = int(step16_f)
+		var step16_frac: float = fmod(step16_f, 1.0)
+
+		# 1. Driving Kick + Snare + Hi-Hat percussion
+		var drum: float = 0.0
+		if beat_idx % 2 == 0:
+			if beat_frac < 0.18:
+				var k_env: float = exp(-beat_frac * 26.0)
+				var k_freq: float = lerpf(135.0, 42.0, minf(1.0, beat_frac * 9.0))
+				drum += sin(beat_frac * k_freq * TAU) * k_env * 0.42
+		else:
+			if beat_frac < 0.22:
+				var s_env: float = exp(-beat_frac * 22.0)
+				var noise: float = sin(float(i) * 1.73) * cos(float(i) * 3.19)
+				drum += (noise * 0.7 + sin(beat_frac * 185.0 * TAU) * 0.3) * s_env * 0.28
+
+		if step16_frac < 0.09:
+			var h_env: float = exp(-step16_frac * 45.0)
+			var h_noise: float = sin(float(i) * 2.91) * sin(float(i) * 5.13)
+			drum += h_noise * h_env * (0.11 if (step16_idx % 2 == 1) else 0.06)
+
+		# 2. Pulsing Industrial Synth Bass (8th-note groove)
+		var b_freq: float = bass_freqs[(beat_idx / 2) % bass_freqs.size()]
+		if (step16_idx % 2) == 1:
+			b_freq *= 2.0 # Octave bass bounce
+		bass_phase = fmod(bass_phase + b_freq / float(rate), 1.0)
+		var bass_env: float = exp(-fmod(t * 4.0, 1.0) * 3.5)
+		var bass_wave: float = (1.0 if bass_phase < 0.5 else -1.0) * 0.5 + sin(bass_phase * TAU) * 0.5
+		var bass: float = bass_wave * bass_env * 0.26
+
+		# 3. Factorio-style 16th-note Arpeggiator
+		var bar_group: int = (beat_idx / 4) % 4
+		var a_freq: float = arp_notes[bar_group * 4 + (step16_idx % 4)]
+		arp_phase = fmod(arp_phase + a_freq / float(rate), 1.0)
+		var arp_env: float = exp(-step16_frac * 4.8)
+		var arp_wave: float = (1.0 if arp_phase < 0.25 else -0.6) # 25% pulse wave
+		var arp: float = arp_wave * arp_env * 0.16
+
+		# 4. Heroic Chiptune Lead Melody
+		var l_freq: float = lead_melody[beat_idx % lead_melody.size()]
+		var lead: float = 0.0
+		if l_freq > 10.0:
+			var vibrato: float = 1.0 + sin(t * 28.0) * 0.004
+			lead_phase = fmod(lead_phase + (l_freq * vibrato) / float(rate), 1.0)
+			var l_env: float = minf(1.0, beat_frac * 18.0) * exp(-beat_frac * 2.4)
+			var sq: float = 1.0 if lead_phase < 0.5 else -1.0
+			lead = (sq * 0.6 + sin(lead_phase * TAU) * 0.4) * l_env * 0.22
+
+		# 5. Warm Fifth Drone Pad (D3 + A3)
+		pad_phase1 = fmod(pad_phase1 + 146.83 / float(rate), 1.0)
+		pad_phase2 = fmod(pad_phase2 + 220.00 / float(rate), 1.0)
+		var pad: float = (sin(pad_phase1 * TAU) + sin(pad_phase2 * TAU)) * 0.08
+
+		var sample: float = clampf((drum + bass + arp + lead + pad) * 0.88, -0.98, 0.98)
+		pcm.encode_s16(i * 2, int(sample * 32000.0))
+
+	return _make_wav_from_pcm(pcm, rate, true)
+
+func _build_sfx_camera_zoom() -> AudioStreamWAV:
+	# Smooth futuristic camera lens servo / orbital zoom sweep (0.65s)
+	var rate: int = 22050
+	var total: int = int(0.65 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var phase: float = 0.0
+	for i in range(total):
+		var u: float = float(i) / float(total)
+		var env: float = sin(u * PI) * exp(-u * 1.4)
+		var freq: float = lerpf(160.0, 520.0, pow(u, 1.3))
+		phase = fmod(phase + freq / float(rate), 1.0)
+		var air: float = sin(float(i) * 1.37) * cos(float(i) * 2.83) * 0.22
+		var tone: float = sin(phase * TAU) * 0.65 + sin(phase * TAU * 2.0) * 0.25
+		var s: float = clampf((tone + air) * env * 0.42, -0.95, 0.95)
+		pcm.encode_s16(i * 2, int(s * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
+
+func _build_sfx_reticle_lock() -> AudioStreamWAV:
+	# Crisp orbital satellite telemetry double-beep on target lock (0.28s)
+	var rate: int = 22050
+	var total: int = int(0.28 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var phase: float = 0.0
+	for i in range(total):
+		var t: float = float(i) / float(rate)
+		var freq: float = 1174.66 if t < 0.11 else 1567.98 # D6 -> G6
+		var local_t: float = t if t < 0.11 else (t - 0.11)
+		var env: float = exp(-local_t * 24.0)
+		phase = fmod(phase + freq / float(rate), 1.0)
+		var s: float = (sin(phase * TAU) * 0.75 + (0.25 if phase < 0.5 else -0.25)) * env * 0.36
+		pcm.encode_s16(i * 2, int(clampf(s, -0.95, 0.95) * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
+
+func _build_sfx_cloud_whoosh() -> AudioStreamWAV:
+	# Lush atmospheric wind rush as the camera dives through & parts the cumulus clouds (1.8s)
+	var rate: int = 22050
+	var total: int = int(1.80 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var lp1: float = 0.0
+	var lp2: float = 0.0
+	var phase: float = 0.0
+	for i in range(total):
+		var u: float = float(i) / float(total)
+		var env: float = sin(pow(u, 0.75) * PI)
+		var raw_noise: float = sin(float(i) * 1.618) * cos(float(i) * 2.718) + sin(float(i) * 4.123) * 0.5
+		var cutoff: float = lerpf(0.06, 0.28, sin(u * PI))
+		lp1 += cutoff * (raw_noise - lp1)
+		lp2 += cutoff * (lp1 - lp2)
+		var sub_freq: float = lerpf(210.0, 95.0, u)
+		phase = fmod(phase + sub_freq / float(rate), 1.0)
+		var s: float = (lp2 * 0.78 + sin(phase * TAU) * 0.22) * env * 0.52
+		pcm.encode_s16(i * 2, int(clampf(s, -0.95, 0.95) * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
+
+func _build_sfx_text_appear() -> AudioStreamWAV:
+	# Subtle warm lower-third caption / text reveal chime (0.18s)
+	var rate: int = 22050
+	var total: int = int(0.18 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var phase: float = 0.0
+	for i in range(total):
+		var t: float = float(i) / float(rate)
+		var freq: float = lerpf(587.33, 880.00, minf(1.0, t * 14.0)) # D5 -> A5
+		var env: float = exp(-t * 22.0)
+		phase = fmod(phase + freq / float(rate), 1.0)
+		var s: float = sin(phase * TAU) * env * 0.28
+		pcm.encode_s16(i * 2, int(clampf(s, -0.95, 0.95) * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
+
+func _build_sfx_card_appear() -> AudioStreamWAV:
+	# Crisp card slide + chime when each of the 5 Regional Pillars appears in the finale (0.24s)
+	var rate: int = 22050
+	var total: int = int(0.24 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var phase: float = 0.0
+	for i in range(total):
+		var u: float = float(i) / float(total)
+		var env: float = exp(-u * 6.5)
+		var freq: float = lerpf(320.0, 660.0, pow(u, 0.6))
+		phase = fmod(phase + freq / float(rate), 1.0)
+		var swish: float = sin(float(i) * 2.13) * cos(float(i) * 3.71) * exp(-u * 10.0) * 0.35
+		var s: float = (sin(phase * TAU) * 0.65 + swish) * env * 0.38
+		pcm.encode_s16(i * 2, int(clampf(s, -0.95, 0.95) * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
+
+func _build_sfx_title_impact() -> AudioStreamWAV:
+	# Grand cinematic chord & warm sub-impact when AGRI-REGION TYCOON title card appears (1.3s)
+	var rate: int = 22050
+	var total: int = int(1.30 * float(rate))
+	var pcm := PackedByteArray()
+	pcm.resize(total * 2)
+	var p1: float = 0.0
+	var p2: float = 0.0
+	var p3: float = 0.0
+	var p4: float = 0.0
+	for i in range(total):
+		var t: float = float(i) / float(rate)
+		var env: float = minf(1.0, t * 25.0) * exp(-t * 2.2)
+		p1 = fmod(p1 + 146.83 / float(rate), 1.0) # D3
+		p2 = fmod(p2 + 220.00 / float(rate), 1.0) # A3
+		p3 = fmod(p3 + 293.66 / float(rate), 1.0) # D4
+		p4 = fmod(p4 + 370.00 / float(rate), 1.0) # F#4 (Picardy major lift)
+		var chord: float = (sin(p1 * TAU) * 0.35 + sin(p2 * TAU) * 0.25 + sin(p3 * TAU) * 0.22 + sin(p4 * TAU) * 0.18)
+		var boom: float = sin(t * 75.0 * TAU) * exp(-t * 9.0) * 0.35
+		var s: float = (chord * env + boom) * 0.48
+		pcm.encode_s16(i * 2, int(clampf(s, -0.95, 0.95) * 32000.0))
+	return _make_wav_from_pcm(pcm, rate, false)
 
 # =============================================================================
 # UI & SUBVIEWPORT CONSTRUCTION
@@ -309,6 +901,7 @@ func _build_ui() -> void:
 
 	# 4. Top Letterbox Bar (70px)
 	var top_bar := PanelContainer.new()
+	_top_bar = top_bar
 	top_bar.anchor_left = 0.0
 	top_bar.anchor_top = 0.0
 	top_bar.anchor_right = 1.0
@@ -326,8 +919,18 @@ func _build_ui() -> void:
 	_root_ctrl.add_child(top_bar)
 
 	var top_hbox := HBoxContainer.new()
-	top_hbox.add_theme_constant_override("separation", 16)
+	top_hbox.add_theme_constant_override("separation", 12)
 	top_bar.add_child(top_hbox)
+
+	if _tex_game_logo != null:
+		var top_logo := TextureRect.new()
+		top_logo.texture = _tex_game_logo
+		top_logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		top_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		top_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		top_logo.custom_minimum_size = Vector2(88, 46)
+		top_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		top_hbox.add_child(top_logo)
 
 	var rec_badge := Label.new()
 	rec_badge.text = "🎬 OFFICIAL GAMEPLAY TRAILER"
@@ -357,12 +960,47 @@ func _build_ui() -> void:
 	_subtitle_lbl.add_theme_color_override("font_color", Color(0.72, 0.82, 0.74))
 	top_hbox.add_child(_subtitle_lbl)
 
-	var close_btn := _make_button("✕ SKIP / RETURN TO MENU (ESC)", Color(0.42, 0.16, 0.14), Color(0.88, 0.42, 0.36))
+	var clean_rec_btn := _make_button("🎥 RECORD CLEAN (R)", Color(0.14, 0.28, 0.20), Color(0.42, 0.86, 0.56))
+	clean_rec_btn.tooltip_text = "Restart from 00:00 in Full-Screen Clean Mode (hides all UI & cursor for recording)"
+	clean_rec_btn.pressed.connect(_start_clean_recording_from_beginning)
+	top_hbox.add_child(clean_rec_btn)
+
+	var fullscreen_btn := _make_button("👁 FULLSCREEN NO-UI (H)", Color(0.20, 0.24, 0.32), Color(0.55, 0.72, 0.94))
+	fullscreen_btn.tooltip_text = "Hide all UI layouts and enter Full-Screen Viewing Mode (press H, F, or ESC to restore)"
+	fullscreen_btn.pressed.connect(func():
+		if _au():
+			_au().play_ui("click")
+		_set_clean_recording_mode(true)
+	)
+	top_hbox.add_child(fullscreen_btn)
+
+	var close_btn := _make_button("✕ SKIP (ESC)", Color(0.42, 0.16, 0.14), Color(0.88, 0.42, 0.36))
 	close_btn.pressed.connect(_close_trailer)
 	top_hbox.add_child(close_btn)
 
+	# 4b. Official Game Logo Corner Watermark (top-right during Chapters I–IV)
+	if _tex_game_logo != null:
+		_corner_logo_watermark = TextureRect.new()
+		_corner_logo_watermark.name = "CornerLogoWatermark"
+		_corner_logo_watermark.texture = _tex_game_logo
+		_corner_logo_watermark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_corner_logo_watermark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_corner_logo_watermark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_corner_logo_watermark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_corner_logo_watermark.anchor_left = 1.0
+		_corner_logo_watermark.anchor_right = 1.0
+		_corner_logo_watermark.anchor_top = 0.0
+		_corner_logo_watermark.anchor_bottom = 0.0
+		_corner_logo_watermark.offset_left = -210.0
+		_corner_logo_watermark.offset_right = -18.0
+		_corner_logo_watermark.offset_top = 76.0
+		_corner_logo_watermark.offset_bottom = 185.0
+		_corner_logo_watermark.modulate = Color(1.0, 1.0, 1.0, 0.92)
+		_root_ctrl.add_child(_corner_logo_watermark)
+
 	# 5. Cinematic Caption Box (Lower-third above bottom letterbox bar)
 	var caption_panel := PanelContainer.new()
+	_caption_panel = caption_panel
 	caption_panel.anchor_left = 0.12
 	caption_panel.anchor_right = 0.88
 	caption_panel.anchor_top = 1.0
@@ -437,6 +1075,7 @@ func _build_ui() -> void:
 
 	# 7. Bottom Letterbox Controls & Chapter Timeline Bar (88px)
 	var bot_bar := PanelContainer.new()
+	_bot_bar = bot_bar
 	bot_bar.anchor_left = 0.0
 	bot_bar.anchor_top = 1.0
 	bot_bar.anchor_right = 1.0
@@ -860,8 +1499,8 @@ func _spawn_real_farmers() -> void:
 		_world_root.add_child(f)
 		_farmers.append(f)
 
-func _reset_scene2_manual_patch() -> void:
-	# Resets (2..4, 2..4) to fresh unplowed grass and queues real manual plow -> plant -> water tasks on Farmer_1
+func _reset_scene2_manual_patch(start_tasks_immediately: bool = false) -> void:
+	# Resets (2..4, 2..4) to fresh unplowed grass and positions Farmer_1 at (2, 2) ready for the aerial cloud zoom-in
 	if _farm_grid == null or _farmers.is_empty():
 		return
 	var f1: CharacterBody2D = _farmers[0]
@@ -880,6 +1519,18 @@ func _reset_scene2_manual_patch() -> void:
 			t.reset()
 			_farm_grid.renderer.update_tile(pt, _farm_grid.tiles)
 
+	_scene2_tasks_started = false
+	if start_tasks_immediately:
+		_start_scene2_farmer_tasks()
+
+	# Assign continuous real field tasks to Farmers 2..7 in the Heartland so they are actively working when the camera pans out
+	_assign_heartland_squad_tasks()
+
+func _start_scene2_farmer_tasks() -> void:
+	if _scene2_tasks_started or _farmers.is_empty():
+		return
+	_scene2_tasks_started = true
+	var f1: CharacterBody2D = _farmers[0]
 	# Queue real Plow -> Plant -> Water tasks on the front row so the viewer watches Farmer_1 do real work slowly
 	for pt in [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2)]:
 		f1.assign_task({"type": "plow", "position": pt})
@@ -890,9 +1541,6 @@ func _reset_scene2_manual_patch() -> void:
 	for pt in [Vector2i(2, 3), Vector2i(3, 3), Vector2i(4, 3)]:
 		f1.assign_task({"type": "plow", "position": pt})
 		f1.assign_task({"type": "plant", "position": pt, "crop_type": "yellow_corn"})
-
-	# Assign continuous real field tasks to Farmers 2..7 in the Heartland so they are actively working when the camera pans out
-	_assign_heartland_squad_tasks()
 
 func _assign_heartland_squad_tasks() -> void:
 	if _farmers.size() < 7 or _farm_grid == null:
@@ -940,14 +1588,16 @@ func _process(delta: float) -> void:
 
 func _jump_to_time(target_time: float) -> void:
 	_elapsed = clampf(target_time, 0.0, TOTAL_DURATION)
-	if _elapsed >= 19.0 and _elapsed < 44.0:
+	_rebuild_triggered_cues_up_to(_elapsed)
+	if _elapsed < 44.0:
 		_scene2_choreo_step = 0
+		_reset_scene2_manual_patch(_elapsed >= 21.8)
 	_sync_timeline(0.0, true)
 
 func _sync_timeline(dt: float, force_jump: bool) -> void:
 	_progress_bar.value = _elapsed
 	_time_lbl.text = "%s / %s" % [_format_seconds(_elapsed), _format_seconds(TOTAL_DURATION)]
-	_finale_cta_box.visible = (_elapsed >= 98.0)
+	_finale_cta_box.visible = (_elapsed >= 98.0) and not _clean_recording_mode
 
 	# Determine active chapter
 	var chap_idx: int = 0
@@ -971,23 +1621,33 @@ func _sync_timeline(dt: float, force_jump: bool) -> void:
 	if _ti():
 		_ti().set_speed_scale(_playback_speed if _is_playing else 0.0)
 
-	# Update camera, live gameplay choreography, captions, and clean cuts
+	# Update camera, live gameplay choreography, captions, clean cuts, and timed trailer SFX cues
 	_update_camera_and_gameplay(dt)
-	_update_captions()
+	_update_captions(force_jump)
 	_update_cut_fade()
+	if not force_jump and _is_playing:
+		_update_trailer_sfx_cues()
 
-	# Redraw custom canvas if in Chapter I (Intro) or Chapter V (Finale)
-	_intro_canvas.visible = (_elapsed < 20.0 or _elapsed >= 94.0)
+	# Keep _intro_canvas visible through 23.2s so the parting clouds draw over the live SubViewport as we zoom into the farmer!
+	_intro_canvas.visible = (_elapsed < 23.2 or _elapsed >= 94.0)
 	if _intro_canvas.visible:
 		_intro_canvas.queue_redraw()
+	if _corner_logo_watermark:
+		_corner_logo_watermark.visible = (_elapsed < 94.0)
 
 func _on_chapter_entered(chap_idx: int) -> void:
-	if chap_idx == 1:
-		# Entering Scene 2 (Humble Beginnings): Reset manual patch so Farmer_1 plows, plants & waters right before our eyes
+	if chap_idx == 0:
 		if _bm():
 			_bm().unlocked_techs.clear()
 			_bm().recalculate_bonuses()
-		_reset_scene2_manual_patch()
+		_reset_scene2_manual_patch(false)
+	elif chap_idx == 1:
+		# Entering Scene 2 (Humble Beginnings): Ensure standard worker speed; if jumping directly past 21.8s, start tasks immediately
+		if _bm():
+			_bm().unlocked_techs.clear()
+			_bm().recalculate_bonuses()
+		if _elapsed >= 21.8 and not _scene2_tasks_started:
+			_start_scene2_farmer_tasks()
 	elif chap_idx == 2 or chap_idx == 3:
 		# Entering Scene 3 or 4: Unlock Kuliglig speed boost so squad workers move briskly across the estate
 		if _bm():
@@ -1010,8 +1670,12 @@ func _update_camera_and_gameplay(dt: float) -> void:
 		_assign_heartland_squad_tasks()
 		_refresh_drone_showcase_tiles()
 
-	# In Scene 2 (20s..44s), gently accelerate crop growth on (2..4, 2..3) once planted so the viewer sees Palay grow live!
-	if _elapsed >= 20.0 and _elapsed < 44.0 and dt > 0.0:
+	# Trigger Farmer_1's manual tasks right at 21.8s as the clouds part and the aerial camera zoom settles onto Farmer_1!
+	if _elapsed >= 21.8 and _elapsed < 44.0 and not _scene2_tasks_started:
+		_start_scene2_farmer_tasks()
+
+	# In Scene 2 (22s..44s), gently accelerate crop growth on (2..4, 2..3) once planted so the viewer sees Palay grow live!
+	if _elapsed >= 22.0 and _elapsed < 44.0 and dt > 0.0:
 		_scene2_crop_timer += dt
 		if _scene2_crop_timer >= 0.45:
 			_scene2_crop_timer = 0.0
@@ -1025,14 +1689,30 @@ func _update_camera_and_gameplay(dt: float) -> void:
 							t.state = FarmTile.TileState.HARVESTABLE
 						_farm_grid.renderer.update_tile(p, _farm_grid.tiles)
 
-	# Slow, unhurried Factorio-style Camera Choreography across Acts II, III, and IV
-	if _elapsed >= 20.0 and _elapsed < 44.0:
-		# ACT II (20s -> 44s, 24 full seconds): Close-up on Homestead (3, 2) -> (4, 3), very gentle drift
-		var u: float = smoothstep(20.0, 44.0, _elapsed)
+	# Slow, unhurried Factorio-style Camera Choreography across the Cloud Dive, Act II, Act III, and Act IV
+	if _elapsed < 17.6:
+		# Pre-position camera high above the island before the cloud break
+		_game_camera.position = FarmerMovementScript.grid_to_pixel_center(Vector2i(10, 9), _farm_grid)
+		_game_camera.zoom = Vector2(0.48, 0.48)
+
+	elif _elapsed >= 17.6 and _elapsed < 23.6:
+		# CLOUD BREAK & AERIAL ZOOM INTO THE FARMER (17.6s -> 23.6s, 6.0s smooth descent):
+		# Zooms down through the parting clouds from high island altitude (0.48x) straight onto Farmer_1 at (2, 2) (1.64x)!
+		var u_dive: float = smoothstep(17.6, 23.6, _elapsed)
+		var u_eased: float = 1.0 - pow(1.0 - u_dive, 2.4)
+		var p_sky: Vector2 = FarmerMovementScript.grid_to_pixel_center(Vector2i(10, 9), _farm_grid)
+		var p_farmer: Vector2 = FarmerMovementScript.grid_to_pixel_center(Vector2i(2, 2), _farm_grid)
+		_game_camera.position = p_sky.lerp(p_farmer, u_eased)
+		var z: float = lerpf(0.48, 1.64, u_eased)
+		_game_camera.zoom = Vector2(z, z)
+
+	elif _elapsed >= 23.6 and _elapsed < 44.0:
+		# ACT II (23.6s -> 44s): Close-up on Farmer_1 plowing, planting & watering at Homestead (2, 2) -> (4, 3)
+		var u: float = smoothstep(23.6, 44.0, _elapsed)
 		var p_start: Vector2 = FarmerMovementScript.grid_to_pixel_center(Vector2i(2, 2), _farm_grid)
 		var p_end: Vector2 = FarmerMovementScript.grid_to_pixel_center(Vector2i(4, 3), _farm_grid)
 		_game_camera.position = p_start.lerp(p_end, u)
-		var z: float = lerpf(1.62, 1.42, u)
+		var z: float = lerpf(1.64, 1.42, u)
 		_game_camera.zoom = Vector2(z, z)
 
 	elif _elapsed >= 44.0 and _elapsed < 70.0:
@@ -1076,123 +1756,166 @@ func _refresh_drone_showcase_tiles() -> void:
 				_farm_grid.renderer.update_tile(p, _farm_grid.tiles)
 
 func _update_cut_fade() -> void:
-	# Clean fade-through-black transitions between major camera cuts:
-	# - Cut 1: 19.2s -> 20.8s (Regional Locator Map -> Close-up Homestead Gameplay)
-	# - Cut 2: 69.3s -> 70.7s (Heartland -> Drone Fleet & Fiesta Plaza)
-	# - Cut 3: 93.3s -> 94.7s (Gameplay -> 5 Regions & Grand Finale)
+	# Clean fade-through-black transitions only for later act cuts (70s and 94s).
+	# The transition around 18s..23s uses the seamless Cloud Break & Aerial Zoom into the farmer!
 	var alpha: float = 0.0
-	var cut_times: Array[float] = [20.0, 70.0, 94.0]
+	var cut_times: Array[float] = [70.0, 94.0]
 	for ct in cut_times:
 		var dist: float = absf(_elapsed - ct)
 		if dist < 0.85:
 			alpha = maxf(alpha, 1.0 - (dist / 0.85))
 	_cut_fade_rect.color = Color(0.02, 0.03, 0.03, clampf(alpha, 0.0, 1.0))
 
-func _update_captions() -> void:
-	if _elapsed < 7.5:
-		_caption_main_lbl.text = "SOUTHEAST ASIA — THE PHILIPPINE ARCHIPELAGO"
-		_caption_sub_lbl.text = "Scanning tropical agricultural basins from low-Earth orbit..."
-	elif _elapsed < 14.0:
-		_caption_main_lbl.text = "LOCKING TARGET: MINDANAO — REGION XII (SOCCSKSARGEN)"
-		_caption_sub_lbl.text = "Five diverse provinces of volcanic highlands, river basins, and coastal ports."
-	elif _elapsed < 20.0:
-		_caption_main_lbl.text = "COTABATO BASIN — THE HEART OF MINDANAO AGRICULTURE"
-		_caption_sub_lbl.text = "Touchdown on your starting 16×16 homestead parcel."
-	elif _elapsed < 32.0:
-		_caption_main_lbl.text = "EVERY EMPIRE BEGINS WITH ONE FARMER AND ONE PLOT"
-		_caption_sub_lbl.text = "Direct your worker to till the soil, sow Palay seeds, and hand-water each tile."
+func _update_captions(force_jump: bool = false) -> void:
+	var new_main: String = ""
+	var new_sub: String = ""
+	if _elapsed < 7.0:
+		new_main = "SOUTHEAST ASIA — THE PHILIPPINE ARCHIPELAGO"
+		new_sub = "Rotating in from low-Earth orbit toward the Western Pacific..."
+	elif _elapsed < 12.8:
+		new_main = "ZOOMING IN: THE PHILIPPINES → MINDANAO"
+		new_sub = "Descending toward the fertile southern island of Mindanao."
+	elif _elapsed < 17.5:
+		new_main = "REGION XII — COTABATO AGRICULTURAL BASIN"
+		new_sub = "Locking onto your starting province before diving through the cloud canopy."
+	elif _elapsed < 23.2:
+		new_main = "BREAKING THROUGH THE CLOUDS — YOUR HOMESTEAD AWAITS"
+		new_sub = "Descending from the sky straight down to your first farmer on the field."
+	elif _elapsed < 34.0:
+		new_main = "EVERY EMPIRE BEGINS WITH ONE FARMER AND ONE PLOT"
+		new_sub = "Direct your worker to till the soil, sow Palay seeds, and hand-water each tile."
 	elif _elapsed < 44.0:
-		_caption_main_lbl.text = "NURTURE YOUR FIRST HARVEST FROM SEEDLING TO GOLD"
-		_caption_sub_lbl.text = "Manage soil moisture, crop health, and Primera quality grading in real time."
+		new_main = "NURTURE YOUR FIRST HARVEST FROM SEEDLING TO GOLD"
+		new_sub = "Manage soil moisture, crop health, and Primera quality grading in real time."
 	elif _elapsed < 57.0:
-		_caption_main_lbl.text = "SCALE UP: IRRIGATION NETWORKS & MULTI-CROP AGRONOMY"
-		_caption_sub_lbl.text = "Build Water Towers, Weather Stations, and Sprinklers across 7 signature Philippine crops."
+		new_main = "SCALE UP: IRRIGATION NETWORKS & MULTI-CROP AGRONOMY"
+		new_sub = "Build Water Towers, Weather Stations, and Sprinklers across 7 signature Philippine crops."
 	elif _elapsed < 70.0:
-		_caption_main_lbl.text = "HIRE WORKER SQUADS & CULTIVATE 2×2 PERENNIAL GROVES"
-		_caption_sub_lbl.text = "Harvest Cavendish Bananas, Tall Coconut Palms, Arabica Coffee, Pineapple & Sugarcane."
+		new_main = "HIRE WORKER SQUADS & CULTIVATE 2×2 PERENNIAL GROVES"
+		new_sub = "Harvest Cavendish Bananas, Tall Coconut Palms, Arabica Coffee, Pineapple & Sugarcane."
 	elif _elapsed < 82.0:
-		_caption_main_lbl.text = "PRECISION AGRICULTURE: AUTONOMOUS DRONE FLEETS"
-		_caption_sub_lbl.text = "Deploy 6 programmable Farm Drones to plow, plant, water, spray, and harvest automatically."
+		new_main = "PRECISION AGRICULTURE: AUTONOMOUS DRONE FLEETS"
+		new_sub = "Deploy 6 programmable Farm Drones to plow, plant, water, spray, and harvest automatically."
 	elif _elapsed < 94.0:
-		_caption_main_lbl.text = "INDUSTRIAL PROCESSING, EXPORT PORTS & FIESTA CULTURE"
-		_caption_sub_lbl.text = "Operate Rice & Sugar Mills, ship from GenSan Seaport, and celebrate with a full Fiesta Plaza."
+		new_main = "INDUSTRIAL PROCESSING, EXPORT PORTS & FIESTA CULTURE"
+		new_sub = "Operate Rice & Sugar Mills, ship from GenSan Seaport, and celebrate with a full Fiesta Plaza."
 	else:
-		_caption_main_lbl.text = "AGRI-REGION TYCOON — BUILD MINDANAO'S GREATEST FARM"
-		_caption_sub_lbl.text = "Cotabato • South Cotabato • Sarangani • Sultan Kudarat • General Santos City"
+		new_main = "AGRI-REGION TYCOON — BUILD MINDANAO'S GREATEST FARM"
+		new_sub = "Cotabato • South Cotabato • Sarangani • Sultan Kudarat • General Santos City"
+
+	_caption_main_lbl.text = new_main
+	_caption_sub_lbl.text = new_sub
+	if new_main != _last_caption_text:
+		if not _last_caption_text.is_empty() and not force_jump and _is_playing:
+			_play_trailer_sfx("text_appear", 1.0, -3.5)
+		_last_caption_text = new_main
+
+const TRAILER_SFX_TIMELINE: Array[Dictionary] = [
+	{"t": 0.4,  "id": "zoom_orbit",    "sfx": "camera_zoom",  "pitch": 0.85, "db": -2.0},
+	{"t": 4.2,  "id": "lock_ph",       "sfx": "reticle_lock", "pitch": 1.00, "db": -2.0},
+	{"t": 5.0,  "id": "zoom_ph",       "sfx": "camera_zoom",  "pitch": 0.95, "db": -1.5},
+	{"t": 8.4,  "id": "lock_mindanao", "sfx": "reticle_lock", "pitch": 1.12, "db": -2.0},
+	{"t": 10.2, "id": "zoom_mindanao", "sfx": "camera_zoom",  "pitch": 1.08, "db": -1.5},
+	{"t": 12.6, "id": "lock_cotabato", "sfx": "reticle_lock", "pitch": 1.25, "db": -1.5},
+	{"t": 15.5, "id": "clouds_in",     "sfx": "cloud_whoosh", "pitch": 0.92, "db": -1.0},
+	{"t": 18.0, "id": "clouds_part",   "sfx": "cloud_whoosh", "pitch": 1.18, "db": 0.0},
+	{"t": 18.8, "id": "zoom_farmer",   "sfx": "camera_zoom",  "pitch": 1.15, "db": -2.0},
+	{"t": 44.2, "id": "zoom_act3",     "sfx": "camera_zoom",  "pitch": 0.82, "db": -2.0},
+	{"t": 70.2, "id": "zoom_act4",     "sfx": "camera_zoom",  "pitch": 0.90, "db": -2.0},
+	{"t": 94.2, "id": "card_1",        "sfx": "card_appear",  "pitch": 0.92, "db": -1.5},
+	{"t": 94.55,"id": "card_2",        "sfx": "card_appear",  "pitch": 1.00, "db": -1.5},
+	{"t": 94.9, "id": "card_3",        "sfx": "card_appear",  "pitch": 1.08, "db": -1.5},
+	{"t": 95.25,"id": "card_4",        "sfx": "card_appear",  "pitch": 1.16, "db": -1.5},
+	{"t": 95.6, "id": "card_5",        "sfx": "card_appear",  "pitch": 1.25, "db": -1.5},
+	{"t": 96.2, "id": "title_banner",  "sfx": "title_impact", "pitch": 1.00, "db": 0.5}
+]
+
+func _rebuild_triggered_cues_up_to(t_now: float) -> void:
+	_triggered_cues.clear()
+	for cue in TRAILER_SFX_TIMELINE:
+		if float(cue["t"]) < t_now - 0.05:
+			_triggered_cues[str(cue["id"])] = true
+
+func _update_trailer_sfx_cues() -> void:
+	for cue in TRAILER_SFX_TIMELINE:
+		var cid: String = str(cue["id"])
+		if not _triggered_cues.has(cid) and _elapsed >= float(cue["t"]):
+			_triggered_cues[cid] = true
+			_play_trailer_sfx(str(cue["sfx"]), float(cue["pitch"]), float(cue["db"]))
 
 # =============================================================================
-# CHAPTER I (ORBIT -> PH -> MINDANAO) & CHAPTER V (5 REGIONS FINALE) DRAWING
+# CHAPTER I (ORBIT -> PH -> REGION -> CLOUDS) & CHAPTER V (5 REGIONS FINALE)
 # =============================================================================
 func _draw_intro_and_finale() -> void:
 	var vp_size: Vector2 = _intro_canvas.size
 	var center: Vector2 = vp_size * 0.5
 
-	if _elapsed < 20.0:
+	if _elapsed < 23.2:
 		_draw_chapter_1_intro(vp_size, center)
 	elif _elapsed >= 94.0:
 		_draw_chapter_5_finale(vp_size, center)
 
 func _draw_chapter_1_intro(vp_size: Vector2, center: Vector2) -> void:
-	# Deep space background
-	_intro_canvas.draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.02, 0.04, 0.07, 1.0))
+	# 1. UNBROKEN CONTINUOUS PIXEL-ART GLOBE ZOOM (0.0s -> 18.0s):
+	#    Spins in space, locks onto the Philippines, and zooms continuously on the SAME pixel-art globe
+	#    into the Philippine Archipelago -> Mindanao -> Region XII (Cotabato Basin) with ZERO map cuts!
+	if _elapsed < 18.0:
+		_intro_canvas.draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.02, 0.04, 0.07, 1.0))
 
-	# Crisp pixel stars
-	for i in range(70):
-		var sx: float = fmod(float(i * 197 + 43), vp_size.x)
-		var sy: float = fmod(float(i * 131 + 89), vp_size.y)
-		var tw: float = 0.45 + 0.45 * sin(_elapsed * 1.8 + float(i))
-		_intro_canvas.draw_rect(Rect2(Vector2(sx, sy), Vector2(2, 2)), Color(0.85, 0.92, 1.0, tw))
+		# Crisp twinkling pixel stars in space around the globe
+		for i in range(70):
+			var sx: float = fmod(float(i * 197 + 43), vp_size.x)
+			var sy: float = fmod(float(i * 131 + 89), vp_size.y)
+			var tw: float = 0.45 + 0.45 * sin(_elapsed * 1.8 + float(i))
+			_intro_canvas.draw_rect(Rect2(Vector2(sx, sy), Vector2(2, 2)), Color(0.85, 0.92, 1.0, tw))
 
-	# Phase 1A (0.0s -> 9.0s): Slow rotating pixel-art globe zooming in
-	if _elapsed < 10.5 and not _globe_frames.is_empty():
-		var u_globe: float = clampf(_elapsed / 8.5, 0.0, 1.0)
-		var frame_idx: int = clampi(int(u_globe * float(_globe_frames.size() - 1)), 0, _globe_frames.size() - 1)
-		var g_tex: ImageTexture = _globe_frames[frame_idx]
-		var g_scale: float = lerpf(2.4, 4.2, smoothstep(0.0, 10.0, _elapsed))
-		var g_size: Vector2 = Vector2(120.0, 120.0) * g_scale
-		var g_alpha: float = 1.0 - smoothstep(8.2, 10.5, _elapsed)
-		_intro_canvas.draw_texture_rect(g_tex, Rect2(center - g_size * 0.5, g_size), false, Color(1, 1, 1, g_alpha))
+		_render_continuous_pixel_globe(_elapsed)
+		if _globe_tex != null:
+			_intro_canvas.draw_texture_rect(_globe_tex, Rect2(Vector2.ZERO, vp_size), false, Color.WHITE)
 
-		# Tactical orbital reticle locking onto the Philippines once rotation reaches SE Asia (t > 5.0s)
-		if _elapsed > 4.8:
-			var lock_a: float = clampf((_elapsed - 4.8) / 1.5, 0.0, 1.0) * g_alpha
-			var ph_pos: Vector2 = center + Vector2(22.0, -18.0) * (g_scale / 3.0)
-			_draw_tactical_reticle(ph_pos, 34.0, Color(0.98, 0.82, 0.25, lock_a), "PHILIPPINES [12°N 122°E]")
+		# Tactical orbital reticles as the continuous pixel-art globe zooms in
+		if _elapsed >= 4.2 and _elapsed < 8.4:
+			var lock_a: float = smoothstep(4.2, 5.2, _elapsed) * (1.0 - smoothstep(7.2, 8.4, _elapsed))
+			if lock_a > 0.01:
+				_draw_tactical_reticle(center, 44.0, Color(0.98, 0.82, 0.25, lock_a), "PHILIPPINES [12°N 122°E]")
+		elif _elapsed >= 8.4 and _elapsed < 12.6:
+			var min_a: float = smoothstep(8.4, 9.4, _elapsed) * (1.0 - smoothstep(11.6, 12.6, _elapsed))
+			if min_a > 0.01:
+				_draw_tactical_reticle(center, 52.0, Color(0.40, 0.96, 0.52, min_a), "MINDANAO — REGION XII")
+		elif _elapsed >= 12.6 and _elapsed < 16.8:
+			var cot_a: float = smoothstep(12.6, 13.5, _elapsed) * (1.0 - smoothstep(15.6, 16.8, _elapsed))
+			if cot_a > 0.01:
+				_draw_tactical_reticle(center, 58.0, Color(0.99, 0.86, 0.30, cot_a), "COTABATO BASIN — HOMESTEAD")
 
-	# Phase 1B (8.2s -> 15.2s): Official Philippine Archipelago Map zooming slowly into Mindanao
-	if _elapsed >= 8.2 and _elapsed < 15.8 and _tex_ph_map != null:
-		var ph_alpha: float = smoothstep(8.2, 10.2, _elapsed) * (1.0 - smoothstep(13.8, 15.8, _elapsed))
-		var u_zoom: float = smoothstep(8.5, 15.0, _elapsed)
-		var tex_s: Vector2 = _tex_ph_map.get_size()
-		var scale_f: float = lerpf(0.85, 1.95, u_zoom) * (vp_size.y / maxf(tex_s.y, 1.0))
-		var draw_s: Vector2 = tex_s * scale_f
-		# Pan focus gently down toward Mindanao (bottom third of archipelago)
-		var pan_offset: Vector2 = Vector2(-draw_s.x * 0.08 * u_zoom, -draw_s.y * 0.24 * u_zoom)
-		var rect_pos: Vector2 = center - draw_s * 0.5 + pan_offset
-		_intro_canvas.draw_texture_rect(_tex_ph_map, Rect2(rect_pos, draw_s), false, Color(1, 1, 1, ph_alpha))
+	# 2. STAGE 1D (15.4s -> 23.2s): Atmospheric Cloud Canopy & Parting Clouds over the Live Farmer Zoom-In!
+	if _elapsed >= 15.4 and _elapsed < 23.2 and _cloud_tex != null:
+		# Soft atmospheric mist veil that peaks at 17.6s..18.3s (seamless bridge from Pixel Globe to Live SubViewport)
+		var veil_in: float = smoothstep(15.6, 17.7, _elapsed)
+		var veil_out: float = 1.0 - smoothstep(18.2, 20.6, _elapsed)
+		var veil_alpha: float = veil_in * veil_out
+		if veil_alpha > 0.01:
+			_intro_canvas.draw_rect(Rect2(Vector2.ZERO, vp_size), Color(0.92, 0.96, 0.99, veil_alpha * 0.96))
 
-		var mindanao_pt: Vector2 = rect_pos + Vector2(draw_s.x * 0.62, draw_s.y * 0.78)
-		_draw_tactical_reticle(mindanao_pt, 46.0, Color(0.40, 0.96, 0.52, ph_alpha), "MINDANAO — REGION XII")
+		# Draw 24 layered pixel-art cumulus clouds rushing in and parting radially outward as we dive onto Farmer_1
+		var base_csize: Vector2 = _cloud_tex.get_size()
+		for puff in _cloud_puffs:
+			var delay: float = float(puff["delay"])
+			var t_local: float = _elapsed - (15.4 + delay)
+			if t_local <= 0.0:
+				continue
+			var u_in: float = smoothstep(0.0, 2.0, t_local)
+			var u_part: float = clampf((_elapsed - (17.8 + delay * 0.6)) / 4.2, 0.0, 1.0)
+			var u_part_eased: float = pow(u_part, 1.55)
 
-	# Phase 1C (13.8s -> 20.0s): Official Regional Background + Cotabato Mindanao Locator Map
-	if _elapsed >= 13.8:
-		var reg_alpha: float = smoothstep(13.8, 15.6, _elapsed)
-		var bg_tex: Texture2D = _region_bg_textures.get("cotabato", null)
-		if bg_tex != null:
-			var u_bg: float = smoothstep(14.0, 20.0, _elapsed)
-			var b_scale: float = lerpf(1.02, 1.16, u_bg)
-			var b_size: Vector2 = vp_size * b_scale
-			_intro_canvas.draw_texture_rect(bg_tex, Rect2(center - b_size * 0.5, b_size), false, Color(0.85, 0.90, 0.86, reg_alpha))
+			var dir: Vector2 = puff["dir"]
+			var dist: float = float(puff["base_dist"]) * (0.35 + 0.65 * u_in) + u_part_eased * float(puff["part_speed"])
+			var p_scale: float = float(puff["base_scale"]) * lerpf(0.65, 2.35, smoothstep(0.0, 6.2, t_local))
+			var draw_size: Vector2 = base_csize * p_scale
+			var pos: Vector2 = center + dir * dist - draw_size * 0.5
 
-		if _tex_cotabato_loc != null:
-			var loc_s: Vector2 = _tex_cotabato_loc.get_size()
-			var target_h: float = vp_size.y * 0.54
-			var l_scale: float = target_h / maxf(loc_s.y, 1.0)
-			var draw_loc: Vector2 = loc_s * l_scale
-			var loc_rect := Rect2(center - draw_loc * 0.5 + Vector2(0, -18), draw_loc)
-			_intro_canvas.draw_rect(loc_rect.grow(10.0), Color(0.04, 0.08, 0.06, 0.78 * reg_alpha))
-			_intro_canvas.draw_rect(loc_rect.grow(10.0), Color(0.86, 0.68, 0.24, 0.90 * reg_alpha), false, 2.0)
-			_intro_canvas.draw_texture_rect(_tex_cotabato_loc, loc_rect, false, Color(1, 1, 1, reg_alpha))
+			var c_alpha: float = u_in * (1.0 - smoothstep(0.55, 1.0, u_part))
+			if c_alpha > 0.01:
+				_intro_canvas.draw_texture_rect(_cloud_tex, Rect2(pos, draw_size), false, Color(1, 1, 1, c_alpha))
 
 func _draw_tactical_reticle(pos: Vector2, radius: float, col: Color, label_txt: String) -> void:
 	_intro_canvas.draw_arc(pos, radius, 0.0, TAU, 32, col, 2.0)
@@ -1212,8 +1935,8 @@ func _draw_chapter_5_finale(vp_size: Vector2, center: Vector2) -> void:
 	var margin_x: float = 36.0
 	var gap: float = 12.0
 	var card_w: float = (vp_size.x - margin_x * 2.0 - gap * 4.0) / 5.0
-	var card_h: float = 250.0
-	var card_y: float = 96.0
+	var card_h: float = 196.0
+	var card_y: float = 42.0 if _clean_recording_mode else 74.0
 
 	for i in range(keys.size()):
 		var k: String = keys[i]
@@ -1233,23 +1956,31 @@ func _draw_chapter_5_finale(vp_size: Vector2, center: Vector2) -> void:
 			var ms: Vector2 = mon_t.get_size()
 			var sc: float = minf((card_w * 0.72) / maxf(ms.x, 1.0), (card_h * 0.62) / maxf(ms.y, 1.0))
 			var draw_ms: Vector2 = ms * sc
-			var m_pos: Vector2 = crect.position + Vector2((card_w - draw_ms.x) * 0.5, card_h - draw_ms.y - 36.0)
+			var m_pos: Vector2 = crect.position + Vector2((card_w - draw_ms.x) * 0.5, card_h - draw_ms.y - 32.0)
 			_intro_canvas.draw_texture_rect(mon_t, Rect2(m_pos, draw_ms), false, Color(1, 1, 1, card_appear))
 
-		_intro_canvas.draw_rect(Rect2(crect.position.x, crect.end.y - 30.0, card_w, 30.0), Color(0.03, 0.05, 0.04, 0.92 * card_appear))
+		_intro_canvas.draw_rect(Rect2(crect.position.x, crect.end.y - 28.0, card_w, 28.0), Color(0.03, 0.05, 0.04, 0.92 * card_appear))
 		_intro_canvas.draw_rect(crect, Color(0.86, 0.68, 0.24, 0.88 * card_appear), false, 2.0)
 		if _pixel_font:
-			_intro_canvas.draw_string(_pixel_font, Vector2(crect.position.x + 8.0, crect.end.y - 10.0), titles[i], HORIZONTAL_ALIGNMENT_LEFT, card_w - 16.0, 13, Color(0.98, 0.92, 0.74, card_appear))
+			_intro_canvas.draw_string(_pixel_font, Vector2(crect.position.x + 8.0, crect.end.y - 9.0), titles[i], HORIZONTAL_ALIGNMENT_LEFT, card_w - 16.0, 13, Color(0.98, 0.92, 0.74, card_appear))
 
-	# Grand Title Card Banner in center-lower screen
-	var title_a: float = smoothstep(96.0, 97.8, _elapsed)
-	if title_a > 0.01 and _pixel_font:
-		var banner_rect := Rect2(Vector2(center.x - 360.0, 368.0), Vector2(720.0, 118.0))
-		_intro_canvas.draw_rect(banner_rect, Color(0.04, 0.08, 0.06, 0.94 * title_a))
-		_intro_canvas.draw_rect(banner_rect, Color(0.95, 0.76, 0.26, 0.95 * title_a), false, 3.0)
-		_intro_canvas.draw_string(_pixel_font, Vector2(banner_rect.position.x, banner_rect.position.y + 48.0), "AGRI-REGION TYCOON", HORIZONTAL_ALIGNMENT_CENTER, banner_rect.size.x, 36, Color(0.99, 0.88, 0.42, title_a))
-		_intro_canvas.draw_string(_pixel_font, Vector2(banner_rect.position.x, banner_rect.position.y + 80.0), "SOW THE SEED  •  AUTOMATE THE HARVEST  •  MASTER THE MARKET", HORIZONTAL_ALIGNMENT_CENTER, banner_rect.size.x, 15, Color(0.84, 0.92, 0.84, title_a))
-		_intro_canvas.draw_string(_pixel_font, Vector2(banner_rect.position.x, banner_rect.position.y + 104.0), "30/60/90-Day Timed Campaign  |  Endless Career Tycoon  |  Creative Sandbox", HORIZONTAL_ALIGNMENT_CENTER, banner_rect.size.x, 13, Color(0.68, 0.80, 0.70, title_a))
+	# Grand Official Wooden Pixel-Art Logo Showcase in center-lower screen
+	var title_a: float = smoothstep(95.8, 97.4, _elapsed)
+	if title_a > 0.01:
+		if _tex_game_logo != null:
+			var logo_scale: float = lerpf(0.86, 1.0, title_a)
+			var base_w: float = 500.0 if _clean_recording_mode else 460.0
+			var base_h: float = base_w * (537.0 / 946.0)
+			var draw_w: float = base_w * logo_scale
+			var draw_h: float = base_h * logo_scale
+			var logo_center_y: float = 418.0 if _clean_recording_mode else 404.0
+			var logo_rect := Rect2(Vector2(center.x - draw_w * 0.5, logo_center_y - draw_h * 0.5), Vector2(draw_w, draw_h))
+			_intro_canvas.draw_texture_rect(_tex_game_logo, logo_rect, false, Color(1.0, 1.0, 1.0, title_a))
+		elif _pixel_font:
+			var banner_rect := Rect2(Vector2(center.x - 360.0, 368.0), Vector2(720.0, 118.0))
+			_intro_canvas.draw_rect(banner_rect, Color(0.04, 0.08, 0.06, 0.94 * title_a))
+			_intro_canvas.draw_rect(banner_rect, Color(0.95, 0.76, 0.26, 0.95 * title_a), false, 3.0)
+			_intro_canvas.draw_string(_pixel_font, Vector2(banner_rect.position.x, banner_rect.position.y + 48.0), "AGRI-REGION TYCOON", HORIZONTAL_ALIGNMENT_CENTER, banner_rect.size.x, 36, Color(0.99, 0.88, 0.42, title_a))
 
 # =============================================================================
 # CONTROLS & CLEANUP
@@ -1262,6 +1993,8 @@ func _toggle_play_pause() -> void:
 		_is_playing = true
 	else:
 		_is_playing = not _is_playing
+	if _trailer_bgm_player:
+		_trailer_bgm_player.stream_paused = not _is_playing
 	_update_control_buttons()
 
 func _cycle_speed() -> void:
@@ -1287,11 +2020,69 @@ func _format_seconds(sec: float) -> String:
 	var s: int = total_s % 60
 	return "%02d:%02d" % [m, s]
 
+func _set_clean_recording_mode(enabled: bool) -> void:
+	_clean_recording_mode = enabled
+	if _top_bar:
+		_top_bar.visible = not enabled
+	if _bot_bar:
+		_bot_bar.visible = not enabled
+	if _caption_panel:
+		_caption_panel.visible = true
+		# In full-screen recording mode (bottom bar hidden), shift the lower-third caption box neatly toward the bottom edge
+		if enabled:
+			_caption_panel.offset_top = -100.0
+			_caption_panel.offset_bottom = -28.0
+		else:
+			_caption_panel.offset_top = -170.0
+			_caption_panel.offset_bottom = -98.0
+	if _corner_logo_watermark:
+		_corner_logo_watermark.offset_top = 18.0 if enabled else 76.0
+		_corner_logo_watermark.offset_bottom = 127.0 if enabled else 185.0
+	if _finale_cta_box:
+		_finale_cta_box.visible = (_elapsed >= 98.0) and not enabled
+
+	if DisplayServer.get_name() != "headless":
+		if enabled:
+			if _saved_window_mode == -1:
+				_saved_window_mode = DisplayServer.window_get_mode()
+			if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		else:
+			if _saved_window_mode != -1:
+				DisplayServer.window_set_mode(_saved_window_mode as DisplayServer.WindowMode)
+				_saved_window_mode = -1
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	if _intro_canvas and _intro_canvas.visible:
+		_intro_canvas.queue_redraw()
+
+func _start_clean_recording_from_beginning() -> void:
+	if _au():
+		_au().play_ui("click")
+	_playback_speed = 1.0
+	_is_playing = true
+	_jump_to_time(0.0)
+	if _trailer_bgm_player:
+		_trailer_bgm_player.stream_paused = false
+		_trailer_bgm_player.play(0.0)
+	_update_control_buttons()
+	_set_clean_recording_mode(true)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
 			get_viewport().set_input_as_handled()
-			_close_trailer()
+			if _clean_recording_mode:
+				_set_clean_recording_mode(false)
+			else:
+				_close_trailer()
+		elif event.keycode == KEY_H or event.keycode == KEY_F or event.keycode == KEY_F11:
+			get_viewport().set_input_as_handled()
+			_set_clean_recording_mode(not _clean_recording_mode)
+		elif event.keycode == KEY_R:
+			get_viewport().set_input_as_handled()
+			_start_clean_recording_from_beginning()
 		elif event.keycode == KEY_SPACE:
 			get_viewport().set_input_as_handled()
 			_toggle_play_pause()

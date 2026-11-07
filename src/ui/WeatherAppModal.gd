@@ -477,10 +477,11 @@ func refresh() -> void:
 	var eff_temp: float = WeatherManager.get_effective_temperature()
 	var eff_hum: float  = WeatherManager.get_effective_humidity()
 	var rain: float     = WeatherManager.rainfall_mm
+	var r_chance: float = WeatherManager.rain_chance
 
 	_hero_temp_label.text = "%.0f°C" % eff_temp
-	_hero_condition_label.text = WeatherManager.get_condition_title(WeatherManager.current_climate, WeatherManager.incoming_disaster)
-	_hero_icon.texture = _get_weather_icon(WeatherManager.current_climate, WeatherManager.incoming_disaster, eff_temp, rain)
+	_hero_condition_label.text = WeatherManager.get_condition_title(WeatherManager.current_climate, WeatherManager.incoming_disaster, rain, r_chance)
+	_hero_icon.texture = _get_weather_icon(WeatherManager.current_climate, WeatherManager.incoming_disaster, eff_temp, rain, r_chance)
 
 	var period_name: String = TimeManager.get_time_period_name()
 	var time_str: String = "%02d:00" % TimeManager.current_hour
@@ -502,7 +503,7 @@ func refresh() -> void:
 		rain_desc = "Heavy"
 	elif rain > 0.1:
 		rain_desc = "Showers"
-	_rainfall_chip_val.text = "%.1f mm (%s)" % [rain, rain_desc]
+	_rainfall_chip_val.text = "%.1f mm (%s) • %d%% Chance" % [rain, rain_desc, int(round(r_chance * 100.0))]
 
 	var st_acc: float = BuildingManager.get_forecast_accuracy()
 	var st_warn: float = BuildingManager.get_disaster_warning_time()
@@ -551,7 +552,9 @@ func _populate_forecast_strip() -> void:
 				"temperature": 28.0,
 				"humidity": 0.65,
 				"rainfall": 5.0,
+				"rain_chance": 0.20,
 				"hazard": "clear",
+				"climate": WeatherManager.Climate.NORMAL,
 				"accuracy": 0.35,
 				"required_tier": 3 if i >= 3 else (2 if i >= 1 else 1),
 				"unlocked": false
@@ -559,7 +562,7 @@ func _populate_forecast_strip() -> void:
 
 		var is_unlocked: bool = entry.get("unlocked", false)
 		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(116, 168)
+		card.custom_minimum_size = Vector2(116, 172)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 		var margin := MarginContainer.new()
@@ -593,12 +596,15 @@ func _populate_forecast_strip() -> void:
 			var f_temp: float = float(entry.get("temperature", 28.0))
 			var f_hum: float  = float(entry.get("humidity", 0.65))
 			var f_rain: float = float(entry.get("rainfall", 5.0))
+			var f_chance: float = float(entry.get("rain_chance", 0.20))
 			var f_haz: String = str(entry.get("hazard", "clear"))
+			var f_clim: int = int(entry.get("climate", WeatherManager.Climate.NORMAL))
+			var f_cond_title: String = str(entry.get("condition_title", WeatherManager.get_condition_title(f_clim, f_haz, f_rain, f_chance)))
 
-			# Forecast weather icon
+			# Forecast weather icon: uses DAY'S OWN parameters, NOT today's global climate!
 			var f_icon := TextureRect.new()
-			f_icon.texture = _get_weather_icon(WeatherManager.current_climate, f_haz, f_temp, f_rain)
-			f_icon.custom_minimum_size = Vector2(36, 36)
+			f_icon.texture = _get_weather_icon(f_clim, f_haz, f_temp, f_rain, f_chance)
+			f_icon.custom_minimum_size = Vector2(32, 32)
 			f_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			f_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			card_vbox.add_child(f_icon)
@@ -611,42 +617,66 @@ func _populate_forecast_strip() -> void:
 			temp_lbl.add_theme_font_size_override("font_size", 13)
 			card_vbox.add_child(temp_lbl)
 
+			# Rain Chance label (e.g. ☔ 80% Rain, 🌦️ 45% Rain, ☀️ 10% Rain)
+			var rain_lbl := Label.new()
+			var chance_pct: int = int(round(f_chance * 100.0))
+			if chance_pct >= 60:
+				rain_lbl.text = "☔ %d%% Rain" % chance_pct
+				rain_lbl.add_theme_color_override("font_color", Color(0.15, 0.45, 0.85, 1.0))
+			elif chance_pct >= 30:
+				rain_lbl.text = "🌦️ %d%% Rain" % chance_pct
+				rain_lbl.add_theme_color_override("font_color", Color(0.18, 0.55, 0.65, 1.0))
+			else:
+				rain_lbl.text = "☀️ %d%% Rain" % chance_pct
+				rain_lbl.add_theme_color_override("font_color", Color(0.45, 0.38, 0.20, 1.0))
+			rain_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rain_lbl.add_theme_font_size_override("font_size", 10)
+			card_vbox.add_child(rain_lbl)
+
 			# Moisture index
 			var hum_lbl := Label.new()
 			hum_lbl.text = "💧 %.0f%%" % (f_hum * 100.0)
 			hum_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			hum_lbl.add_theme_color_override("font_color", Color(0.12, 0.40, 0.65, 1.0))
-			hum_lbl.add_theme_font_size_override("font_size", 11)
+			hum_lbl.add_theme_font_size_override("font_size", 10)
 			card_vbox.add_child(hum_lbl)
 
-			# Hazard Tag Pill
+			# Hazard Tag Pill with diverse weather states
 			var haz_pill := PanelContainer.new()
 			haz_pill.add_theme_stylebox_override("panel", STYLE_BROWN_BOX)
 			var haz_lbl := Label.new()
 			haz_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			haz_lbl.add_theme_font_size_override("font_size", 10)
+			haz_lbl.add_theme_font_size_override("font_size", 9)
 
-			match f_haz:
-				"flash_flood":
-					haz_lbl.text = "⚠️ Flood"
-					haz_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35, 1.0))
-				"el_nino_drought":
-					haz_lbl.text = "🔥 Drought"
-					haz_lbl.add_theme_color_override("font_color", Color(1.0, 0.65, 0.25, 1.0))
-				"landslide":
-					haz_lbl.text = "⛰️ Slide"
-					haz_lbl.add_theme_color_override("font_color", Color(0.95, 0.45, 0.45, 1.0))
-				_:
-					haz_lbl.text = "✅ Clear"
-					haz_lbl.add_theme_color_override("font_color", Color(0.40, 0.85, 0.45, 1.0))
+			if f_haz == "flash_flood":
+				haz_lbl.text = "⚠️ Flood Risk"
+				haz_lbl.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35, 1.0))
+			elif f_haz == "el_nino_drought":
+				haz_lbl.text = "🔥 Drought Risk"
+				haz_lbl.add_theme_color_override("font_color", Color(1.0, 0.65, 0.25, 1.0))
+			elif f_haz == "landslide":
+				haz_lbl.text = "⛰️ Slide Risk"
+				haz_lbl.add_theme_color_override("font_color", Color(0.95, 0.45, 0.45, 1.0))
+			elif f_rain >= 30.0 or f_chance >= 0.70:
+				haz_lbl.text = "🌧️ Heavy Rain"
+				haz_lbl.add_theme_color_override("font_color", Color(0.45, 0.75, 1.0, 1.0))
+			elif f_rain >= 10.0 or f_chance >= 0.40:
+				haz_lbl.text = "🌦️ Showers"
+				haz_lbl.add_theme_color_override("font_color", Color(0.55, 0.85, 0.95, 1.0))
+			elif f_chance >= 0.20:
+				haz_lbl.text = "⛅ Part Cloudy"
+				haz_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.75, 1.0))
+			else:
+				haz_lbl.text = "☀️ Fair / Clear"
+				haz_lbl.add_theme_color_override("font_color", Color(0.40, 0.85, 0.45, 1.0))
 
 			haz_pill.add_child(haz_lbl)
 			card_vbox.add_child(haz_pill)
 
-			# Action tip tooltip
-			var advice_tip: String = WeatherManager.get_hazard_advice(f_haz, WeatherManager.current_climate)
-			card.tooltip_text = "%s (Day %d)\nPredicted Temp: %.1f°C • Moisture: %.0f%%\nRainfall: %.1f mm • Hazard: %s\nAgronomic Advice: %s" % [
-				day_header_str, target_day, f_temp, f_hum * 100.0, f_rain, WeatherManager.get_hazard_display_name(f_haz), advice_tip
+			# Action tip tooltip using day's own forecasted conditions
+			var advice_tip: String = WeatherManager.get_hazard_advice(f_haz, f_clim)
+			card.tooltip_text = "%s (Day %d) — %s\nTemp: %.1f°C • Moisture: %.0f%%\nRainfall: %.1f mm • Rain Chance: %d%%\nHazard: %s\nAgronomic Advice: %s" % [
+				day_header_str, target_day, f_cond_title, f_temp, f_hum * 100.0, f_rain, chance_pct, WeatherManager.get_hazard_display_name(f_haz), advice_tip
 			]
 
 		else:
@@ -794,17 +824,19 @@ func _on_demolish_pressed() -> void:
 	b.demolish()
 	demolish_requested.emit(b)
 
-func _get_weather_icon(climate: int, hazard: String, temp: float, rain: float) -> Texture2D:
+func _get_weather_icon(climate: int, hazard: String, temp: float, rain: float, rain_chance: float = -1.0) -> Texture2D:
 	if hazard == "flash_flood":
 		return FLOOD_WAVE_ICON
 	if hazard == "landslide":
 		return WARNING_ICON
-	if hazard == "el_nino_drought" or temp >= 34.0 or climate == WeatherManager.Climate.EL_NINO:
+	if hazard == "el_nino_drought" or temp >= 35.0 or climate == WeatherManager.Climate.EL_NINO:
 		return TEMP_FIRE_ICON
-	if rain >= 25.0 or climate == WeatherManager.Climate.LA_NINA:
+	if rain >= 25.0 or (rain_chance >= 0.70 and rain >= 12.0):
 		return RAIN_ICON
-	if rain >= 8.0:
+	if rain >= 6.0 or rain_chance >= 0.40:
 		return CLOUD_ICON
+	if rain_chance >= 0.20 or (temp >= 28.0 and rain >= 1.0):
+		return SUN_CLOUDS_ICON
 	if temp >= 29.0:
 		return TEMP_SUNNY_ICON
 	if temp >= 23.0:

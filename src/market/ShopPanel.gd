@@ -13,6 +13,7 @@ signal worker_spawn_requested()
 # Preloaded Textures for Visual Card Showcases
 const TEX_KUBO: Texture2D            = preload("res://assets/sprites/buildings/KUBO.png")
 const TEX_SILO: Texture2D            = preload("res://assets/sprites/buildings/Silo/SILO-100.PNG")
+const TEX_CLIMATE_SILO: Texture2D    = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-100.PNG")
 const TEX_DRYER: Texture2D           = preload("res://assets/sprites/buildings/DRYER.PNG")
 const TEX_COLD_STORAGE: Texture2D    = preload("res://assets/sprites/buildings/Cold_Storage.png")
 const TEX_DRONE_STATION: Texture2D   = preload("res://assets/sprites/buildings/Drone_Station.png")
@@ -1075,7 +1076,7 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 		"cold_storage":
 			preview_node = ShopSpritePreview.new(b_key, TEX_COLD_STORAGE)
 		"climate_silo":
-			preview_node = ShopSpritePreview.new(b_key, TEX_SILO, Color(0.85, 0.95, 1.15))
+			preview_node = ShopSpritePreview.new(b_key, TEX_CLIMATE_SILO)
 		"weather_station":
 			preview_node = ShopSpritePreview.new(b_key, TEX_WEATHER_STATION)
 		"water_tower":

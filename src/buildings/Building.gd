@@ -65,6 +65,17 @@ const TEX_SILO_75_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/S
 const TEX_SILO_100: Texture2D        = preload("res://assets/sprites/buildings/Silo/SILO-100.PNG")
 const TEX_SILO_100_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Silo/SILO-100_FLIPPED.PNG")
 
+const TEX_CLIMATE_SILO_0: Texture2D          = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-0.PNG")
+const TEX_CLIMATE_SILO_0_FLIPPED: Texture2D  = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-0_FLIPPED.PNG")
+const TEX_CLIMATE_SILO_25: Texture2D         = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-25.PNG")
+const TEX_CLIMATE_SILO_25_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-25_FLIPPED.PNG")
+const TEX_CLIMATE_SILO_50: Texture2D         = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-50.PNG")
+const TEX_CLIMATE_SILO_50_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-50_FLIPPED.PNG")
+const TEX_CLIMATE_SILO_75: Texture2D         = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-75.PNG")
+const TEX_CLIMATE_SILO_75_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-75_FLIPPED.PNG")
+const TEX_CLIMATE_SILO_100: Texture2D        = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-100.PNG")
+const TEX_CLIMATE_SILO_100_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/Silo/CLIMATE-SILO-100_FLIPPED.PNG")
+
 const TEX_BYAHERO: Texture2D         = preload("res://assets/sprites/buildings/byahero.png")
 const TEX_BYAHERO_FLIPPED: Texture2D = preload("res://assets/sprites/buildings/byahero_FLIPPED.png")
 const TEX_TACURONG: Texture2D        = preload("res://assets/sprites/buildings/Tacurong-Grain-mill.png")
@@ -600,9 +611,15 @@ static func get_placement_preview(b_type: String, flipped: bool = false) -> Dict
 				"scale": 2.0,
 				"center_offset": Vector2(40.0, 94.0)
 			}
-		"bodega", "climate_silo":
+		"bodega":
 			return {
 				"texture": TEX_SILO_100_FLIPPED if flipped else TEX_SILO_100,
+				"scale": 2.5,
+				"center_offset": Vector2(24.0, 47.2)
+			}
+		"climate_silo":
+			return {
+				"texture": TEX_CLIMATE_SILO_100_FLIPPED if flipped else TEX_CLIMATE_SILO_100,
 				"scale": 2.5,
 				"center_offset": Vector2(24.0, 47.2)
 			}
@@ -655,6 +672,36 @@ func _get_silo_texture() -> Texture2D:
 			return TEX_SILO_75
 		else:
 			return TEX_SILO_100
+
+func _get_climate_silo_texture() -> Texture2D:
+	var ratio: float = 0.0
+	var cap: int = get_storage_capacity()
+	if cap > 0:
+		ratio = clampf(float(used_storage) / float(cap), 0.0, 1.0)
+	elif BuildingManager.total_storage_capacity > 0:
+		ratio = clampf(float(BuildingManager.used_storage) / float(BuildingManager.total_storage_capacity), 0.0, 1.0)
+	if is_flipped:
+		if ratio < 0.125:
+			return TEX_CLIMATE_SILO_0_FLIPPED
+		elif ratio < 0.375:
+			return TEX_CLIMATE_SILO_25_FLIPPED
+		elif ratio < 0.625:
+			return TEX_CLIMATE_SILO_50_FLIPPED
+		elif ratio < 0.875:
+			return TEX_CLIMATE_SILO_75_FLIPPED
+		else:
+			return TEX_CLIMATE_SILO_100_FLIPPED
+	else:
+		if ratio < 0.125:
+			return TEX_CLIMATE_SILO_0
+		elif ratio < 0.375:
+			return TEX_CLIMATE_SILO_25
+		elif ratio < 0.625:
+			return TEX_CLIMATE_SILO_50
+		elif ratio < 0.875:
+			return TEX_CLIMATE_SILO_75
+		else:
+			return TEX_CLIMATE_SILO_100
 
 func _ready() -> void:
 	z_index = 10  # Match tile root layer (Z=10) so Godot y_sort_enabled sorts crops, workers, and buildings by Y position
@@ -915,18 +962,14 @@ func _update_ui_state() -> void:
 
 func _update_art_sprite_state() -> void:
 	if art_sprite and is_instance_valid(art_sprite):
-		if building_type == "bodega" or building_type == "climate_silo":
+		if building_type == "bodega":
 			art_sprite.texture = _get_silo_texture()
+		elif building_type == "climate_silo":
+			art_sprite.texture = _get_climate_silo_texture()
 		if state == BuildingState.CONSTRUCTING or state == BuildingState.UPGRADING:
-			if building_type == "climate_silo":
-				art_sprite.modulate = Color(0.85, 0.95, 1.15, 0.45)
-			else:
-				art_sprite.modulate = Color(1.0, 1.0, 1.0, 0.45)
+			art_sprite.modulate = Color(1.0, 1.0, 1.0, 0.45)
 		else:
-			if building_type == "climate_silo":
-				art_sprite.modulate = Color(0.85, 0.95, 1.15, 1.0)
-			else:
-				art_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			art_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 # ---------------------------------------------------------------------------
 # Lifecycle
@@ -1016,7 +1059,7 @@ func _draw() -> void:
 	# 1. Foundation Platform (Isometric Base Slab)
 	# Only drawn for heavy industrial facilities without built-in pixel-art bases; Bahay Kubo, Silo, Bilaran dryer, Cold Storage, Drone Station, Water Tower, Weather Station, and new trade hubs have authentic pixel-art terrain bases!
 	var fit: Dictionary = get_art_fit(building_type)
-	if fit.is_empty() and building_type != "bodega" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "drone_pad" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
+	if fit.is_empty() and building_type != "bodega" and building_type != "climate_silo" and building_type != "bahay_kubo" and building_type != "solar_dryer" and building_type != "drone_station" and building_type != "drone_pad" and building_type != "water_tower" and building_type != "sprinkler" and building_type != "cold_storage" and building_type != "weather_station":
 		draw_colored_polygon(PackedVector2Array(d_pts), Color(0.25, 0.21, 0.17, 0.95))
 		var slab_depth: float = 8.0
 		draw_colored_polygon(PackedVector2Array([left, bottom, bottom + Vector2(0, slab_depth), left + Vector2(0, slab_depth)]), Color(0.18, 0.14, 0.10, 0.95))
@@ -2035,6 +2078,29 @@ func _draw_water_tower(top: Vector2, right: Vector2, bottom: Vector2, left: Vect
 			draw_circle(lamp_p, 2.0, Color(0.90, 0.98, 1.0, 0.95))
 
 func _draw_silo(top: Vector2, right: Vector2, bottom: Vector2, left: Vector2) -> void:
+	var tex := _get_climate_silo_texture()
+	if tex != null:
+		# Pixel-art Climate-Controlled Silo sprite (48x64 at 2.5x scale = 120x160)
+		var silo_w_px: float = float(tex.get_width()) * 2.5
+		var silo_h_px: float = float(tex.get_height()) * 2.5
+		var silo_rect := Rect2(-silo_w_px * 0.5, -118.0, silo_w_px, silo_h_px)
+		draw_texture_rect(tex, silo_rect, false)
+
+		# Night cryo-thermostat & work light glow
+		var fs: float = -1.0 if is_flipped else 1.0
+		if TimeManager.is_night():
+			var lamp_p := Vector2(-21.0 * fs, -42.0)
+			draw_circle(lamp_p, 12.0, Color(0.25, 0.90, 1.0, 0.22))
+			draw_circle(lamp_p, 4.5, Color(0.45, 0.95, 1.0, 0.50))
+			draw_circle(lamp_p, 1.5, Color(0.85, 1.0, 1.0, 0.95))
+
+		# Level indicators
+		if level >= 2:
+			draw_circle(Vector2(22.0 * fs, -102.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
+		if level >= 3:
+			draw_circle(Vector2(-22.0 * fs, -102.0), 2.5, Color(0.95, 0.85, 0.3, 0.9))
+		return
+
 	var silo_w: float = 46.0
 	var silo_h: float = 75.0
 

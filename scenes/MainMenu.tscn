@@ -634,22 +634,22 @@ layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = 32.0
-offset_top = 100.0
+offset_top = 74.0
 offset_right = 328.0
-offset_bottom = -100.0
+offset_bottom = -74.0
 grow_vertical = 2
 theme_override_styles/panel = ExtResource("17_samplebox")
 
 [node name="LeftMenuMargin" type="MarginContainer" parent="ModeSelectView/LeftMenuPanel" unique_id=1428589202]
 layout_mode = 2
 theme_override_constants/margin_left = 14
-theme_override_constants/margin_top = 16
+theme_override_constants/margin_top = 14
 theme_override_constants/margin_right = 14
-theme_override_constants/margin_bottom = 14
+theme_override_constants/margin_bottom = 12
 
 [node name="LeftMenuVBox" type="VBoxContainer" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin" unique_id=1428589203]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="MenuTitle" type="Label" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589204]
 layout_mode = 2
@@ -663,7 +663,7 @@ horizontal_alignment = 1
 
 [node name="SideCampaignBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589205]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 48)
+custom_minimum_size = Vector2(256, 46)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
@@ -676,7 +676,7 @@ text = "🏆 RTS CAMPAIGN"
 
 [node name="SideCareerBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589206]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 44)
+custom_minimum_size = Vector2(256, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
@@ -689,7 +689,7 @@ text = "🌾 ENDLESS CAREER"
 
 [node name="SideSandboxBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589210]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 44)
+custom_minimum_size = Vector2(256, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
@@ -699,6 +699,19 @@ theme_override_styles/normal = ExtResource("20_wood_btn")
 theme_override_styles/hover = ExtResource("21_wood_hov")
 theme_override_styles/pressed = ExtResource("22_wood_press")
 text = "✨ CREATIVE SANDBOX"
+
+[node name="ModeTutorialBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589215]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(256, 44)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)
+theme_override_colors/font_hover_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = ExtResource("12_gold_btn")
+theme_override_styles/hover = ExtResource("13_gold_hov")
+theme_override_styles/pressed = ExtResource("14_gold_press")
+text = "📖 PLAY TUTORIAL"
 
 [node name="HSepSide" type="HSeparator" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1428589207]
 layout_mode = 2
@@ -712,7 +725,7 @@ horizontal_alignment = 1
 
 [node name="ModeLoadBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=1395168891]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 44)
+custom_minimum_size = Vector2(256, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
@@ -725,7 +738,7 @@ text = "💾 LOAD SAVED GAME"
 
 [node name="ModeLeaderboardBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=987123456]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 42)
+custom_minimum_size = Vector2(256, 40)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.96, 0.92, 0.84, 1)
@@ -738,7 +751,7 @@ text = "🎖️ HALL OF FAME"
 
 [node name="ModeTrailerBtn" type="Button" parent="ModeSelectView/LeftMenuPanel/LeftMenuMargin/LeftMenuVBox" unique_id=987123457]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(256, 44)
+custom_minimum_size = Vector2(256, 42)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.2, 0.12, 0.06, 1)

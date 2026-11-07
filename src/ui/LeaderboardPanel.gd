@@ -122,8 +122,19 @@ func _build_ui() -> void:
 
 	# -- Header Row ---------------------------------------------------------
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
+	header.add_theme_constant_override("separation", 12)
 	root_vbox.add_child(header)
+
+	if ResourceLoader.exists("res://assets/sprites/StartMenu/game_logo.png"):
+		var lb_logo := TextureRect.new()
+		lb_logo.name = "LeaderboardGameLogo"
+		lb_logo.texture = load("res://assets/sprites/StartMenu/game_logo.png")
+		lb_logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		lb_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		lb_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		lb_logo.custom_minimum_size = Vector2(112, 54)
+		lb_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		header.add_child(lb_logo)
 
 	var title_box := VBoxContainer.new()
 	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL

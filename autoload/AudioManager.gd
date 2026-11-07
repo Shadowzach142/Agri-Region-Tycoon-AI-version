@@ -107,6 +107,17 @@ var ui_volume: float = 0.85
 var music_volume: float = 0.50
 var is_muted: bool = false
 var is_music_muted: bool = false
+var trailer_mode_active: bool = false
+
+# Allowed in-game sounds while TrailerModal is playing (harvest, plow, water, plant, UI button clicks)
+const TRAILER_ALLOWED_SFX: Dictionary = {
+	"harvest": true,
+	"plow": true,
+	"water": true,
+	"plant": true,
+	"ui_click": true,
+	"ui_hover": true
+}
 
 # Throttle timers for rapid events (e.g. dragging across 20 tiles)
 var _last_play_time: Dictionary = {}
@@ -192,11 +203,30 @@ func _create_player_pools() -> void:
 	_bgm_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_bgm_player)
 
+func _exit_tree() -> void:
+	if _bgm_tween and _bgm_tween.is_valid():
+		_bgm_tween.kill()
+	if _bgm_player:
+		_bgm_player.stop()
+		_bgm_player.stream = null
+	if _build_loop_player:
+		_build_loop_player.stop()
+		_build_loop_player.stream = null
+	for p in _sfx_players:
+		if p:
+			p.stop()
+			p.stream = null
+	_soundtrack_streams.clear()
+	_streams.clear()
+
 # ---------------------------------------------------------------------------
 # Core Playback Methods
 # ---------------------------------------------------------------------------
 func play_sfx(sound_name: String, pitch_jitter: float = 0.06, volume_offset_db: float = 0.0) -> void:
 	if is_muted:
+		return
+
+	if trailer_mode_active and not TRAILER_ALLOWED_SFX.has(sound_name):
 		return
 
 	if not _streams.has(sound_name):

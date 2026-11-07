@@ -52,7 +52,18 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
-	# 1. Header Banner
+	# 1. Header Banner with Official Game Logo
+	if ResourceLoader.exists("res://assets/sprites/StartMenu/game_logo.png"):
+		var sr_logo := TextureRect.new()
+		sr_logo.name = "SeasonResultsGameLogo"
+		sr_logo.texture = load("res://assets/sprites/StartMenu/game_logo.png")
+		sr_logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		sr_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		sr_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		sr_logo.custom_minimum_size = Vector2(180, 84)
+		sr_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(sr_logo)
+
 	var title := Label.new()
 	title.text = "🌾 SEASON FINALE: CAMPAIGN COMPLETE! 🌾"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -9,6 +9,9 @@ var current_region: String = "cotabato"
 # Selected game mode: "campaign" (timed RTS sprint) or "career" (endless persistent farm with save & load)
 var game_mode: String = "campaign"
 
+# Whether the interactive step-by-step tutorial is currently active
+var is_tutorial_mode: bool = false
+
 const GAME_MODES = {
 	"campaign": {
 		"id": "campaign",

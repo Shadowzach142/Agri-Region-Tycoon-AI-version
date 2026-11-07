@@ -27,6 +27,7 @@ var _dim: ColorRect
 var _panel: PanelContainer
 
 var _resume_btn: Button
+var _tutorial_btn: Button
 var _save_btn: Button
 var _load_btn: Button
 var _records_btn: Button
@@ -82,20 +83,24 @@ func _ready() -> void:
 	vbox.add_theme_constant_override("separation", 7)
 	margin.add_child(vbox)
 
-	# Title
+	# Official Game Logo + Paused Title
+	if ResourceLoader.exists("res://assets/sprites/StartMenu/game_logo.png"):
+		var logo_rect := TextureRect.new()
+		logo_rect.name = "PauseGameLogo"
+		logo_rect.texture = load("res://assets/sprites/StartMenu/game_logo.png")
+		logo_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		logo_rect.custom_minimum_size = Vector2(210, 96)
+		logo_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		vbox.add_child(logo_rect)
+
 	var title := Label.new()
-	title.text = "PAUSED"
+	title.text = "— GAME PAUSED —"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
 	vbox.add_child(title)
-
-	var sub := Label.new()
-	sub.text = "Agri-Region Tycoon"
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 13)
-	sub.add_theme_color_override("font_color", Color(0.38, 0.26, 0.16, 0.95))
-	vbox.add_child(sub)
 
 	var sep := HSeparator.new()
 	sep.add_theme_color_override("separator_color", Color(0.45, 0.35, 0.22, 0.7))
@@ -105,6 +110,10 @@ func _ready() -> void:
 	_resume_btn = _make_gold_button("▶ Resume")
 	_resume_btn.pressed.connect(_on_resume)
 	vbox.add_child(_resume_btn)
+
+	_tutorial_btn = _make_brown_button("📖 Tutorial Guide")
+	_tutorial_btn.pressed.connect(_on_tutorial_guide)
+	vbox.add_child(_tutorial_btn)
 
 	_save_btn = _make_brown_button("💾 Save Farm")
 	_save_btn.pressed.connect(_on_save_game)
@@ -253,6 +262,20 @@ func _on_debug_console() -> void:
 			admin.open()
 		else:
 			admin.visible = true
+
+func _on_tutorial_guide() -> void:
+	_hide_menu()
+	var main_game = get_parent()
+	if main_game and main_game.has_method("spawn_tutorial_overlay"):
+		main_game.spawn_tutorial_overlay()
+	else:
+		var tut_script = load("res://src/ui/TutorialOverlay.gd")
+		if tut_script:
+			var existing = get_tree().root.find_child("TutorialOverlay", true, false)
+			if existing == null:
+				var tut = tut_script.new()
+				tut.name = "TutorialOverlay"
+				get_tree().current_scene.add_child(tut)
 
 func _on_resume() -> void:
 	_hide_menu()

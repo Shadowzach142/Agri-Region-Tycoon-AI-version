@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-10-28 (Session 146 — In-Game 90s Factorio-Style Cinematic Trailer (`TrailerModal.gd`) + MainMenu Watch Trailer Button; Full Perimeter Regional Map Environments)
+> **Last Updated**: 2026-11-06 (Session 152 — Interactive Start Screen Tutorial Button & Step-by-Step Guided Tutorial Overlay: 10-Lesson RPG Mentor Dialogue, Live Farm Demonstrations & Dynamic Spotlight Arrows)
 
 ---
 
@@ -83,6 +83,7 @@ agri-region-ai-version/
 │   │   ├── BacklogPanel.gd                ← Farm Chronicle log panel (spawned dynamically)
 │   │   ├── LeaderboardPanel.gd            ← PvE Regional League standings & Hall of Fame modal (J/T key)
 │   │   ├── TrailerModal.gd                ← class_name TrailerModal (90-second Factorio-style in-game cinematic trailer launched from MainMenu)
+│   │   ├── TutorialOverlay.gd             ← class_name TutorialOverlay (compact 460×92 8-step RPG dialogue tutorial with Mang Kanor & accurate hotbar/speed spotlights)
 │   │   ├── WeatherAppModal.gd             ← Dedicated Weather App & PAGASA forecast telemetry dashboard
 │   │   ├── HeatmapLegendBar.gd            ← class_name HeatmapLegendBar (Interactive Diagnostic Heatmap HUD Control Bar & Live Hover Telemetry)
 │   │   └── PauseMenu.gd                   ← ESC pause overlay (spawned dynamically)
@@ -172,11 +173,33 @@ signal disaster_warning(hazard_type: String, countdown_seconds: float)
 signal disaster_struck(hazard_type: String)
 signal disaster_cleared(hazard_type: String)
 
-var incoming_disaster: String = ""
-var disaster_countdown: float = 0.0    # counts DOWN from 5.0 seconds
-var active_disaster: String = ""
+enum Climate {NORMAL, EL_NINO, LA_NINA}
 
-func trigger_disaster(hazard_type: String, countdown: float = 5.0) -> void
+var current_climate: int = Climate.NORMAL
+var temperature: float = 28.0
+var humidity: float = 0.65
+var rainfall_mm: float = 5.0
+var rain_chance: float = 0.20
+var condition: String = "partly_cloudy"
+var condition_title: String = "Partly Cloudy & Fair"
+var incoming_disaster: String = ""
+var disaster_countdown: float = 0.0
+var active_disaster: String = ""
+var weather_queue: Array = []  # Rolling 7-10 day authoritative synoptic weather queue
+var forecast: Array = []       # 7-day player-facing forecast with calibrated accuracy
+
+func get_effective_temperature() -> float
+func get_effective_humidity() -> float
+func trigger_disaster(hazard_type: String, countdown: float = -1.0) -> void
+func on_day_passed(day: int) -> void
+func get_forecast() -> Array
+func get_unlocked_forecast() -> Array
+func get_condition_title(climate: int, hazard: String, rain: float = -1.0, rain_chance: float = -1.0) -> String
+func get_hazard_display_name(hazard: String) -> String
+func get_hazard_advice(hazard: String, climate: int) -> String
+func get_saved_weather_queue() -> Array
+func load_weather_queue(saved_queue: Array) -> void
+func init_fresh_queue(starting_target_day: int = 1) -> void
 ```
 
 ### BuildingManager
@@ -1945,3 +1968,40 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
     - Paced across 5 unhurried chapters (105 seconds / 1m 45s) with slow camera pans/zooms and clean fade-through-black cuts, interactive chapter pills, Play/Pause, 1.0×/1.5×/2.0× speed controls, and full autoload state restoration on exit.
   - **Shoreline & Regional Perimeter Fixes (`OutOfBoundsTerrain.gd`, `OutOfBoundsForest.gd`, `Map_*.gd`)**:
     - Fixed eastern shoreline grass/bush overlap (`gx >= 29` skip in `OutOfBoundsTerrain.gd` and cleared eastern fringe bushes in `OutOfBoundsForest.gd`) and expanded full-perimeter regional features across all 5 `Map_*.gd` scripts.
+- **Session 151 (2026-11-01)**:
+  - **PAGASA Agri-Weather Telemetry & Rolling Forecast Overhaul (`autoload/WeatherManager.gd`, `src/ui/WeatherAppModal.gd`, `src/world/WeatherEffects.gd`, `autoload/SaveManager.gd`, `scenes/MainMenu.gd`)**:
+    - **Root Cause Fixed**: Previously, `WeatherManager._generate_forecast()` was generating all 7 upcoming days by cloning `current_climate` (today's weather), causing a rainy day to stamp the entire 7-day outlook with `flash_flood` and torrential rain, and a clear day to overwrite all 7 days with `clear`. Furthermore, `WeatherAppModal._populate_forecast_strip()` passed `WeatherManager.current_climate` to `_get_weather_icon()` and `get_hazard_advice()`, forcing today's icon onto all 7 cards.
+    - **Authoritative Rolling Synoptic Queue (`weather_queue`)**:
+      - Implemented a persistent, rolling 7–10 day queue in `WeatherManager.gd` modeling multi-day tropical weather persistence (synoptic weather fronts lasting 1–3 days, dry spells lasting 2–3 days, and normal fair/partly cloudy periods lasting 2–4 days) based on regional hazard probabilities in `Data.get_region(Data.current_region)`.
+      - What is forecasted for Tomorrow (Day N+1) is now authoritative: when advancing to Day N+1 via `on_day_passed(day)`, the queued entry is popped and becomes today's ground truth weather, perfectly aligning forecast and reality.
+      - Fixed station accuracy calibration: Lv.3 Satellite Dish gives 100% exact telemetry; Lv.2 AWS gives 90% accuracy; Lv.1 AM Radio gives 60% accuracy for Tomorrow; Lv.0 Almanac gives 35% traditional estimate.
+    - **Precipitation Probability & Chances UI**:
+      - Added dynamic rain chance percentages (`rain_chance` 0.0–1.0) to every day.
+      - Displayed in `WeatherAppModal.gd`: `☔ XX% Rain` (blue for >=60%), `🌦️ XX% Rain` (cyan for >=30%), and `☀️ XX% Rain` (muted for <30%).
+      - Replaced binary pills with nuanced status tags: `⚠️ Flood Risk`, `🔥 Drought Risk`, `⛰️ Slide Risk`, `🌧️ Heavy Rain`, `🌦️ Showers`, `⛅ Part Cloudy`, `☀️ Fair / Clear`.
+      - Decoupled card icon rendering (`_get_weather_icon` receives individual day's climate, temperature, rainfall, hazard, and rain chance).
+      - Updated tooltips with day-specific conditions, rain probability, mm rainfall, hazard, and crop advice.
+    - **Atmospheric Visuals Scaling (`WeatherEffects.gd`)**:
+      - Scaled rain particles based on actual rainfall: 90 drops for light showers (4–15mm), 220 drops for heavy monsoon (>25mm), and 350 drops with storm sky tint for flood/hazard storms.
+    - **Full Serialization & Persistence (`SaveManager.gd`, `MainMenu.gd`)**:
+      - Persisted `weather_queue`, `rain_chance`, `condition`, and `condition_title` in save games with complete backward compatibility.
+      - Ensured clean initialization on new games via `WeatherManager.init_fresh_queue(1)`.
+    - **Automated Verification**:
+      - `test_weather_accuracy.gd`: Verified zero monolithic bleed, realistic day-to-day variety, synoptic front persistence, and 100% save/load fidelity.
+      - `test_parse_regional_scripts.gd`: 30/30 checks passed across all regional scripts, scenes, and textures.
+- **Session 152 (2026-11-06)**:
+  - **Interactive Start Screen Tutorial Button & Compact Guided Tutorial (`src/ui/TutorialOverlay.gd`, `scenes/MainMenu.tscn`, `scenes/MainMenu.gd`, `scenes/MainGame.gd`, `src/ui/PauseMenu.gd`, `autoload/Data.gd`)**:
+    - Added **"📖 PLAY TUTORIAL"** (`ModeTutorialBtn`) on the Start Screen (`LeftMenuPanel` in `scenes/MainMenu.tscn` and `scenes/MainMenu.gd`) with hover card description (`MODE_EXPLANATIONS["tutorial"]`) and direct launch into an interactive Cotabato Basin tutorial session (`_start_tutorial()`).
+    - Created `class_name TutorialOverlay extends CanvasLayer` (`src/ui/TutorialOverlay.gd`) featuring:
+      - **Compact, Uncluttered RPG Dialogue Box (`460×92` px)**: Docked cleanly at top-center (`y = 52`) so the farm field, `TileInfoPanel`, bottom hotbar, and right-side buttons stay completely visible. Contains only Mang Kanor's pixel-art avatar + step counter (`1 / 8`), concise 2-line BBCode dialogue, and 3 clean buttons (`◀`, `Next ▶`, `✕`).
+      - **8 Accurate Step-by-Step Lessons**:
+        1. *Welcome & Camera*: `WASD` camera pan, `Mouse Wheel` zoom, click plot to inspect.
+        2. *Select Farmer*: Left-click Farmer or press `TAB` to cycle workers.
+        3. *Plow the Soil*: Bottom hotbar `[2] Tools` ➔ `⛏️ Pickaxe (Plow)` and click grass plots.
+        4. *Plant Seeds*: Bottom hotbar `[1] Seeds` ➔ choose `Palay (Rice)` and click plowed soil.
+        5. *Water & Protect*: `[2] Tools ➔ 💧 Watering Can` for optimal moisture and `[3] Pest Spray` for pests.
+        6. *Speed & Harvest*: Top-bar `||  1x  2x  3x` (`SPACE` Pause / `F1–F3` speeds), press `V` or `[2] Tools ➔ 🧺 Harvest`.
+        7. *Sell Harvests*: Right-side `🚛 Truck Button [K]` (Bodega Sales) and `📊 Market [M]` (7-day price charts).
+        8. *Expand & Watch Weather*: Right-side `🔨 Agri-Shop [B]` (buildings, workers, drones) and `Top-Left Weather Box` (PAGASA forecasts).
+      - **Accurate Spotlight & Bouncing Pointer Arrow**: Highlights the exact hotbar slot (`category_slots["tools"]`, `category_slots["seeds"]`), the top-bar speed button group (`pause_btn`..`speed3_btn`), right-side HUD buttons (`sell_btn`, `shop_btn`), the `Farmer`, and world tiles.
+    - Added **"📖 Tutorial Guide"** button to `src/ui/PauseMenu.gd` so players can launch or replay the tutorial anytime mid-game.

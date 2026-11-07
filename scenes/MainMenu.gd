@@ -109,6 +109,16 @@ const MODE_EXPLANATIONS: Dictionary = {
 			"Experience cultural monuments, bustling decorations, typhoon survival, and all 5 SOCCSKSARGEN regions in a 90-second cinematic feature."
 		],
 		"tip": "👉 Click to watch the 1m 30s in-game trailer"
+	},
+	"tutorial": {
+		"title": "📖 INTERACTIVE FARM TUTORIAL",
+		"tagline": "[ STEP-BY-STEP GUIDE • DIALOGUE & BASICS ]",
+		"sentences": [
+			"Learn the fundamentals of Agri-Region Tycoon with Mang Kanor, your veteran Mindanao farm mentor.",
+			"Master camera controls, worker selection, plowing, seed hotbar planting, irrigation, and harvesting.",
+			"Discover how to sell crops at regional trade hubs, build facilities in the Agri-Shop, and track PAGASA weather forecasts."
+		],
+		"tip": "👉 Click to launch the interactive step-by-step tutorial"
 	}
 }
 
@@ -146,8 +156,12 @@ var _mode_start_btn: Button = null
 var _mode_load_btn: Button = null
 var _mode_leaderboard_btn: Button = null
 var _mode_trailer_btn: Button = null
+var _mode_tutorial_btn: Button = null
 
 # StartMenu Textures & Styles Cache
+var tex_game_logo: Texture2D = null
+var _start_screen_logo: TextureRect = null
+var _header_logo_rect: TextureRect = null
 var tex_big_logs: Texture2D = null
 var tex_samplebox: Texture2D = null
 var tex_arrow_l_norm: Texture2D = null
@@ -397,23 +411,51 @@ func _ready() -> void:
 		print("--- AUTOMATED SAVE & LOAD TEST PASSED ---")
 
 		assert(_mode_trailer_btn != null, "Watch Trailer button must exist on MainMenu")
+		assert(_mode_tutorial_btn != null, "Play Tutorial button must exist on MainMenu")
+		assert(tex_game_logo != null, "Official game_logo.png texture must load on MainMenu")
+		assert(_start_screen_logo != null and _start_screen_logo.texture != null, "Right-side game logo must exist on starting screen")
+		assert(_start_screen_logo.position.x >= 400.0, "Starting screen logo must be positioned on the right side")
+		AudioManager.is_muted = true
+
+		# Test TutorialOverlay spawning and lesson progression inside MainGame
+		Data.is_tutorial_mode = true
+		var mg_tut_scene = load("res://scenes/MainGame.tscn")
+		var mg_tut = mg_tut_scene.instantiate()
+		add_child(mg_tut)
+		var tut_overlay = mg_tut.find_child("TutorialOverlay", true, false)
+		assert(tut_overlay != null, "TutorialOverlay must spawn automatically when Data.is_tutorial_mode is true")
+		for step_i in range(tut_overlay.LESSONS.size()):
+			tut_overlay._show_step(step_i)
+			tut_overlay._execute_step_demonstration(step_i, true)
+			tut_overlay._process(0.5)
+		tut_overlay._finish_tutorial()
+		assert(Data.is_tutorial_mode == false, "Finishing tutorial must reset Data.is_tutorial_mode")
+		mg_tut.queue_free()
+		print("✔ Play Tutorial button & compact TutorialOverlay verified!")
 		_open_trailer_modal()
 		var tr_node = find_child("TrailerRoot", true, false)
 		assert(tr_node != null, "TrailerModal must spawn and build UI")
 		var tr_modal = tr_node.get_parent()
+		assert(tr_modal._tex_game_logo != null, "TrailerModal must load official game_logo.png")
 		if tr_modal and tr_modal.has_method("_jump_to_time"):
-			tr_modal._jump_to_time(25.0)
-			tr_modal._process(0.5)
-			tr_modal._jump_to_time(55.0)
-			tr_modal._process(0.5)
-			tr_modal._jump_to_time(80.0)
-			tr_modal._process(0.5)
-			tr_modal._jump_to_time(98.0)
-			tr_modal._process(0.5)
+			for t_step in [5.0, 10.0, 15.0, 19.0, 22.5, 30.0, 55.0, 80.0, 98.0]:
+				tr_modal._jump_to_time(t_step)
+				tr_modal._process(0.5)
+			if tr_modal.has_method("_set_clean_recording_mode"):
+				tr_modal._set_clean_recording_mode(true)
+				assert(tr_modal._top_bar.visible == false, "Clean recording mode must hide top bar")
+				assert(tr_modal._bot_bar.visible == false, "Clean recording mode must hide bottom bar")
+				assert(tr_modal._caption_panel.visible == true, "Clean recording mode must keep trailer subtitle text visible")
+				assert(tr_modal._finale_cta_box.visible == false, "Clean recording mode must hide finale CTA buttons")
+				tr_modal._set_clean_recording_mode(false)
+				assert(tr_modal._top_bar.visible == true, "Exiting clean recording mode must restore top bar")
+				assert(tr_modal._bot_bar.visible == true, "Exiting clean recording mode must restore bottom bar")
+				assert(tr_modal._caption_panel.visible == true, "Exiting clean recording mode must keep caption panel visible")
 			tr_modal._restore_autoload_state()
-			tr_modal.free()
-		print("✔ Watch Trailer button & 105s Live-Gameplay Factorio-style TrailerModal verified!")
+			tr_modal.queue_free()
+		print("✔ Watch Trailer button, Clean Full-Screen Recording Mode & 105s Live-Gameplay Factorio-style TrailerModal verified!")
 
+		await get_tree().process_frame
 		get_tree().quit(0)
 	elif "--test-ui-boxes" in OS.get_cmdline_args():
 		print("--- AUTOMATED UI BOXES & MODALS TEST START ---")
@@ -535,6 +577,12 @@ func _ready() -> void:
 # View Management (Mode Select vs Region Select)
 # ---------------------------------------------------------------------------
 func _load_startmenu_resources() -> void:
+	if ResourceLoader.exists("res://assets/sprites/StartMenu/game_logo.png"):
+		tex_game_logo = load("res://assets/sprites/StartMenu/game_logo.png")
+	if tex_game_logo == null:
+		var logo_img := Image.new()
+		if logo_img.load(ProjectSettings.globalize_path("res://assets/sprites/StartMenu/game_logo.png")) == OK:
+			tex_game_logo = ImageTexture.create_from_image(logo_img)
 	if ResourceLoader.exists("res://assets/sprites/StartMenu/Big-Rectangle-logs.png"):
 		tex_big_logs = load("res://assets/sprites/StartMenu/Big-Rectangle-logs.png")
 	if ResourceLoader.exists("res://assets/sprites/StartMenu/samplebox1.png"):
@@ -661,9 +709,43 @@ func _build_mode_select_view() -> void:
 	_hover_tagline_label = find_child("HoverTaglineLabel", true, false) as Label
 	_hover_desc_label = find_child("HoverDescLabel", true, false) as Label
 	_hover_tip_label = find_child("HoverTipLabel", true, false) as Label
+	if _hover_desc_label:
+		_hover_desc_label.custom_minimum_size = Vector2(400, 0)
 	if _mode_hover_card:
+		_mode_hover_card.offset_left = 348.0
+		_mode_hover_card.offset_right = 798.0
 		_mode_hover_card.visible = false
 		_mode_hover_card.modulate.a = 0.0
+
+	# Official Wooden Pixel-Art Game Logo on the Right Side of the Starting Screen (minimized, static)
+	if _mode_select_view and tex_game_logo:
+		_start_screen_logo = TextureRect.new()
+		_start_screen_logo.name = "StartScreenRightLogo"
+		_start_screen_logo.texture = tex_game_logo
+		_start_screen_logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_start_screen_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_start_screen_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_start_screen_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_start_screen_logo.position = Vector2(850.0, 140.0)
+		_start_screen_logo.size = Vector2(380.0, 216.0)
+		_mode_select_view.add_child(_start_screen_logo)
+
+	# Upgrade TopCenterHeader in Region Select View with the official Game Logo
+	if _top_center_header and tex_game_logo:
+		for ch in _top_center_header.get_children():
+			if ch is CanvasItem:
+				ch.visible = false
+		_top_center_header.offset_top = 4.0
+		_top_center_header.offset_bottom = 78.0
+		_header_logo_rect = TextureRect.new()
+		_header_logo_rect.name = "HeaderGameLogo"
+		_header_logo_rect.texture = tex_game_logo
+		_header_logo_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_header_logo_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_header_logo_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_header_logo_rect.custom_minimum_size = Vector2(210.0, 74.0)
+		_header_logo_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_top_center_header.add_child(_header_logo_rect)
 
 	# Connect navigation and button signals
 	var prev_btn = find_child("PrevModeBtn", true, false) as TextureButton
@@ -738,6 +820,16 @@ func _build_mode_select_view() -> void:
 		_mode_trailer_btn.pressed.connect(func():
 			_hide_mode_hover_card_immediate()
 			_open_trailer_modal()
+		)
+
+	_mode_tutorial_btn = find_child("ModeTutorialBtn", true, false) as Button
+	if _mode_tutorial_btn:
+		_mode_tutorial_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["tutorial"]["sentences"])
+		_mode_tutorial_btn.mouse_entered.connect(func(): _on_mode_button_hovered("tutorial", _mode_tutorial_btn))
+		_mode_tutorial_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("tutorial"))
+		_mode_tutorial_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_start_tutorial()
 		)
 
 	var s30 = find_child("Season30Btn", true, false) as Button
@@ -947,16 +1039,16 @@ func _on_mode_button_hovered(mode_id: String, source_button: Button) -> void:
 
 	_hover_card_tween = create_tween().set_parallel(true)
 	if not _mode_hover_card.visible or _mode_hover_card.modulate.a < 0.05:
-		_mode_hover_card.position.x = 345.0
+		_mode_hover_card.position.x = 342.0
 		_mode_hover_card.position.y = target_y + 4.0
 		_mode_hover_card.modulate.a = 0.0
 		_mode_hover_card.visible = true
-		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 355.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 348.0, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_hover_card_tween.tween_property(_mode_hover_card, "position:y", target_y, 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 1.0, 0.12)
 	else:
 		_hover_card_tween.tween_property(_mode_hover_card, "position:y", target_y, 0.10).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 355.0, 0.10)
+		_hover_card_tween.tween_property(_mode_hover_card, "position:x", 348.0, 0.10)
 		_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 1.0, 0.08)
 
 func _on_mode_button_unhovered(mode_id: String) -> void:
@@ -972,7 +1064,7 @@ func _on_mode_button_unhovered(mode_id: String) -> void:
 
 	_hover_card_tween = create_tween().set_parallel(true)
 	_hover_card_tween.tween_property(_mode_hover_card, "modulate:a", 0.0, 0.12)
-	_hover_card_tween.tween_property(_mode_hover_card, "position:x", 345.0, 0.12)
+	_hover_card_tween.tween_property(_mode_hover_card, "position:x", 342.0, 0.12)
 	_hover_card_tween.chain().tween_callback(func():
 		if _current_hovered_mode == "" and _mode_hover_card and is_instance_valid(_mode_hover_card):
 			_mode_hover_card.visible = false
@@ -1050,7 +1142,7 @@ func _show_mode_select() -> void:
 	if _region_nav_box:
 		_region_nav_box.visible = false
 	if _top_center_header:
-		_top_center_header.visible = true
+		_top_center_header.visible = false
 
 func _show_region_select() -> void:
 	_active_view = "region"
@@ -1107,6 +1199,8 @@ func _open_leaderboard_modal() -> void:
 	if lb_cls:
 		var lb = lb_cls.new()
 		add_child(lb)
+		lb.closed.connect(func(): lb.queue_free())
+		lb.open()
 
 func _open_trailer_modal() -> void:
 	var tr_cls = load("res://src/ui/TrailerModal.gd")
@@ -1287,10 +1381,13 @@ func _on_admin_checkbox_toggled(on: bool) -> void:
 		get_tree().root.add_child(flag)
 
 func _on_start_pressed() -> void:
+	Data.is_tutorial_mode = false
 	if current_idx >= 0 and current_idx < region_keys.size():
 		Data.current_region = region_keys[current_idx]
 	else:
 		Data.current_region = "cotabato"
+
+	WeatherManager.init_fresh_queue(1)
 
 	if Data.game_mode == "career" or Data.game_mode == "sandbox":
 		TimeManager.is_freeplay_mode = true
@@ -1298,6 +1395,26 @@ func _on_start_pressed() -> void:
 		TimeManager.is_freeplay_mode = false
 
 	var target_scene := Data.get_region_scene_path(Data.current_region)
+	if ResourceLoader.exists(target_scene):
+		get_tree().change_scene_to_file(target_scene)
+	else:
+		get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
+
+func _start_tutorial() -> void:
+	AudioManager.play_ui("click")
+	Data.is_tutorial_mode = true
+	Data.game_mode = "career"
+	Data.current_region = "cotabato"
+	TimeManager.is_freeplay_mode = true
+	TimeManager.current_day = 1
+	TimeManager.current_hour = 7
+	TimeManager.set_speed_scale(1.0)
+	EconomyManager.cash = 1000
+	TaskManager.task_queue.clear()
+	MarketManager.stored_inventory.clear()
+	WeatherManager.init_fresh_queue(1)
+
+	var target_scene := Data.get_region_scene_path("cotabato")
 	if ResourceLoader.exists(target_scene):
 		get_tree().change_scene_to_file(target_scene)
 	else:

@@ -223,13 +223,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_SPACE:
 			_toggle_pause_play()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_1:
+		elif event.keycode == KEY_F1:
 			_on_1x_pressed()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_2:
+		elif event.keycode == KEY_F2:
 			_on_2x_pressed()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_3:
+		elif event.keycode == KEY_F3:
 			_on_3x_pressed()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_TAB:
@@ -296,11 +296,11 @@ func _discover_nodes() -> void:
 	if pause_btn:
 		pause_btn.tooltip_text = "Pause Simulation [Space]"
 	if speed1_btn:
-		speed1_btn.tooltip_text = "Normal Speed (1x) [1]"
+		speed1_btn.tooltip_text = "Normal Speed (1x) [F1]"
 	if speed2_btn:
-		speed2_btn.tooltip_text = "Fast Speed (2x) [2]"
+		speed2_btn.tooltip_text = "Fast Speed (2x) [F2]"
 	if speed3_btn:
-		speed3_btn.tooltip_text = "Ultra Speed (3x) [3]"
+		speed3_btn.tooltip_text = "Ultra Speed (3x) [F3]"
 
 	worker_capsule    = find_child("WorkerCapsule", true, false) as Control
 	if worker_capsule and not worker_capsule.gui_input.is_connected(_on_worker_capsule_gui_input):

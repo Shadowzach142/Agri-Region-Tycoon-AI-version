@@ -115,7 +115,14 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 		"climate": WeatherManager.current_climate,
 		"effective_temp": WeatherManager.get_effective_temperature(),
 		"effective_hum": WeatherManager.get_effective_humidity(),
-		"active_disaster": WeatherManager.active_disaster
+		"rainfall_mm": WeatherManager.rainfall_mm,
+		"rain_chance": WeatherManager.rain_chance,
+		"condition": WeatherManager.condition,
+		"condition_title": WeatherManager.condition_title,
+		"active_disaster": WeatherManager.active_disaster,
+		"incoming_disaster": WeatherManager.incoming_disaster,
+		"disaster_countdown": WeatherManager.disaster_countdown,
+		"weather_queue": WeatherManager.get_saved_weather_queue()
 	}
 
 	# 5. Leaderboard / Score
@@ -332,7 +339,20 @@ func apply_pending_save(farm_grid: Node) -> void:
 	var w_data: Dictionary = data.get("weather", {})
 	WeatherManager.current_climate = w_data.get("climate", 0)
 	var temp: float = w_data.get("effective_temp", 31.0)
-	var hum: float = w_data.get("effective_hum", 60.0)
+	var hum: float = w_data.get("effective_hum", 0.60)
+	WeatherManager.temperature = temp
+	WeatherManager.humidity = hum
+	WeatherManager.rainfall_mm = float(w_data.get("rainfall_mm", 5.0))
+	WeatherManager.rain_chance = float(w_data.get("rain_chance", 0.20))
+	WeatherManager.condition = str(w_data.get("condition", "partly_cloudy"))
+	WeatherManager.condition_title = str(w_data.get("condition_title", "Partly Cloudy & Fair"))
+	WeatherManager.active_disaster = str(w_data.get("active_disaster", ""))
+	WeatherManager.incoming_disaster = str(w_data.get("incoming_disaster", ""))
+	WeatherManager.disaster_countdown = float(w_data.get("disaster_countdown", 0.0))
+	if w_data.has("weather_queue") and not w_data.get("weather_queue", []).is_empty():
+		WeatherManager.load_weather_queue(w_data.get("weather_queue"))
+	else:
+		WeatherManager.init_fresh_queue(TimeManager.current_day + 1)
 	WeatherManager.weather_changed.emit(temp, hum)
 
 	# 4. Leaderboard & Stats

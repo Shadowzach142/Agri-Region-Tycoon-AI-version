@@ -167,7 +167,7 @@ func _evaluate_weather_visuals() -> void:
 	var climate: int = WeatherManager.current_climate
 	var is_storm: bool = (WeatherManager.incoming_disaster == "flash_flood" or WeatherManager.active_disaster == "flash_flood")
 	var is_drought: bool = (climate == WeatherManager.Climate.EL_NINO or WeatherManager.incoming_disaster == "el_nino_drought" or WeatherManager.active_disaster == "el_nino_drought")
-	var is_rain: bool = (climate == WeatherManager.Climate.LA_NINA or WeatherManager.rainfall_mm > 15.0 or is_storm)
+	var is_rain: bool = (climate == WeatherManager.Climate.LA_NINA or WeatherManager.rainfall_mm > 4.0 or is_storm)
 
 	_is_drought_active = is_drought
 	_is_rain_active = is_rain
@@ -181,11 +181,16 @@ func _evaluate_weather_visuals() -> void:
 			_rain_particles.initial_velocity_min = 650.0
 			_rain_particles.initial_velocity_max = 900.0
 			_sky_tint.color = Color(0.10, 0.16, 0.28, 0.32) # Dark storm sky
+		elif WeatherManager.rainfall_mm > 25.0:
+			_rain_particles.amount = 220
+			_rain_particles.initial_velocity_min = 550.0
+			_rain_particles.initial_velocity_max = 750.0
+			_sky_tint.color = Color(0.12, 0.20, 0.30, 0.22) # Heavy monsoon rain
 		else:
-			_rain_particles.amount = 180
-			_rain_particles.initial_velocity_min = 500.0
-			_rain_particles.initial_velocity_max = 680.0
-			_sky_tint.color = Color(0.15, 0.22, 0.32, 0.16) # Overcast light rain
+			_rain_particles.amount = 90
+			_rain_particles.initial_velocity_min = 400.0
+			_rain_particles.initial_velocity_max = 580.0
+			_sky_tint.color = Color(0.15, 0.22, 0.32, 0.10) # Light scattered showers
 	else:
 		_rain_particles.emitting = false
 		_splash_particles.emitting = false
