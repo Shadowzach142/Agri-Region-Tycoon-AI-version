@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-11-06 (Session 152 — Interactive Start Screen Tutorial Button & Step-by-Step Guided Tutorial Overlay: 10-Lesson RPG Mentor Dialogue, Live Farm Demonstrations & Dynamic Spotlight Arrows)
+> **Last Updated**: 2026-11-08 (Session 154 — Strategic Auto AI (Clears Rotten/Flooded Field Crops, Disaster Salvage, Climate-Smart Crop Selection, Mill Buffering & Optimal Hub Selection) & Rotten Storage Purge Fix (`discard_ruined_batches()` in `MarketManager.gd` + `🗑️ DISCARD RUINED PRODUCE` in `SellPanel.gd`))
 
 ---
 
@@ -84,6 +84,7 @@ agri-region-ai-version/
 │   │   ├── LeaderboardPanel.gd            ← PvE Regional League standings & Hall of Fame modal (J/T key)
 │   │   ├── TrailerModal.gd                ← class_name TrailerModal (90-second Factorio-style in-game cinematic trailer launched from MainMenu)
 │   │   ├── TutorialOverlay.gd             ← class_name TutorialOverlay (compact 460×92 8-step RPG dialogue tutorial with Mang Kanor & accurate hotbar/speed spotlights)
+│   │   ├── AutoBoothController.gd         ← class_name AutoBoothController (Endless self-playing booth/kiosk AI mode that pauses on player input and resumes after 60s idle)
 │   │   ├── WeatherAppModal.gd             ← Dedicated Weather App & PAGASA forecast telemetry dashboard
 │   │   ├── HeatmapLegendBar.gd            ← class_name HeatmapLegendBar (Interactive Diagnostic Heatmap HUD Control Bar & Live Hover Telemetry)
 │   │   └── PauseMenu.gd                   ← ESC pause overlay (spawned dynamically)
@@ -2005,3 +2006,8 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
         8. *Expand & Watch Weather*: Right-side `🔨 Agri-Shop [B]` (buildings, workers, drones) and `Top-Left Weather Box` (PAGASA forecasts).
       - **Accurate Spotlight & Bouncing Pointer Arrow**: Highlights the exact hotbar slot (`category_slots["tools"]`, `category_slots["seeds"]`), the top-bar speed button group (`pause_btn`..`speed3_btn`), right-side HUD buttons (`sell_btn`, `shop_btn`), the `Farmer`, and world tiles.
     - Added **"📖 Tutorial Guide"** button to `src/ui/PauseMenu.gd` so players can launch or replay the tutorial anytime mid-game.
+  - **Endless Booth Auto-Play / Idle Mode (`src/ui/AutoBoothController.gd`, `scenes/MainMenu.tscn`, `scenes/MainMenu.gd`, `scenes/MainGame.gd`, `autoload/Data.gd`)**:
+    - Added a dedicated **"🤖 AUTO"** button (`ModeAutoBtn`) on the Start Menu (`LeftMenuPanel` in `scenes/MainMenu.tscn` and `scenes/MainMenu.gd`) with hover card description (`MODE_EXPLANATIONS["auto"]`) that launches an Endless Career game (`Data.is_auto_mode = true`, `TimeManager.is_freeplay_mode = true`).
+    - Created `class_name AutoBoothController extends CanvasLayer` (`src/ui/AutoBoothController.gd`):
+      - **Autonomous Farm AI (`_run_ai_tick`)**: Automatically plows an 8×8 field block `(3..10, 3..10)`, plants rotating unlocked regional crops, waters thirsty crops, treats pests, harvests ripe crops, sells stored Bodega batches at the best unlocked market hub, hires additional workers when cash permits, and smoothly pans the camera between active farmers and crop fields.
+      - **Instant Player Takeover & 60-Second Idle Resume (`_input`, `_process`)**: Immediately stops auto-playing and switches to 1× speed the instant any mouse movement, click, key press, or touch is detected so booth visitors can play seamlessly. Automatically resumes playing by itself after **60 seconds (1 minute)** of inactivity (or immediately via the top-banner **`🤖 Auto Now`** button).

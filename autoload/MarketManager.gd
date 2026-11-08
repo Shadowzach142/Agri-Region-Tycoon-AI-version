@@ -200,6 +200,27 @@ func process_hourly_spoilage() -> void:
 			updated = true
 	if updated:
 		inventory_changed.emit()
+	# Fully rotten produce is worthless and would otherwise clog storage forever
+	discard_ruined_batches()
+
+## Removes all fully-rotten (0% freshness) raw batches so they can't block storage/sales.
+## Optional crop_name limits the purge to one crop. Returns number of units discarded.
+func discard_ruined_batches(crop_name: String = "") -> int:
+	var removed_units: int = 0
+	for i in range(stored_inventory.size() - 1, -1, -1):
+		var b: Dictionary = stored_inventory[i]
+		if b.get("is_processed", false) or Data.is_processed_good(str(b.get("crop", ""))):
+			continue
+		if crop_name != "" and str(b.get("crop", "")) != crop_name:
+			continue
+		if float(b.get("freshness", 100.0)) <= 0.0:
+			removed_units += int(b.get("quantity", 0))
+			stored_inventory.remove_at(i)
+	if removed_units > 0:
+		_sync_storage_with_building_manager()
+		inventory_changed.emit()
+		LogManager.log_event("economy", "Discarded %d units of fully rotten produce from storage." % removed_units, "🗑️", Color(0.75, 0.55, 0.40, 1.0))
+	return removed_units
 
 ## Calculate unit price considering quality, freshness, destination distance, and regional supply/demand
 func calculate_unit_price(crop: String, grade: String, freshness: float, hub_id: String) -> float:
@@ -270,14 +291,17 @@ func sell_stored_batch(batch_index: int, hub_id: String) -> bool:
 		road_rot_percent = 0.0 # Cold chain & processed goods preserve 100% freshness
 
 	var arrival_freshness: float = maxf(batch.freshness - road_rot_percent, 0.0)
+	if arrival_freshness <= 0.0:
+		# If batch is already 0% rotten in storage, discard it immediately so it doesn't block the queue
+		if batch.freshness <= 0.0:
+			stored_inventory.remove_at(batch_index)
+			_sync_storage_with_building_manager()
+			inventory_changed.emit()
+		return false
 	
 	var unit_price: float = calculate_unit_price(batch.crop, batch.grade, arrival_freshness, hub_id)
 	var gross_revenue: int = int(unit_price * float(batch.quantity))
 	
-	if arrival_freshness <= 0.0:
-		# Total ROT spoilage! Yield was ruined in transit!
-		gross_revenue = 0
-
 	var net_profit: int = gross_revenue - fuel_cost
 
 	EconomyManager.deduct_cash(fuel_cost, false)
@@ -400,7 +424,10 @@ func preview_crop_sale(crop_name: String, hub_id: String) -> Dictionary:
 	var total_preview_pts: int = 0
 	for b in stored_inventory:
 		if b.get("crop", "") == crop_name:
-			var arrival_fresh: float = maxf(b.freshness - road_rot, 0.0)
+			var batch_road_rot: float = road_rot
+			if b.get("is_cold_storage", false) or b.get("is_processed", false) or Data.is_processed_good(str(b.get("crop", ""))):
+				batch_road_rot = 0.0
+			var arrival_fresh: float = maxf(b.freshness - batch_road_rot, 0.0)
 			var unit_p: float = calculate_unit_price(b.crop, b.grade, arrival_fresh, hub_id)
 			var gross: int = int(unit_p * float(b.quantity))
 			if arrival_fresh <= 0.0:
@@ -459,7 +486,10 @@ func sell_all_of_crop(crop_name: String, hub_id: String) -> Dictionary:
 
 	for idx in matching_indices:
 		var b: Dictionary = stored_inventory[idx]
-		var arrival_fresh: float = maxf(b.freshness - road_rot, 0.0)
+		var batch_road_rot: float = road_rot
+		if b.get("is_cold_storage", false) or b.get("is_processed", false) or Data.is_processed_good(str(b.get("crop", ""))):
+			batch_road_rot = 0.0
+		var arrival_fresh: float = maxf(b.freshness - batch_road_rot, 0.0)
 		var unit_p: float = calculate_unit_price(b.crop, b.grade, arrival_fresh, hub_id)
 		var gross: int = int(unit_p * float(b.quantity))
 		if arrival_fresh <= 0.0:
@@ -467,8 +497,17 @@ func sell_all_of_crop(crop_name: String, hub_id: String) -> Dictionary:
 		total_gross += gross
 		total_qty += int(b.quantity)
 
-		var earned_pts: int = LeaderboardManager.record_sale(b.crop, int(b.quantity), b.grade, arrival_fresh, hub_id)
-		total_points_earned += earned_pts
+		if arrival_fresh > 0.0:
+			var earned_pts: int = LeaderboardManager.record_sale(b.crop, int(b.quantity), b.grade, arrival_fresh, hub_id)
+			total_points_earned += earned_pts
+
+	# If every batch of this crop would arrive 100% rotten (gross == 0), discard any already-rotten
+	# 0% batches and refuse a losing transit run unless using 0-fuel Local Biyahero to clear it out.
+	if total_gross <= 0:
+		discard_ruined_batches(crop_name)
+		if hub_id != "local_biyahero":
+			return {"success": false, "error": "ruined_in_transit"}
+		fuel_cost = 0
 
 	var net_profit: int = total_gross - fuel_cost
 

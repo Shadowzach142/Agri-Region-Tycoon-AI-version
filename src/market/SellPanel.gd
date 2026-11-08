@@ -628,9 +628,9 @@ func _refresh_view() -> void:
 		_sell_action_btn.remove_theme_color_override("font_disabled_color")
 		_sell_action_btn.remove_theme_color_override("font_color")
 	elif gross_val == 0:
-		_sell_action_btn.disabled = true
+		_sell_action_btn.disabled = false
 		_sell_action_btn.icon = null
-		_sell_action_btn.text = "💀 PRODUCE IS 100% RUINED"
+		_sell_action_btn.text = "🗑️ DISCARD RUINED PRODUCE"
 		_sell_action_btn.remove_theme_stylebox_override("normal")
 		_sell_action_btn.remove_theme_stylebox_override("hover")
 		_sell_action_btn.remove_theme_stylebox_override("pressed")
@@ -661,6 +661,25 @@ func _on_sell_action_pressed() -> void:
 
 	var crop_sold := selected_crop
 	var hub_id: String = HUB_KEYS[selected_hub_idx]
+
+	# Ruined produce can't be sold: discard it so it stops clogging storage
+	var prev: Dictionary = MarketManager.preview_crop_sale(selected_crop, hub_id)
+	if int(prev.get("gross", 0)) == 0:
+		var dumped: int = MarketManager.discard_ruined_batches(selected_crop)
+		if dumped <= 0:
+			# Arrival rot ruins everything but stock is technically fresh: dump all of this crop
+			for i in range(MarketManager.stored_inventory.size() - 1, -1, -1):
+				if str(MarketManager.stored_inventory[i].get("crop", "")) == selected_crop:
+					dumped += int(MarketManager.stored_inventory[i].get("quantity", 0))
+					MarketManager.stored_inventory.remove_at(i)
+			MarketManager.inventory_changed.emit()
+		_status_msg_label.text = "🗑️ Discarded %d ruined %s." % [dumped, crop_sold.capitalize()]
+		_status_msg_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.40))
+		selected_hub_idx = -1
+		_auto_select_crop()
+		_refresh_view()
+		return
+
 	var res: Dictionary = MarketManager.sell_all_of_crop(selected_crop, hub_id)
 
 	if bool(res.get("success", false)):

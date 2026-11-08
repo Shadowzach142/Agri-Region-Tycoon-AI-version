@@ -12,6 +12,9 @@ var game_mode: String = "campaign"
 # Whether the interactive step-by-step tutorial is currently active
 var is_tutorial_mode: bool = false
 
+# Whether Booth Auto-Play / Idle Mode is active (endless self-playing mode that pauses on player input and resumes after 60s idle)
+var is_auto_mode: bool = false
+
 const GAME_MODES = {
 	"campaign": {
 		"id": "campaign",

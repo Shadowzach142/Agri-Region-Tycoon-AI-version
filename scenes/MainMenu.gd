@@ -119,6 +119,16 @@ const MODE_EXPLANATIONS: Dictionary = {
 			"Discover how to sell crops at regional trade hubs, build facilities in the Agri-Shop, and track PAGASA weather forecasts."
 		],
 		"tip": "👉 Click to launch the interactive step-by-step tutorial"
+	},
+	"auto": {
+		"title": "🤖 AUTO / BOOTH IDLE MODE",
+		"tagline": "[ ENDLESS SELF-PLAYING • LIVE BOOTH SHOWCASE ]",
+		"sentences": [
+			"Endless self-playing exhibition mode designed for live booths: the farm automatically plows, plants, waters, harvests, and sells crops.",
+			"Stops auto-playing the instant any player mouse movement, click, or key press is detected so visitors can jump right in and play.",
+			"Automatically resumes playing by itself after 1 minute (60 seconds) of inactivity when left unattended."
+		],
+		"tip": "👉 Click to launch Endless Auto-Play Booth Mode"
 	}
 }
 
@@ -157,6 +167,7 @@ var _mode_load_btn: Button = null
 var _mode_leaderboard_btn: Button = null
 var _mode_trailer_btn: Button = null
 var _mode_tutorial_btn: Button = null
+var _mode_auto_btn: Button = null
 
 # StartMenu Textures & Styles Cache
 var tex_game_logo: Texture2D = null
@@ -832,6 +843,16 @@ func _build_mode_select_view() -> void:
 			_start_tutorial()
 		)
 
+	_mode_auto_btn = find_child("ModeAutoBtn", true, false) as Button
+	if _mode_auto_btn:
+		_mode_auto_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["auto"]["sentences"])
+		_mode_auto_btn.mouse_entered.connect(func(): _on_mode_button_hovered("auto", _mode_auto_btn))
+		_mode_auto_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("auto"))
+		_mode_auto_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_start_auto_mode()
+		)
+
 	var s30 = find_child("Season30Btn", true, false) as Button
 	var s60 = find_child("Season60Btn", true, false) as Button
 	var s90 = find_child("Season90Btn", true, false) as Button
@@ -1382,6 +1403,7 @@ func _on_admin_checkbox_toggled(on: bool) -> void:
 
 func _on_start_pressed() -> void:
 	Data.is_tutorial_mode = false
+	Data.is_auto_mode = false
 	if current_idx >= 0 and current_idx < region_keys.size():
 		Data.current_region = region_keys[current_idx]
 	else:
@@ -1403,6 +1425,7 @@ func _on_start_pressed() -> void:
 func _start_tutorial() -> void:
 	AudioManager.play_ui("click")
 	Data.is_tutorial_mode = true
+	Data.is_auto_mode = false
 	Data.game_mode = "career"
 	Data.current_region = "cotabato"
 	TimeManager.is_freeplay_mode = true
@@ -1410,6 +1433,27 @@ func _start_tutorial() -> void:
 	TimeManager.current_hour = 7
 	TimeManager.set_speed_scale(1.0)
 	EconomyManager.cash = 1000
+	TaskManager.task_queue.clear()
+	MarketManager.stored_inventory.clear()
+	WeatherManager.init_fresh_queue(1)
+
+	var target_scene := Data.get_region_scene_path("cotabato")
+	if ResourceLoader.exists(target_scene):
+		get_tree().change_scene_to_file(target_scene)
+	else:
+		get_tree().change_scene_to_file("res://scenes/MainGame.tscn")
+
+func _start_auto_mode() -> void:
+	AudioManager.play_ui("click")
+	Data.is_tutorial_mode = false
+	Data.is_auto_mode = true
+	Data.game_mode = "career"
+	Data.current_region = "cotabato"
+	TimeManager.is_freeplay_mode = true
+	TimeManager.current_day = 1
+	TimeManager.current_hour = 7
+	TimeManager.set_speed_scale(2.0)
+	EconomyManager.cash = 6000
 	TaskManager.task_queue.clear()
 	MarketManager.stored_inventory.clear()
 	WeatherManager.init_fresh_queue(1)

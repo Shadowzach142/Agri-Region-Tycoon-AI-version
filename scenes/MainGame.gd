@@ -11,12 +11,14 @@ const PAUSE_MENU_SCRIPT: String  = "res://src/ui/PauseMenu.gd"
 const BACKLOG_PANEL_SCRIPT: String = "res://src/ui/BacklogPanel.gd"
 const LEADERBOARD_PANEL_SCRIPT: String = "res://src/ui/LeaderboardPanel.gd"
 const TUTORIAL_OVERLAY_SCRIPT: String = "res://src/ui/TutorialOverlay.gd"
+const AUTO_BOOTH_SCRIPT: String = "res://src/ui/AutoBoothController.gd"
 
 var _admin_panel: Node = null
 var _pause_menu: CanvasLayer = null
 var _backlog_panel: CanvasLayer = null
 var _leaderboard_panel: CanvasLayer = null
 var _tutorial_overlay: CanvasLayer = null
+var _auto_booth_controller: CanvasLayer = null
 
 func _ready() -> void:
 	_spawn_admin_panel()
@@ -25,8 +27,11 @@ func _ready() -> void:
 	_spawn_leaderboard_panel()
 	_start_background_soundtrack()
 	var data_mgr = get_node_or_null("/root/Data")
-	if data_mgr and data_mgr.get("is_tutorial_mode") == true:
-		spawn_tutorial_overlay()
+	if data_mgr:
+		if data_mgr.get("is_tutorial_mode") == true:
+			spawn_tutorial_overlay()
+		if data_mgr.get("is_auto_mode") == true:
+			spawn_auto_booth_controller()
 
 func spawn_tutorial_overlay() -> void:
 	if _tutorial_overlay and is_instance_valid(_tutorial_overlay):
@@ -38,6 +43,17 @@ func spawn_tutorial_overlay() -> void:
 	_tutorial_overlay = script.new()
 	_tutorial_overlay.name = "TutorialOverlay"
 	add_child(_tutorial_overlay)
+
+func spawn_auto_booth_controller() -> void:
+	if _auto_booth_controller and is_instance_valid(_auto_booth_controller):
+		return
+	var script: GDScript = load(AUTO_BOOTH_SCRIPT)
+	if script == null:
+		push_error("[MainGame] Failed to load AutoBoothController script!")
+		return
+	_auto_booth_controller = script.new()
+	_auto_booth_controller.name = "AutoBoothController"
+	add_child(_auto_booth_controller)
 
 func _start_background_soundtrack() -> void:
 	var audio_mgr = get_node_or_null("/root/AudioManager")

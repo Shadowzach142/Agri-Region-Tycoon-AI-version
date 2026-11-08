@@ -354,15 +354,11 @@ vertical_alignment = 1
 
 [node name="SpeedPanel" type="PanelContainer" parent="HUDLayer/Control" unique_id=288909925]
 texture_filter = 1
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -90.0
-offset_top = 10.0
-offset_right = 90.0
-offset_bottom = 46.0
-grow_horizontal = 2
+layout_mode = 0
+offset_left = 434.0
+offset_top = 8.0
+offset_right = 594.0
+offset_bottom = 44.0
 theme_override_styles/panel = ExtResource("StyleBox_uppermid")
 
 [node name="SpeedBar" type="HBoxContainer" parent="HUDLayer/Control/SpeedPanel" unique_id=1904784341]
@@ -371,10 +367,10 @@ theme_override_constants/separation = 4
 alignment = 1
 
 [node name="PauseButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1711548302]
-custom_minimum_size = Vector2(30, 24)
+custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
 theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
 theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
@@ -382,10 +378,10 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
 text = "| |"
 
 [node name="Speed1xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1535824092]
-custom_minimum_size = Vector2(30, 24)
+custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
 theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
 theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
@@ -393,10 +389,10 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
 text = "1x"
 
 [node name="Speed2xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=1723419154]
-custom_minimum_size = Vector2(30, 24)
+custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
 theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
 theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
@@ -404,10 +400,10 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_tab_panel")
 text = "2x"
 
 [node name="Speed3xButton" type="Button" parent="HUDLayer/Control/SpeedPanel/SpeedBar" unique_id=18402505]
-custom_minimum_size = Vector2(30, 24)
+custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = ExtResource("StyleBox_topbar_btn_brown")
 theme_override_styles/pressed = ExtResource("StyleBox_topbar_btn_yellow")
 theme_override_styles/hover = ExtResource("StyleBox_topbar_btn_hover")
@@ -475,12 +471,12 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -580.0
+offset_left = -675.0
 offset_top = 8.0
-offset_right = -12.0
-offset_bottom = 46.0
+offset_right = -10.0
+offset_bottom = 44.0
 grow_horizontal = 0
-theme_override_constants/separation = 8
+theme_override_constants/separation = 5
 alignment = 2
 
 [node name="WorkerCapsule" type="PanelContainer" parent="HUDLayer/Control/RightCluster" unique_id=1044957698]

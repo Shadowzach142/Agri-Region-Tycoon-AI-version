@@ -1849,9 +1849,22 @@ func plow_tile(pos: Vector2i) -> void:
 	var tile: FarmTile = tiles[pos.x][pos.y]
 	if tile.state == FarmTile.TileState.OBSTACLE or tile.state == FarmTile.TileState.BUILDING or tile.state == FarmTile.TileState.LOCKED:
 		return # Blocked by obstacle, building, or locked land
-	tile.reset()
-	tile.state = FarmTile.TileState.PLOWED
-	renderer.update_tile(pos, tiles)
+
+	# If plowing a 2x2 grove (e.g. flooded/dead/rotten banana or coconut), clear all 4 tiles cleanly
+	if tile.is_multi_tile_root or tile.multi_tile_root_pos != Vector2i(-1, -1):
+		var root_p: Vector2i = pos if tile.is_multi_tile_root else tile.multi_tile_root_pos
+		for dx in range(2):
+			for dy in range(2):
+				var p := root_p + Vector2i(dx, dy)
+				if _is_valid(p):
+					tiles[p.x][p.y].reset()
+					tiles[p.x][p.y].state = FarmTile.TileState.PLOWED
+					renderer.update_tile(p, tiles)
+	else:
+		tile.reset()
+		tile.state = FarmTile.TileState.PLOWED
+		renderer.update_tile(pos, tiles)
+
 	tile_inspected.emit(pos, tile)
 	if drag_overlay:
 		drag_overlay.queue_redraw()
@@ -1872,7 +1885,7 @@ func is_tile_plowed_and_ready(pos: Vector2i, ignore_pending_tasks: bool = false)
 		return false
 	return true
 
-## Checks if a single tile can be plowed (empty uncultivated grass or flooded)
+## Checks if a single tile can be plowed (empty uncultivated grass, flooded, or dead/rotten crop <=18% health)
 func is_tile_plowable(pos: Vector2i) -> bool:
 	if not _is_valid(pos) or not is_tile_unlocked(pos):
 		return false
@@ -1883,7 +1896,8 @@ func is_tile_plowable(pos: Vector2i) -> bool:
 		return false
 	if TaskManager.has_task_at(pos, "plow"):
 		return false
-	return (t.state == FarmTile.TileState.EMPTY or t.state == FarmTile.TileState.FLOODED)
+	var is_dead_or_rotten: bool = (t.crop_type != "" and (t.health <= 0.18 or t.freshness <= 0.0))
+	return (t.state == FarmTile.TileState.EMPTY or t.state == FarmTile.TileState.FLOODED or is_dead_or_rotten)
 
 ## Returns the footprint Vector2i for a tool or crop
 func get_tool_footprint(tool_id: String) -> Vector2i:
@@ -2105,6 +2119,13 @@ func harvest_tile(pos: Vector2i) -> void:
 	# Handle 2x2 multi-tile root redirection
 	var root_pos: Vector2i = tile.multi_tile_root_pos if tile.multi_tile_root_pos != Vector2i(-1, -1) else pos
 	var root_tile: FarmTile = tiles[root_pos.x][root_pos.y]
+
+	# If crop is flooded, dead, or 100% rotten (health <= 0.18 or freshness <= 0), clear & plow the plot instead of storing ruined produce!
+	if root_tile.state == FarmTile.TileState.FLOODED or root_tile.health <= 0.18 or root_tile.freshness <= 0.0:
+		var ruined_crop: String = root_tile.crop_type
+		plow_tile(root_pos)
+		LogManager.log_event("crops", "Cleared rotten/flooded %s at (%d, %d) and re-plowed the soil." % [ruined_crop.capitalize(), root_pos.x, root_pos.y], "🧹", Color(0.85, 0.65, 0.40, 1.0))
+		return
 
 	var crop_name_harvested: String = root_tile.crop_type
 	if not BuildingManager.has_storage_for_crop(crop_name_harvested, 100):

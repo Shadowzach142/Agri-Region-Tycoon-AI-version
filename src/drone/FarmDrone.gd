@@ -497,6 +497,18 @@ func _scan_for_job() -> Dictionary:
 					best_score = score
 					best = {"type": "plant", "pos": p, "fp": crop_fp, "crop": crop_type}
 
+		# 4b. Lv.1+ — Clear dead/rotten/flooded crops (health <= 18% or FLOODED) by re-plowing the plot (Tier 1.5: 1500 base)
+		if auto_plow and _level >= 1 and root_t.crop_type != "" and (root_t.state == FarmTile.TileState.FLOODED or root_t.health <= 0.18 or root_t.freshness <= 0.0) and not seen_roots.has(root):
+			seen_roots[root] = true
+			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(root, self):
+				pass
+			elif not TaskManager.has_task_at(root, "plow"):
+				var r_fp: Vector2i = Data.get_crop(root_t.crop_type).get("footprint", Vector2i(1, 1))
+				var score: float = dist + 1500.0
+				if score < best_score:
+					best_score = score
+					best = {"type": "plow", "pos": root, "fp": r_fp, "crop": ""}
+
 		# 5. Lv.1+ — Plow untilled / receded land (Tier 4: 4000 base)
 		if auto_plow and _level >= 1 and farm_grid.is_tile_plowable(p):
 			if farm_grid.has_method("is_tile_targeted_by_other_drone") and farm_grid.is_tile_targeted_by_other_drone(p, self):

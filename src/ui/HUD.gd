@@ -390,7 +390,25 @@ func _process(delta: float) -> void:
 	if task_capsule:
 		task_capsule.visible = (t_count > 0)
 	if task_label:
-		task_label.text = "📋 %d [🛑 Cancel]" % t_count
+		task_label.text = "📋 %d [🛑]" % t_count
+	_prevent_topbar_overlap()
+
+func _prevent_topbar_overlap() -> void:
+	var sp := find_child("SpeedPanel", true, false) as Control
+	var rc := find_child("RightCluster", true, false) as Control
+	if not sp or not rc:
+		return
+	var first_cap_x: float = rc.global_position.x
+	for ch in rc.get_children():
+		if ch is Control and ch.visible:
+			first_cap_x = ch.global_position.x
+			break
+	var max_sp_right: float = first_cap_x - 8.0
+	var sp_w: float = sp.size.x
+	var target_x: float = minf(434.0, max_sp_right - sp_w)
+	if day_night_box:
+		target_x = maxf(target_x, day_night_box.global_position.x + day_night_box.size.x + 6.0)
+	sp.position.x = target_x
 
 func _update_region_display() -> void:
 	if region_label == null:
@@ -1264,11 +1282,11 @@ func _on_points_changed(_total_pts: int, _added: int, _reason: String) -> void:
 func _update_points_display() -> void:
 	if points_label:
 		var cur: int = LeaderboardManager.current_points
-		var best: int = LeaderboardManager.get_personal_best()
-		if best > 0:
-			points_label.text = "%s pts (Best: %s)" % [Utils.format_number(cur), Utils.format_number(best)]
-		else:
-			points_label.text = "%s pts" % Utils.format_number(cur)
+		points_label.text = "%s pts" % Utils.format_number(cur)
+		points_label.tooltip_text = "Current Prestige Score: %s pts\nPersonal Best: %s pts\nPress [J] or [T] to open Regional Leaderboard" % [
+			Utils.format_number(cur),
+			Utils.format_number(LeaderboardManager.get_personal_best())
+		]
 
 ## Configures runtime dragging, double-click reset, and mouse wheel font sizing for HUD boxes
 func _setup_draggable_hud_box(box: Control, label_names: Array[String], default_pos: Vector2) -> void:
