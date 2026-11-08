@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-11-08 (Session 154 — Strategic Auto AI (Clears Rotten/Flooded Field Crops, Disaster Salvage, Climate-Smart Crop Selection, Mill Buffering & Optimal Hub Selection) & Rotten Storage Purge Fix (`discard_ruined_batches()` in `MarketManager.gd` + `🗑️ DISCARD RUINED PRODUCE` in `SellPanel.gd`))
+> **Last Updated**: 2026-11-08 (Session 155 — Fixed Stretched Bodega Sales Desk UI (`ScrollContainer` crop selector & fixed `820×480` size in `SellPanel.gd`), Bulk Auto-AI Commodity Selling (`sell_all_of_crop()` across all 4 hubs so storage never hits full capacity), & Full Building/Decoration Construction in `AutoBoothController.gd` (`tacurong_mill`, `koronadal_wholesale`, `gensan_seaport`, all Lv.3 mills/storage, Barrio Fiesta Plaza, Basketball Court, Stalls, and Flora Gardens))
 
 ---
 

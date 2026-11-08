@@ -22,7 +22,7 @@ extends CanvasLayer
 
 const IDLE_TIMEOUT_SECONDS: float = 60.0
 const AI_DECISION_INTERVAL: float = 0.65
-const PROGRESSION_INTERVAL: float = 3.0
+const PROGRESSION_INTERVAL: float = 2.0
 const CAMERA_PAN_INTERVAL: float  = 5.5
 
 const STYLE_BROWN_BOX: StyleBox   = preload("res://assets/sprites/hud/TopRight/BrownBox.tres")
@@ -103,6 +103,10 @@ func _unlock_all_showcase_crops() -> void:
 		if not _bm().unlocked_crops.has(crop_id):
 			_bm().unlocked_crops.append(crop_id)
 			_bm().crop_unlocked.emit(crop_id)
+	for tech_id in ["bayanihan_spirit", "bayanihan_coordination", "drip_irrigation", "field_survey_kit", "iot_soil_sensor"]:
+		if not _bm().unlocked_techs.has(tech_id):
+			_bm().unlocked_techs.append(tech_id)
+			_bm().tech_unlocked.emit(tech_id)
 
 func _build_ui() -> void:
 	var root_ctrl := Control.new()
@@ -402,20 +406,99 @@ func _run_progression_step() -> void:
 			# PURCHASE TERRITORY #3: Highland Plateau / Southeast Estate (Rect2i(16, 16, 16, 16))!
 			if _auto_purchase_parcel("highland_plateau"):
 				_pan_camera_to_grid(Vector2i(20, 20))
-			# Build Tacurong Grain Mill Depot (4x4) at (16, 16) + Fiesta Flowers
+			# Build ALL 3 Major Regional Trade Depots (`tacurong_mill`, `koronadal_wholesale`, `gensan_seaport`)
+			# so ALL 4 Shipping Buyers in Bodega Sales Desk are unlocked & active!
 			var depot := _place_instant_building(Vector2i(16, 16), "tacurong_mill", 1)
-			if depot:
-				_farm_grid.show_floating_text(Vector2i(16, 16), "🏭 Built Tacurong Wholesale Depot!", Color(0.55, 1.0, 0.65))
-			_place_instant_building(Vector2i(0, 14), "flower_bougainvillea_pink", 1)
-			_place_instant_building(Vector2i(1, 14), "flower_gumamela_colorful", 1)
-			_place_instant_building(Vector2i(2, 14), "flower_santan_box_yellow", 1)
+			var koro := _place_instant_building(Vector2i(20, 16), "koronadal_wholesale", 1)
+			var port := _place_instant_building(Vector2i(28, 16), "gensan_seaport", 1)
+			if depot or koro or port:
+				_farm_grid.show_floating_text(Vector2i(20, 16), "⚓ Built Tacurong, Koronadal & GenSan Seaport Terminals!", Color(0.45, 1.0, 0.65))
+			_prog_stage += 1
+
+		10:
+			# Upgrade all Storage & Processing Buildings to max Level 3 + place extra Bodega & Sprinklers
+			_place_instant_building(Vector2i(20, 0), "bodega", 3)
+			_place_instant_building(Vector2i(21, 23), "sprinkler", 1)
+			if _bm():
+				for b in _bm().placed_buildings:
+					if is_instance_valid(b):
+						var max_l: int = int(_da().get_building(b.building_type).get("max_level", 1)) if _da() else 1
+						b.level = max_l
+				_bm().recalculate_bonuses()
+			_prog_stage += 1
+
+		11:
+			# Build Barrio Fiesta & Community Plaza Decorations (2x2 & 1x1 Stalls, Court, Stage, Tambayan)
+			_place_instant_building(Vector2i(24, 16), "fiesta_stage", 1)
+			_place_instant_building(Vector2i(26, 16), "basketball_court", 1)
+			_place_instant_building(Vector2i(24, 18), "tambayan_kubo", 1)
+			_place_instant_building(Vector2i(26, 18), "tambayan", 1)
+			_place_instant_building(Vector2i(28, 20), "table_set", 1)
+			_place_instant_building(Vector2i(30, 20), "checkpoint", 1)
+			_place_instant_building(Vector2i(14, 14), "fiesta_entrance", 1)
+			_place_instant_building(Vector2i(15, 14), "karaoke_on_wheels", 1)
+			_place_instant_building(Vector2i(14, 15), "tricycle", 1)
+			_place_instant_building(Vector2i(15, 15), "parol_stand", 1)
+			_place_instant_building(Vector2i(28, 22), "balut_stall", 1)
+			_place_instant_building(Vector2i(29, 22), "buko_stall", 1)
+			_place_instant_building(Vector2i(30, 22), "bbq_stand", 1)
+			_place_instant_building(Vector2i(31, 22), "bbq_stand_multiple", 1)
+			_place_instant_building(Vector2i(28, 23), "toy_store", 1)
+			_place_instant_building(Vector2i(29, 23), "fiesta_drums", 1)
+			_place_instant_building(Vector2i(30, 23), "post_board", 1)
+			_place_instant_building(Vector2i(31, 23), "tambayan_chairs", 1)
+			_farm_grid.show_floating_text(Vector2i(25, 17), "🎪 Built Barrio Fiesta Plaza, Basketball Court & Stalls!", Color(1.0, 0.88, 0.35))
+			_prog_stage += 1
+
+		12:
+			# Build Ornamental Flora, Orchids, Hedges & Benches across Homestead & Estate Walkways
+			var decor_placements: Array[Dictionary] = [
+				{"pos": Vector2i(0, 14), "type": "flower_bougainvillea_orange"},
+				{"pos": Vector2i(1, 14), "type": "flower_bougainvillea_pink"},
+				{"pos": Vector2i(2, 14), "type": "flower_bougainvillea_white"},
+				{"pos": Vector2i(3, 14), "type": "flower_bougainvillea_potted"},
+				{"pos": Vector2i(4, 14), "type": "flower_gumamela_colorful"},
+				{"pos": Vector2i(5, 14), "type": "flower_gumamela_red"},
+				{"pos": Vector2i(6, 14), "type": "flower_gumamela_pink"},
+				{"pos": Vector2i(7, 14), "type": "flower_gumamela_yellow"},
+				{"pos": Vector2i(8, 14), "type": "flower_santan_box_red"},
+				{"pos": Vector2i(9, 14), "type": "flower_santan_box_orange"},
+				{"pos": Vector2i(10, 14), "type": "flower_santan_box_yellow"},
+				{"pos": Vector2i(11, 14), "type": "flower_santan_round_red"},
+				{"pos": Vector2i(12, 14), "type": "flower_santan_round_yellow"},
+				{"pos": Vector2i(13, 14), "type": "flower_orchids_hanged"},
+				{"pos": Vector2i(0, 15), "type": "flower_orchids_tree"},
+				{"pos": Vector2i(1, 15), "type": "flower_pandakaki_bush"},
+				{"pos": Vector2i(2, 15), "type": "flower_pandakaki_potted"},
+				{"pos": Vector2i(3, 15), "type": "flower_yellow_bell"},
+				{"pos": Vector2i(4, 15), "type": "flowers_in_tires"},
+				{"pos": Vector2i(5, 15), "type": "flower_daisy_colorful"},
+				{"pos": Vector2i(6, 15), "type": "flower_daisy_fallen"},
+				{"pos": Vector2i(7, 15), "type": "flower_pots"},
+				{"pos": Vector2i(8, 15), "type": "bench_blue"},
+				{"pos": Vector2i(9, 15), "type": "bench_red"},
+				{"pos": Vector2i(10, 15), "type": "wooden_seat"},
+			]
+			for dp in decor_placements:
+				_place_instant_building(dp["pos"], dp["type"], 1)
+			_farm_grid.show_floating_text(Vector2i(6, 14), "🌺 Planted Philippine Fiesta Gardens & Benches!", Color(1.0, 0.75, 0.90))
 			_prog_stage += 1
 
 		_:
-			# Ongoing maintenance: ensure all parcels are unlocked, 5 workers active, 4 drones deployed, and 2x2 groves healthy
+			# Ongoing maintenance: ensure all parcels are unlocked, 5 workers active, 4 drones deployed,
+			# all 4 trade hubs built, mills actively processing, and 2x2 groves healthy!
 			for pid in ["east_meadows", "south_plains", "highland_plateau"]:
 				if ("unlocked_parcels" in _farm_grid) and not _farm_grid.unlocked_parcels.has(pid):
 					_auto_purchase_parcel(pid)
+			if _bm():
+				if not _bm().has_building("tacurong_mill"):
+					_place_instant_building(Vector2i(16, 16), "tacurong_mill", 1)
+				if not _bm().has_building("koronadal_wholesale"):
+					_place_instant_building(Vector2i(20, 16), "koronadal_wholesale", 1)
+				if not _bm().has_building("gensan_seaport"):
+					_place_instant_building(Vector2i(28, 16), "gensan_seaport", 1)
+				if _bm().has_method("_process_industrial_facilities"):
+					_bm()._process_industrial_facilities()
 			_hire_workers_up_to(5)
 			_sync_and_deploy_drones()
 			_ensure_2x2_groves_planted()
@@ -723,70 +806,78 @@ func _run_strategic_market_sales() -> void:
 	if _mm().stored_inventory.is_empty():
 		return
 
-	# Hold raw millable crops (palay, sugarcane, coconut, arabica_coffee) briefly if an active mill can process them
-	# AND storage isn't getting full (< 65% capacity) AND freshness is still high (>= 75%).
+	# Actively run industrial processing mills (`rice_mill`, `sugar_mill`, `copra_dryer`, `coffee_roastery`)
+	# so raw crops are turned into high-value processed goods (`milled_rice`, `muscovado_sugar`, `vco`, `roasted_coffee`)!
+	if _bm() and _bm().has_method("_process_industrial_facilities"):
+		_bm()._process_industrial_facilities()
+
 	var st_status: Dictionary = _bm().get_storage_status() if _bm() else {"capacity": 1000, "used": 0}
 	var storage_ratio: float = float(st_status.get("used", 0)) / maxf(float(st_status.get("capacity", 1000)), 1.0)
-
-	var sell_idx: int = -1
-	for i in range(_mm().stored_inventory.size()):
-		var b: Dictionary = _mm().stored_inventory[i]
-		var c_name: String = str(b.get("crop", ""))
-		var fresh: float = float(b.get("freshness", 100.0))
-		if fresh <= 0.0:
-			continue
-		var can_mill: bool = false
-		if storage_ratio < 0.65 and fresh >= 75.0 and _bm():
-			if c_name == "palay" and _bm().has_building("rice_mill"):
-				can_mill = true
-			elif c_name == "sugarcane" and _bm().has_building("sugar_mill"):
-				can_mill = true
-			elif c_name == "coconut" and _bm().has_building("copra_dryer"):
-				can_mill = true
-			elif c_name == "arabica_coffee" and _bm().has_building("coffee_roastery"):
-				can_mill = true
-		if not can_mill:
-			sell_idx = i
-			break
-
-	# If all batches are waiting for milling but storage is >= 65% full, sell the oldest batch anyway
-	if sell_idx == -1 and storage_ratio >= 0.65:
-		sell_idx = 0
-	if sell_idx == -1:
+	var summary: Array = _mm().get_stored_crop_summary() if _mm().has_method("get_stored_crop_summary") else []
+	if summary.is_empty():
 		return
 
-	var batch_info: Dictionary = _mm().stored_inventory[sell_idx]
-	var crop_sold: String = str(batch_info.get("crop", "palay"))
-	var qty_sold: int = int(batch_info.get("quantity", 100))
-	var batch_fresh: float = float(batch_info.get("freshness", 100.0))
-
-	# Evaluate all unlocked hubs to pick the one with the highest net profit that won't rot the batch in transit!
-	var best_hub: String = "local_biyahero"
-	var best_net: int = -999999
 	var candidate_hubs: Array[String] = ["local_biyahero", "tacurong", "koronadal", "gensan_port"]
-	for h_id in candidate_hubs:
-		if _bm() and _bm().has_method("is_hub_unlocked") and not _bm().is_hub_unlocked(h_id):
-			continue
-		var h_data: Dictionary = _da().get_market_hub(h_id) if _da() else {}
-		var road_rot: float = float(h_data.get("rot_risk_percent", 0.0))
-		if (_bm() and _bm().has_cold_storage()) or bool(batch_info.get("is_cold_storage", false)) or bool(batch_info.get("is_processed", false)):
-			road_rot = 0.0
-		var arrival_f: float = maxf(batch_fresh - road_rot, 0.0)
-		if arrival_f <= 0.0:
-			continue # Skip hubs where road transit would ruin the batch!
-		var unit_p: float = _mm().calculate_unit_price(crop_sold, str(batch_info.get("grade", "Grade A")), arrival_f, h_id)
-		var est_net: int = int(unit_p * float(qty_sold)) - int(h_data.get("fuel_cost", 0))
-		if est_net > best_net:
-			best_net = est_net
-			best_hub = h_id
+	var max_sales_this_tick: int = 99 if storage_ratio >= 0.55 else 3
+	var sales_done: int = 0
 
-	if _mm().sell_stored_batch(sell_idx, best_hub):
-		_farm_grid.show_floating_text(Vector2i(2, 1), "🚛 Auto-Sold %d %s!" % [qty_sold, crop_sold.capitalize()], Color(1.0, 0.90, 0.35))
-	else:
-		# Fallback: if selling to best_hub failed (e.g. ruined or fuel), sell to 0-rot local_biyahero or discard
-		if not _mm().sell_stored_batch(sell_idx, "local_biyahero"):
-			_mm().stored_inventory.remove_at(sell_idx)
-			_mm().inventory_changed.emit()
+	for item in summary:
+		if sales_done >= max_sales_this_tick:
+			break
+		var c_name: String = str(item.get("crop", ""))
+		var total_qty: int = int(item.get("total_quantity", 0))
+		if c_name == "" or total_qty <= 0:
+			continue
+
+		# Only hold a small 200-unit buffer of raw millable crops if storage is < 45% full AND the mill exists.
+		# Everything else (including all processed goods and excess raw crops) is sold immediately in bulk!
+		if storage_ratio < 0.45 and total_qty <= 200 and _bm():
+			var hold_for_mill: bool = false
+			if c_name == "palay" and _bm().has_building("rice_mill"):
+				hold_for_mill = true
+			elif c_name == "sugarcane" and _bm().has_building("sugar_mill"):
+				hold_for_mill = true
+			elif c_name == "coconut" and _bm().has_building("copra_dryer"):
+				hold_for_mill = true
+			elif c_name == "arabica_coffee" and _bm().has_building("coffee_roastery"):
+				hold_for_mill = true
+			if hold_for_mill:
+				continue
+
+		# Evaluate all unlocked hubs via preview_crop_sale() to pick the highest-profit buyer
+		var best_hub: String = "local_biyahero"
+		var best_net: int = -999999
+		for h_id in candidate_hubs:
+			if _da() and _da().has_method("is_hub_available") and not _da().is_hub_available(h_id):
+				continue
+			var prev: Dictionary = _mm().preview_crop_sale(c_name, h_id)
+			if int(prev.get("gross", 0)) <= 0 or not bool(prev.get("can_afford_fuel", true)):
+				continue
+			var net_val: int = int(prev.get("net", 0))
+			if net_val > best_net:
+				best_net = net_val
+				best_hub = h_id
+
+		var res: Dictionary = _mm().sell_all_of_crop(c_name, best_hub)
+		if bool(res.get("success", false)):
+			var q_sold: int = int(res.get("quantity", total_qty))
+			var net_earned: int = int(res.get("net", 0))
+			var h_disp: String = str(res.get("hub_name", best_hub)).split("(")[0].strip_edges()
+			var ut = get_node_or_null("/root/Utils")
+			var net_str: String = ut.format_number(net_earned) if (ut and ut.has_method("format_number")) else str(net_earned)
+			_farm_grid.show_floating_text(
+				Vector2i(2, 1 + (sales_done % 3)),
+				"🚛 Shipped %d %s → %s (+₱%s)!" % [q_sold, c_name.capitalize(), h_disp, net_str],
+				Color(1.0, 0.90, 0.35)
+			)
+			sales_done += 1
+		else:
+			# Fallback to 0-rot instant pickup at local_biyahero or purge if ruined
+			var fb: Dictionary = _mm().sell_all_of_crop(c_name, "local_biyahero")
+			if not bool(fb.get("success", false)):
+				if _mm().has_method("discard_ruined_batches"):
+					_mm().discard_ruined_batches(c_name)
+			sales_done += 1
 
 func _pick_strategic_crop() -> String:
 	# Choose crop strategically based on current weather climate + market price trends!

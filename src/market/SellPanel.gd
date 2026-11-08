@@ -60,14 +60,16 @@ func _ready() -> void:
 	_refresh_view()
 
 func _apply_panel_style() -> void:
-	custom_minimum_size = Vector2(860, 490)
+	custom_minimum_size = Vector2(820, 480)
+	size = Vector2(820, 480)
 	set_anchors_preset(Control.PRESET_CENTER)
-	offset_left   = -430.0
-	offset_top    = -245.0
-	offset_right  =  430.0
-	offset_bottom =  245.0
+	offset_left   = -410.0
+	offset_top    = -240.0
+	offset_right  =  410.0
+	offset_bottom =  240.0
 	grow_horizontal = Control.GROW_DIRECTION_BOTH
 	grow_vertical   = Control.GROW_DIRECTION_BOTH
+	clip_contents = true
 
 	var ps = preload("res://assets/sprites/hud/Big-Rectangle-Box/BigPlainBox.tres")
 	add_theme_stylebox_override("panel", ps)
@@ -167,10 +169,18 @@ func _build_ui() -> void:
 	crop_lbl.add_theme_color_override("font_color", Color(0.35, 0.22, 0.12, 1.0))
 	crop_row.add_child(crop_lbl)
 
+	var crop_scroll := ScrollContainer.new()
+	crop_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crop_scroll.custom_minimum_size = Vector2(0, 40)
+	crop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	crop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	crop_scroll.clip_contents = true
+	crop_row.add_child(crop_scroll)
+
 	_crop_selector_container = HBoxContainer.new()
 	_crop_selector_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_crop_selector_container.add_theme_constant_override("separation", 8)
-	crop_row.add_child(_crop_selector_container)
+	_crop_selector_container.add_theme_constant_override("separation", 6)
+	crop_scroll.add_child(_crop_selector_container)
 
 	# Empty Storage Banner (Samplebox - clean parchment with brown border)
 	_empty_storage_banner = PanelContainer.new()
@@ -453,7 +463,7 @@ func _refresh_view() -> void:
 		var disp: String     = crop_d.get("display_name", c_name.capitalize()).split("(")[0].strip_edges()
 
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(140, 32)
+		btn.custom_minimum_size = Vector2(115, 28)
 		btn.pressed.connect(func(): _on_crop_clicked(c_name))
 
 		var bg_col := Color(0.16, 0.25, 0.16, 0.98) if is_sel else Color(0.09, 0.13, 0.09, 0.85)
@@ -466,8 +476,8 @@ func _refresh_view() -> void:
 		btn.add_theme_stylebox_override("normal", bs)
 		btn.add_theme_stylebox_override("hover",  bs)
 
-		btn.text = "%s %s: %d (%d%%)" % [icon_str, disp, qty, int(round(avg_f))]
-		btn.add_theme_font_size_override("font_size", 12)
+		btn.text = " %s %s: %d (%d%%) " % [icon_str, disp, qty, int(round(avg_f))]
+		btn.add_theme_font_size_override("font_size", 11)
 		btn.add_theme_color_override("font_color", Color(1.0, 0.95, 0.80) if is_sel else Color(0.85, 0.90, 0.85))
 
 		_crop_selector_container.add_child(btn)
