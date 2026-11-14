@@ -157,7 +157,7 @@ func open_for_parcel(parcel_id: String, grid_ref: Node2D) -> void:
 	_desc_lbl.text = p.get("description", "")
 	var r_sz: Vector2i = p.get("rect", Rect2i()).size
 	_stats_lbl.text = "📐 Plot Size: %d×%d Grid (%d New Plots for Crops & Buildings)" % [r_sz.x, r_sz.y, r_sz.x * r_sz.y]
-	var cost: int = p.get("cost", 0)
+	var cost: int = Data.get_effective_land_cost(int(p.get("cost", 0)))
 	_cost_lbl.text = "Deed Price: 💰 ₱%s" % Utils.format_number(cost)
 	_refresh_funds()
 	visible = true
@@ -169,7 +169,7 @@ func _refresh_funds() -> void:
 	if not visible:
 		return
 	var p: Dictionary = Data.get_parcel(current_parcel_id)
-	var cost: int = p.get("cost", 0)
+	var cost: int = Data.get_effective_land_cost(int(p.get("cost", 0)))
 	var r_sz: Vector2i = p.get("rect", Rect2i()).size
 	var has_funds: bool = EconomyManager.cash >= cost
 	_funds_lbl.text = "Treasury: 💰 ₱%s" % Utils.format_number(EconomyManager.cash)

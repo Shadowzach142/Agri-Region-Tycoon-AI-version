@@ -10,12 +10,19 @@ class_name RegionalStreamOverlay
 extends Node2D
 
 @export var region_key: String = ""
+var _redraw_accum: float = 0.0
+const STREAM_REDRAW_INTERVAL: float = 0.085
 
 func _init() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return
+	_redraw_accum += delta
+	if _redraw_accum >= STREAM_REDRAW_INTERVAL:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 func _get_iso_pt(gx: float, gy: float) -> Vector2:
 	return Vector2(

@@ -35,6 +35,15 @@ var _advice_label: Label = null
 var _chart: Control = null
 var _hub_rows: Array = []
 
+# Wholesale Buy/Sell & Cross-Region Strip
+var _ask_bid_label: Label = null
+var _stored_label: Label = null
+var _buy_25_btn: Button = null
+var _buy_50_btn: Button = null
+var _sell_local_btn: Button = null
+var _trade_feedback_label: Label = null
+var _region_price_labels: Dictionary = {}
+
 func _ready() -> void:
 	for child in get_children():
 		child.queue_free()
@@ -44,18 +53,22 @@ func _ready() -> void:
 	_build_ui()
 
 	MarketManager.price_updated.connect(_on_price_updated)
+	if MarketManager.has_signal("market_region_updated"):
+		MarketManager.market_region_updated.connect(_on_market_region_updated)
+	MarketManager.inventory_changed.connect(_on_inventory_changed)
+	EconomyManager.cash_changed.connect(_on_cash_changed)
 	WeatherManager.weather_changed.connect(_on_weather_changed)
 	TimeManager.day_changed.connect(_on_day_changed)
 
 	refresh_all()
 
 func _apply_panel_style() -> void:
-	custom_minimum_size = Vector2(880, 540)
+	custom_minimum_size = Vector2(920, 610)
 	set_anchors_preset(Control.PRESET_CENTER)
-	offset_left   = -440.0
-	offset_top    = -270.0
-	offset_right  =  440.0
-	offset_bottom =  270.0
+	offset_left   = -460.0
+	offset_top    = -305.0
+	offset_right  =  460.0
+	offset_bottom =  305.0
 	grow_horizontal = Control.GROW_DIRECTION_BOTH
 	grow_vertical   = Control.GROW_DIRECTION_BOTH
 
@@ -240,20 +253,15 @@ func _build_ui() -> void:
 
 	# 7-Day Chart
 	_chart = MarketChartScript.new()
-	_chart.custom_minimum_size = Vector2(0, 165)
+	_chart.custom_minimum_size = Vector2(0, 145)
 	_chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_col.add_child(_chart)
 
 	# Regional Price Comparison Table
 	_build_regional_table(right_col)
 
-	# Footer guidance note
-	var tip_lbl := Label.new()
-	tip_lbl.text = "💡 Want to sell your harvest? Click \"🚚 SELL HARVEST\" in the bottom-right corner!"
-	tip_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tip_lbl.add_theme_font_size_override("font_size", 13)
-	tip_lbl.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
-	right_col.add_child(tip_lbl)
+	# Local Wholesale Buy/Sell & Cross-Region Comparison Strip
+	_build_trade_and_region_strip(right_col)
 
 func _build_ticker_card(crop_key: String) -> Button:
 	var crop_data: Dictionary = Data.get_crop(crop_key)
@@ -328,7 +336,7 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 	col_hdr.add_theme_constant_override("separation", 0)
 	vb.add_child(col_hdr)
 
-	for pair in [["BUYER / HUB", true], ["DIST.", false], ["PAYOUT", false], ["TODAY'S PRICE", false], ["ROT RISK", false]]:
+	for pair in [["BUYER / HUB", true], ["FUEL", false], ["PAYOUT", false], ["TODAY'S PRICE", false], ["ROT RISK", false]]:
 		var lbl := Label.new()
 		lbl.text = String(pair[0])
 		lbl.add_theme_font_size_override("font_size", 12)
@@ -348,7 +356,7 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 	for hub_key in HUB_KEYS:
 		var hub_data: Dictionary = Data.get_market_hub(hub_key)
 		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(0, 28)
+		row.custom_minimum_size = Vector2(0, 26)
 		row.add_theme_constant_override("separation", 0)
 		vb.add_child(row)
 
@@ -359,13 +367,13 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 		name_lbl.add_theme_color_override("font_color", Color(0.18, 0.10, 0.05, 1.0))
 		row.add_child(name_lbl)
 
-		var dist_lbl := Label.new()
-		dist_lbl.text = "%d km" % int(hub_data.get("distance_km", 0))
-		dist_lbl.custom_minimum_size = Vector2(85, 0)
-		dist_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		dist_lbl.add_theme_font_size_override("font_size", 13)
-		dist_lbl.add_theme_color_override("font_color", Color(0.32, 0.22, 0.14, 1.0))
-		row.add_child(dist_lbl)
+		var fuel_lbl := Label.new()
+		fuel_lbl.text = "₱%d" % int(hub_data.get("fuel_cost", 0))
+		fuel_lbl.custom_minimum_size = Vector2(85, 0)
+		fuel_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		fuel_lbl.add_theme_font_size_override("font_size", 13)
+		fuel_lbl.add_theme_color_override("font_color", Color(0.32, 0.22, 0.14, 1.0))
+		row.add_child(fuel_lbl)
 
 		var pct_lbl := Label.new()
 		pct_lbl.text = "%.0f%%" % (float(hub_data.get("price_multiplier", 1.0)) * 100.0)
@@ -393,11 +401,108 @@ func _build_regional_table(parent: VBoxContainer) -> void:
 
 		_hub_rows.append({
 			"hub_key": hub_key,
+			"fuel_lbl": fuel_lbl,
 			"pct_lbl": pct_lbl,
 			"price_lbl": price_lbl,
 			"rot_lbl": rot_lbl,
 			"hub_data": hub_data
 		})
+
+func _build_trade_and_region_strip(parent: VBoxContainer) -> void:
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", preload("res://assets/sprites/hud/Samplebox.tres"))
+	parent.add_child(box)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	box.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 5)
+	margin.add_child(vb)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 6)
+	vb.add_child(action_row)
+
+	_ask_bid_label = Label.new()
+	_ask_bid_label.text = "Ask: ₱--/u"
+	_ask_bid_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ask_bid_label.add_theme_font_size_override("font_size", 12)
+	_ask_bid_label.add_theme_color_override("font_color", Color(0.18, 0.10, 0.05, 1.0))
+	action_row.add_child(_ask_bid_label)
+
+	var btn_norm = preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres")
+	var btn_hov  = preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonHover.tres")
+	var btn_prs  = preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres")
+	var gold_norm = preload("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres")
+	var gold_hov  = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonHover.tres")
+	var gold_prs  = preload("res://assets/sprites/hud/Buttons/GoldButton/GoldbuttonPresesd.tres")
+
+	_buy_25_btn = Button.new()
+	_buy_25_btn.text = "Buy 25u"
+	_buy_25_btn.custom_minimum_size = Vector2(105, 28)
+	_buy_25_btn.tooltip_text = "Buy 25 units from your local province market into Bodega storage (raises local price)."
+	_buy_25_btn.add_theme_font_size_override("font_size", 12)
+	_buy_25_btn.add_theme_color_override("font_color", Color(0.98, 0.94, 0.85))
+	_buy_25_btn.add_theme_stylebox_override("normal", btn_norm)
+	_buy_25_btn.add_theme_stylebox_override("hover", btn_hov)
+	_buy_25_btn.add_theme_stylebox_override("pressed", btn_prs)
+	_buy_25_btn.pressed.connect(func(): _on_buy_wholesale(25))
+	action_row.add_child(_buy_25_btn)
+
+	_buy_50_btn = Button.new()
+	_buy_50_btn.text = "Buy 50u"
+	_buy_50_btn.custom_minimum_size = Vector2(105, 28)
+	_buy_50_btn.tooltip_text = "Buy 50 units from your local province market into Bodega storage (raises local price)."
+	_buy_50_btn.add_theme_font_size_override("font_size", 12)
+	_buy_50_btn.add_theme_color_override("font_color", Color(0.98, 0.94, 0.85))
+	_buy_50_btn.add_theme_stylebox_override("normal", btn_norm)
+	_buy_50_btn.add_theme_stylebox_override("hover", btn_hov)
+	_buy_50_btn.add_theme_stylebox_override("pressed", btn_prs)
+	_buy_50_btn.pressed.connect(func(): _on_buy_wholesale(50))
+	action_row.add_child(_buy_50_btn)
+
+	_sell_local_btn = Button.new()
+	_sell_local_btn.text = "Sell Stored"
+	_sell_local_btn.custom_minimum_size = Vector2(128, 28)
+	_sell_local_btn.tooltip_text = "Quick-sell all stored batches of this crop to your Local Biyahero immediately."
+	_sell_local_btn.add_theme_font_size_override("font_size", 12)
+	_sell_local_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.05))
+	_sell_local_btn.add_theme_stylebox_override("normal", gold_norm)
+	_sell_local_btn.add_theme_stylebox_override("hover", gold_hov)
+	_sell_local_btn.add_theme_stylebox_override("pressed", gold_prs)
+	_sell_local_btn.pressed.connect(_on_sell_stored_local)
+	action_row.add_child(_sell_local_btn)
+
+	var reg_row := HBoxContainer.new()
+	reg_row.add_theme_constant_override("separation", 6)
+	vb.add_child(reg_row)
+
+	var reg_hdr := Label.new()
+	reg_hdr.text = "5-Province Spot:"
+	reg_hdr.add_theme_font_size_override("font_size", 11)
+	reg_hdr.add_theme_color_override("font_color", Color(0.32, 0.22, 0.12, 1.0))
+	reg_row.add_child(reg_hdr)
+
+	_region_price_labels.clear()
+	for reg_id in ["cotabato", "south_cotabato", "sarangani", "sultan_kudarat", "general_santos"]:
+		var r_lbl := Label.new()
+		r_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		r_lbl.add_theme_font_size_override("font_size", 11)
+		_region_price_labels[reg_id] = r_lbl
+		reg_row.add_child(r_lbl)
+
+	_trade_feedback_label = Label.new()
+	_trade_feedback_label.text = "💡 Buy low locally or haul to hubs — trades shift each province's price live! (Or use 🚚 SELL HARVEST)"
+	_trade_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_trade_feedback_label.add_theme_font_size_override("font_size", 11)
+	_trade_feedback_label.add_theme_color_override("font_color", Color(0.25, 0.15, 0.08, 1.0))
+	vb.add_child(_trade_feedback_label)
 
 func _make_flat_style(bg: Color, border: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
@@ -424,20 +529,27 @@ func _update_header() -> void:
 	var reg: String = String(Data.get_region(Data.current_region).get("display_name", "Cotabato")).split("(")[0].strip_edges()
 	_header_label.text = "📈 REGIONAL COMMODITY MARKET  •  %s, Day %d" % [reg, TimeManager.current_day]
 
+func _fmt_price(val: float) -> String:
+	if absf(val) < 100.0 and absf(val - roundf(val)) >= 0.05:
+		return "%.1f" % val
+	return "%d" % int(roundf(val))
+
 func _update_ticker() -> void:
 	for crop_key in CROP_KEYS:
 		var btn: Button = _ticker_cards.get(crop_key, null)
 		if not btn: continue
 
+		var c_data: Dictionary = Data.get_crop(crop_key)
+		var base_p: float = float(c_data.get("base_price", 10.0))
 		var chg: Dictionary = MarketManager.get_price_change(crop_key)
-		var curr_p: int = int(round(chg.get("current", 100.0)))
+		var curr_f: float = float(chg.get("current", base_p))
 		var pct: float = float(chg.get("percent", 0.0))
 		var is_up: bool = bool(chg.get("is_up", true))
 
 		var name_lbl: Label = btn.find_child("NameLbl", true, false)
 		var price_lbl: Label = btn.find_child("PriceLbl", true, false)
 		var trend_lbl: Label = btn.find_child("TrendLbl", true, false)
-		if price_lbl: price_lbl.text = "₱%d" % curr_p
+		if price_lbl: price_lbl.text = "₱%s" % _fmt_price(curr_f)
 		if trend_lbl:
 			var arrow := "▲" if is_up else "▼"
 			var sign := "+" if pct >= 0.0 else ""
@@ -485,28 +597,28 @@ func _update_crop_view() -> void:
 	var crop_data: Dictionary = Data.get_crop(selected_crop)
 	var icon_str: String = crop_data.get("icon", "🌱")
 	var disp: String = crop_data.get("display_name", selected_crop.capitalize())
-	var base_p: float = float(crop_data.get("base_price", 100))
+	var base_p: float = float(crop_data.get("base_price", 10))
 
 	_crop_title_label.text = "%s %s — 7-Day Price Trend" % [icon_str, disp]
-	_crop_base_label.text = "Normal Baseline: ₱%d/u" % int(base_p)
+	_crop_base_label.text = "Normal Baseline: ₱%s/u" % _fmt_price(base_p)
 
 	var chg: Dictionary = MarketManager.get_price_change(selected_crop)
-	var curr_p: int = int(round(chg.get("current", base_p)))
+	var curr_f: float = float(chg.get("current", base_p))
 	var diff: float = float(chg.get("diff", 0.0))
 	var pct: float = float(chg.get("percent", 0.0))
 	var is_up: bool = bool(chg.get("is_up", true))
 
-	var sign_s: String = "+" if diff >= 0 else ""
-	_crop_price_label.text = "₱%d/u (%s%d)" % [curr_p, sign_s, int(round(diff))]
+	var sign_s: String = "+" if diff >= 0.0 else "-"
+	_crop_price_label.text = "₱%s/u (%s%s)" % [_fmt_price(curr_f), sign_s, _fmt_price(absf(diff))]
 	_crop_price_label.add_theme_color_override("font_color",
 		Color(0.06, 0.50, 0.14) if is_up else Color(0.75, 0.16, 0.12))
 
 	var adv_s: StyleBoxFlat = _advice_badge.get_theme_stylebox("panel") as StyleBoxFlat
-	if curr_p >= int(base_p * 1.10):
+	if curr_f >= base_p * 1.10:
 		_advice_label.text = "🟢 BULL MARKET (+%.0f%%) — High Demand! Good time to sell." % pct
 		_advice_label.add_theme_color_override("font_color", Color(0.40, 1.0, 0.50))
 		if adv_s: adv_s.bg_color = Color(0.10, 0.22, 0.10, 0.90); adv_s.border_color = Color(0.40, 0.90, 0.45, 0.9)
-	elif curr_p <= int(base_p * 0.90):
+	elif curr_f <= base_p * 0.90:
 		_advice_label.text = "🔴 BEAR MARKET (%.0f%%) — Oversupplied. Consider storing yield." % pct
 		_advice_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55))
 		if adv_s: adv_s.bg_color = Color(0.24, 0.10, 0.10, 0.90); adv_s.border_color = Color(0.90, 0.40, 0.40, 0.9)
@@ -517,37 +629,161 @@ func _update_crop_view() -> void:
 
 	_chart.set_chart_data(selected_crop, disp, MarketManager.get_price_history(selected_crop), base_p)
 
-	# Update Regional Comparison Table
-	var has_cold: bool = BuildingManager.has_cold_storage()
+	# Update Regional Hub Comparison Table using live regional logistics
+	var is_night: bool = TimeManager.is_night()
 	for row_data in _hub_rows:
 		var hub_key: String = row_data["hub_key"]
 		var hub_d: Dictionary = row_data["hub_data"]
-		var rot: float = float(hub_d.get("rot_risk_percent", 0.0))
-		var effective_rot: float = 0.0 if has_cold else rot
-		var arrival_fresh: float = maxf(100.0 - effective_rot, 0.0)
+		var logi: Dictionary = MarketManager._get_hub_logistics(hub_key)
+		var rot: float = float(logi.get("road_rot", 0.0))
+		var has_cold: bool = bool(logi.get("has_cold", false))
+		var fuel_cost: int = int(logi.get("fuel_cost", 0))
+		var arrival_fresh: float = maxf(100.0 - rot, 0.0)
 		var unit_price: float = MarketManager.calculate_unit_price(selected_crop, "Grade A", arrival_fresh, hub_key)
+		var unlocked: bool = BuildingManager.is_hub_unlocked(hub_key)
 
+		var fuel_lbl: Label  = row_data["fuel_lbl"]
 		var price_lbl: Label = row_data["price_lbl"]
 		var rot_lbl: Label   = row_data["rot_lbl"]
 		var pct_lbl: Label   = row_data["pct_lbl"]
 
-		price_lbl.text = "₱%d/u" % int(round(unit_price))
+		if fuel_cost <= 0:
+			fuel_lbl.text = "Free"
+		elif is_night and hub_key != "local_biyahero":
+			fuel_lbl.text = "₱%d🌙" % fuel_cost
+		else:
+			fuel_lbl.text = "₱%d" % fuel_cost
+
+		price_lbl.text = "₱%s/u" % _fmt_price(unit_price)
 		var col := Color(0.06, 0.50, 0.14) if unit_price >= base_p else Color(0.75, 0.16, 0.12)
 		price_lbl.add_theme_color_override("font_color", col)
 
-		if has_cold or rot == 0.0:
-			rot_lbl.text = "❄️ 0%"
+		if has_cold or rot <= 0.01:
+			rot_lbl.text = "❄️ 0%" if has_cold else "⚡ 0%"
 			rot_lbl.add_theme_color_override("font_color", Color(0.12, 0.40, 0.65))
 		else:
 			rot_lbl.text = "⚠️ %.0f%%" % rot
 			var rot_col := Color(0.75, 0.16, 0.10) if rot >= 25.0 else Color(0.65, 0.35, 0.10)
 			rot_lbl.add_theme_color_override("font_color", rot_col)
 
-		pct_lbl.add_theme_color_override("font_color",
-			Color(0.24, 0.16, 0.08) if float(hub_d.get("price_multiplier", 1.0)) >= 1.0 else Color(0.45, 0.35, 0.25))
+		if not unlocked:
+			pct_lbl.text = "Locked"
+			pct_lbl.add_theme_color_override("font_color", Color(0.55, 0.40, 0.30))
+		else:
+			pct_lbl.text = "%.0f%%" % (float(hub_d.get("price_multiplier", 1.0)) * 100.0)
+			pct_lbl.add_theme_color_override("font_color",
+				Color(0.24, 0.16, 0.08) if float(hub_d.get("price_multiplier", 1.0)) >= 1.0 else Color(0.45, 0.35, 0.25))
+
+	_update_trade_and_region_strip(crop_data, base_p)
+
+func _update_trade_and_region_strip(crop_data: Dictionary, base_p: float) -> void:
+	if not _ask_bid_label:
+		return
+	var ask_p: float = MarketManager.get_commodity_buy_price(selected_crop)
+	var seed_p: int = MarketManager.get_seed_buy_price(selected_crop)
+	var is_2x2: bool = (crop_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2))
+	var seed_word: String = "Grove" if is_2x2 else "Seed"
+	var crop_stored: int = MarketManager.get_stored_units_for_crop(selected_crop)
+
+	var total_used: int = 0
+	for b in MarketManager.stored_inventory:
+		total_used += int(b.get("quantity", 0))
+	var cap: int = BuildingManager.total_storage_capacity
+	var free_space: int = maxi(0, cap - total_used)
+
+	_ask_bid_label.text = "Buy Ask: ₱%s/u  •  %s: ₱%d  •  In Bodega: %du (%d free)" % [
+		_fmt_price(ask_p), seed_word, seed_p, crop_stored, free_space
+	]
+
+	var cost25: int = maxi(1, int(ceilf(ask_p * 25.0)))
+	var cost50: int = maxi(1, int(ceilf(ask_p * 50.0)))
+	_buy_25_btn.text = "Buy 25u (₱%d)" % cost25
+	_buy_25_btn.disabled = (EconomyManager.cash < cost25 or free_space < 25)
+	_buy_50_btn.text = "Buy 50u (₱%d)" % cost50
+	_buy_50_btn.disabled = (EconomyManager.cash < cost50 or free_space < 50)
+
+	var local_bid: float = MarketManager.calculate_unit_price(selected_crop, "Grade A", 100.0, "local_biyahero")
+	_sell_local_btn.text = "Sell %du (~₱%d)" % [crop_stored, int(roundf(local_bid * crop_stored))] if crop_stored > 0 else "Sell Stored (0u)"
+	_sell_local_btn.disabled = (crop_stored <= 0)
+
+	const SHORT_NAMES := {
+		"cotabato": "Cotabato",
+		"south_cotabato": "S.Cot",
+		"sarangani": "Sarangani",
+		"sultan_kudarat": "S.Kudarat",
+		"general_santos": "GenSan",
+	}
+	for reg_id in _region_price_labels.keys():
+		var lbl: Label = _region_price_labels[reg_id]
+		var reg_p: float = MarketManager.get_benchmark_price_for_region(selected_crop, reg_id)
+		var is_home: bool = (reg_id == Data.current_region)
+		var prefix: String = "★" if is_home else ""
+		lbl.text = "%s%s: ₱%s" % [prefix, SHORT_NAMES.get(reg_id, reg_id), _fmt_price(reg_p)]
+		if is_home:
+			lbl.add_theme_color_override("font_color", Color(0.55, 0.25, 0.02))
+		elif reg_p >= base_p * 1.12:
+			lbl.add_theme_color_override("font_color", Color(0.06, 0.48, 0.14))
+		elif reg_p <= base_p * 0.90:
+			lbl.add_theme_color_override("font_color", Color(0.70, 0.16, 0.12))
+		else:
+			lbl.add_theme_color_override("font_color", Color(0.24, 0.16, 0.10))
+
+func _on_buy_wholesale(qty: int) -> void:
+	var res: Dictionary = MarketManager.buy_commodity(selected_crop, qty)
+	if bool(res.get("success", false)):
+		AudioManager.play_economy("spend")
+		if _trade_feedback_label:
+			_trade_feedback_label.text = "✅ Bought %du %s for ₱%d — local Ask/Bid nudged up!" % [
+				int(res.get("quantity", qty)), selected_crop.capitalize(), int(res.get("total_cost", 0))
+			]
+			_trade_feedback_label.add_theme_color_override("font_color", Color(0.06, 0.48, 0.14))
+		refresh_all()
+	else:
+		AudioManager.play_ui("error")
+		var err: String = str(res.get("error", "failed"))
+		if _trade_feedback_label:
+			if err == "storage_full":
+				_trade_feedback_label.text = "⚠️ Bodega storage full! Build/upgrade storage or sell stock first."
+			elif err == "insufficient_cash":
+				_trade_feedback_label.text = "⚠️ Not enough cash in treasury to buy %du!" % qty
+			else:
+				_trade_feedback_label.text = "⚠️ Trade could not be completed."
+			_trade_feedback_label.add_theme_color_override("font_color", Color(0.75, 0.16, 0.12))
+
+func _on_sell_stored_local() -> void:
+	var total_sold: int = 0
+	for i in range(MarketManager.stored_inventory.size() - 1, -1, -1):
+		var batch: Dictionary = MarketManager.stored_inventory[i]
+		if str(batch.get("crop", "")) == selected_crop:
+			var q: int = int(batch.get("quantity", 0))
+			if MarketManager.sell_stored_batch(i, "local_biyahero"):
+				total_sold += q
+	if total_sold > 0:
+		AudioManager.play_economy("market_sell")
+		if _trade_feedback_label:
+			_trade_feedback_label.text = "💰 Sold %du %s locally — local supply rose & price shifted!" % [
+				total_sold, selected_crop.capitalize()
+			]
+			_trade_feedback_label.add_theme_color_override("font_color", Color(0.06, 0.48, 0.14))
+		refresh_all()
+	else:
+		AudioManager.play_ui("error")
+		if _trade_feedback_label:
+			_trade_feedback_label.text = "⚠️ No stored %s in Bodega to sell!" % selected_crop.capitalize()
+			_trade_feedback_label.add_theme_color_override("font_color", Color(0.75, 0.16, 0.12))
 
 func _on_price_updated(_c: String, _p: float) -> void:
 	refresh_all()
+
+func _on_market_region_updated(_reg: String, _c: String, _p: float) -> void:
+	refresh_all()
+
+func _on_inventory_changed() -> void:
+	refresh_all()
+
+func _on_cash_changed(_amt: int) -> void:
+	if visible:
+		_update_crop_view()
 
 func _on_weather_changed(_t: float, _h: float) -> void:
 	refresh_all()

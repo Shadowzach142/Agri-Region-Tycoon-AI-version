@@ -15,6 +15,51 @@ var is_tutorial_mode: bool = false
 # Whether Booth Auto-Play / Idle Mode is active (endless self-playing mode that pauses on player input and resumes after 60s idle)
 var is_auto_mode: bool = false
 
+# Multiplayer & Faction Team Match Configuration
+var is_multiplayer_match: bool = false
+var multiplayer_team: int = 1 # 1..5 corresponding to the 5 regions
+var multiplayer_slot_id: String = "cotabato"
+var multiplayer_player_color_idx: int = 0 # Lobby farmer color variant (0..7)
+var multiplayer_roster: Array = []
+var multiplayer_game_type: String = "rivalry" # Prototype mode: 1v1..5-Region RTS Rivalry
+var multiplayer_leaderboard_enabled: bool = true # Toggleable in-game standings + farmer view (false = Surprise Mode)
+var custom_crop_growth_multiplier: float = 1.0
+var custom_build_speed_multiplier: float = 1.0
+var custom_weather_intensity: String = "normal" # "calm", "normal", "extreme"
+
+## Resets all autoload singletons so no buildings, workers, tasks, inventory, or timers leak between sessions
+func reset_all_session_state(starting_speed: float = 0.0) -> void:
+	custom_crop_growth_multiplier = 1.0
+	custom_build_speed_multiplier = 1.0
+	custom_weather_intensity = "normal"
+	var bm = get_node_or_null("/root/BuildingManager")
+	if bm and bm.has_method("reset_for_new_session"):
+		bm.reset_for_new_session()
+	var tm = get_node_or_null("/root/TaskManager")
+	if tm and tm.has_method("reset_for_new_session"):
+		tm.reset_for_new_session()
+	var mm = get_node_or_null("/root/MarketManager")
+	if mm and mm.has_method("reset_for_new_session"):
+		mm.reset_for_new_session()
+	var pm = get_node_or_null("/root/PestManager")
+	if pm and pm.has_method("reset_for_new_session"):
+		pm.reset_for_new_session()
+	var wm = get_node_or_null("/root/WeatherManager")
+	if wm and wm.has_method("reset_for_new_session"):
+		wm.reset_for_new_session()
+	var lbm = get_node_or_null("/root/LeaderboardManager")
+	if lbm and lbm.has_method("reset_current_run"):
+		lbm.reset_current_run()
+	var am = get_node_or_null("/root/AudioManager")
+	if am and am.has_method("stop_build_loop"):
+		am.stop_build_loop()
+	var em = get_node_or_null("/root/EconomyManager")
+	if em and em.has_method("reset_for_new_session"):
+		em.reset_for_new_session(1500)
+	var tim = get_node_or_null("/root/TimeManager")
+	if tim and tim.has_method("reset_for_new_session"):
+		tim.reset_for_new_session(starting_speed)
+
 const GAME_MODES = {
 	"campaign": {
 		"id": "campaign",
@@ -80,19 +125,47 @@ const REGIONS = {
 		"monument_texture": "res://assets/sprites/monuments/bangkapayapaan_monument.png",
 		"monument_texture_flipped": "res://assets/sprites/monuments/bangkapayapaan_monument_FLIPPED.png",
 		"pros": [
-			"Rich alluvial soil with high natural moisture (65%)",
-			"Accelerated Palay growth & bumper harvest yields",
-			"Naturally protected from severe regional droughts"
+			"Rich alluvial soil (65% moisture) with -20% evaporation",
+			"+15% growth, yield, price & -15% seed cost for Palay & Banana",
+			"Wetland humidity cushions drought damage by -30%"
 		],
 		"cons": [
-			"Vulnerable to flash floods & river overflow",
-			"Golden Apple Snail (Kuhol) infestations in paddies",
-			"Extreme over-saturation (>90% moisture) rots crops"
+			"High Flash Flood risk (15%) with +25% heavy rain gain",
+			"+50% Golden Apple Snail (Kuhol) risk in wet paddies",
+			"Severe over-saturation (>90% moisture) rots non-paddy roots"
 		],
 		"hazards": {
 			"flash_flood": 0.15,
 			"landslide": 0.03,
 			"el_nino_drought": 0.06,
+		},
+		"modifiers": {
+			"temp_offset_c": -1.5,
+			"evap_mult": 0.80,
+			"rain_gain_mult": 1.25,
+			"drought_damage_mult": 0.70,
+			"spoilage_mult": 1.0,
+			"road_rot_mult": 1.0,
+			"fuel_cost_mult": 1.0,
+			"worker_speed_mult": 1.0,
+			"build_speed_mult": 1.0,
+			"building_cost_mult": 1.0,
+			"tech_building_cost_mult": 1.0,
+			"land_cost_mult": 1.0,
+			"wage_mult": 1.0,
+			"hire_cost_mult": 1.0,
+			"supply_dump_mult": 1.0,
+			"export_hub_price_mult": 1.0,
+			"grade_c_price_mult": 1.0,
+			"grade_c_pts_mult": 1.0,
+			"solar_dryer_bonus": 0.25,
+			"specialty_crops": ["palay", "banana"],
+			"specialty_yield_mult": 1.15,
+			"specialty_growth_mult": 1.15,
+			"specialty_price_mult": 1.15,
+			"specialty_seed_discount": 0.15,
+			"pest_mults": {"kuhol": 1.50},
+			"hub_fuel_overrides": {},
 		},
 	},
 	"south_cotabato": {
@@ -116,19 +189,47 @@ const REGIONS = {
 		"secondary_monument_texture": "res://assets/sprites/monuments/T_boli_Knoon_Monument.png",
 		"secondary_monument_texture_flipped": "res://assets/sprites/monuments/T_boli_Knoon_Monument_FLIPPED.png",
 		"pros": [
-			"Cool mountain climate prevents crop heat stress",
-			"Volcanic soil yields +20% bonus on Coffee & Pineapple",
-			"Naturally sheltered from low-elevation flash floods"
+			"Cool highland air (-3°C) slows storage rot by 35%",
+			"+15% growth, yield, price & -15% seed cost for Coffee, Pineapple & Corn",
+			"Sheltered from floods (8%) & droughts (5%); -30% fuel to Koronadal"
 		],
 		"cons": [
-			"Steep mountain slopes carry Landslide risks (12%)",
-			"High vulnerability to Fusarium Wilt (Panama Disease)",
-			"Winding mountain roads increase logistics costs"
+			"Steep mountain slopes carry highest Landslide risk (12%)",
+			"Slopes slow workers by -10% & add +25% outer freight fuel",
+			"+40% Fusarium Wilt vulnerability on susceptible highland crops"
 		],
 		"hazards": {
 			"flash_flood": 0.08,
 			"landslide": 0.12,
 			"el_nino_drought": 0.05,
+		},
+		"modifiers": {
+			"temp_offset_c": -3.0,
+			"evap_mult": 0.90,
+			"rain_gain_mult": 1.05,
+			"drought_damage_mult": 0.90,
+			"spoilage_mult": 0.65,
+			"road_rot_mult": 0.80,
+			"fuel_cost_mult": 1.25,
+			"worker_speed_mult": 0.90,
+			"build_speed_mult": 0.95,
+			"building_cost_mult": 1.0,
+			"tech_building_cost_mult": 1.0,
+			"land_cost_mult": 1.0,
+			"wage_mult": 1.0,
+			"hire_cost_mult": 1.0,
+			"supply_dump_mult": 1.0,
+			"export_hub_price_mult": 1.0,
+			"grade_c_price_mult": 1.0,
+			"grade_c_pts_mult": 1.0,
+			"solar_dryer_bonus": 0.25,
+			"specialty_crops": ["arabica_coffee", "pineapple", "yellow_corn"],
+			"specialty_yield_mult": 1.15,
+			"specialty_growth_mult": 1.15,
+			"specialty_price_mult": 1.15,
+			"specialty_seed_discount": 0.15,
+			"pest_mults": {"fusarium_wilt": 1.40},
+			"hub_fuel_overrides": {"koronadal": 0.70},
 		},
 	},
 	"sarangani": {
@@ -146,19 +247,47 @@ const REGIONS = {
 		"monument_texture": "res://assets/sprites/monuments/maitum_anthropomorphic_replicas.png",
 		"monument_texture_flipped": "res://assets/sprites/monuments/maitum_anthropomorphic_replicas_FLIPPED.png",
 		"pros": [
-			"Ideal tropical climate for Coconut & Banana groves",
-			"Direct coastal shipping access with low freight costs",
-			"Zero risk of landslides or river inundation"
+			"Coastal logistics slash shipping fuel by 30% (-35% to GenSan)",
+			"+15% growth, yield, price & -15% seed cost for Coconut & Banana",
+			"Bright coastal sun boosts Solar Dryer (+35%) & +15% build speed"
 		],
 		"cons": [
-			"Severe El Niño drought risk (14%) and heatwaves",
-			"Low baseline moisture (45%) requires irrigation",
-			"Frequent Fall Armyworm outbreaks during dry spells"
+			"Highest El Niño Drought risk (14%) & sandy soil (+25% evaporation)",
+			"Low baseline soil moisture (45%) requires early irrigation",
+			"+45% Fall Armyworm outbreak risk during dry coastal spells"
 		],
 		"hazards": {
 			"flash_flood": 0.05,
 			"landslide": 0.02,
 			"el_nino_drought": 0.14,
+		},
+		"modifiers": {
+			"temp_offset_c": 1.5,
+			"evap_mult": 1.25,
+			"rain_gain_mult": 0.90,
+			"drought_damage_mult": 1.15,
+			"spoilage_mult": 1.0,
+			"road_rot_mult": 0.90,
+			"fuel_cost_mult": 0.70,
+			"worker_speed_mult": 1.0,
+			"build_speed_mult": 1.15,
+			"building_cost_mult": 1.0,
+			"tech_building_cost_mult": 1.0,
+			"land_cost_mult": 0.95,
+			"wage_mult": 1.0,
+			"hire_cost_mult": 1.0,
+			"supply_dump_mult": 1.0,
+			"export_hub_price_mult": 1.0,
+			"grade_c_price_mult": 1.0,
+			"grade_c_pts_mult": 1.0,
+			"solar_dryer_bonus": 0.35,
+			"specialty_crops": ["coconut", "banana"],
+			"specialty_yield_mult": 1.15,
+			"specialty_growth_mult": 1.15,
+			"specialty_price_mult": 1.15,
+			"specialty_seed_discount": 0.15,
+			"pest_mults": {"armyworm": 1.45},
+			"hub_fuel_overrides": {"gensan_port": 0.65},
 		},
 	},
 	"sultan_kudarat": {
@@ -176,19 +305,47 @@ const REGIONS = {
 		"monument_texture": "res://assets/sprites/monuments/Sultan_Kudarat_Monument.png",
 		"monument_texture_flipped": "res://assets/sprites/monuments/Sultan_Kudarat_Monument_FLIPPED.png",
 		"pros": [
-			"Broad flat plains maximize tractor & harvester speed",
-			"Rich loam gives +20% bonus on Sugarcane & Corn",
-			"High harvest volume with cheaper building layout"
+			"Flat plains grant +15% worker speed & -15% land/building costs",
+			"+15% yield, +10% growth & +12% price for Sugarcane, Corn & Palay",
+			"-30% shipping fuel along the Tacurong highway corridor"
 		],
 		"cons": [
-			"Dense monoculture accelerates Armyworm & Bug spread",
-			"Heavy machinery requires frequent fuel & maintenance",
-			"Oversaturating local hubs temporarily depresses prices"
+			"Open monoculture gives +35% Armyworm & +40% Black Bug spread",
+			"Bulk supply dumps saturate local hub demand 25% faster",
+			"Dual flood/drought risk (9% / 8%) with +10% wind evaporation"
 		],
 		"hazards": {
 			"flash_flood": 0.09,
 			"landslide": 0.03,
 			"el_nino_drought": 0.08,
+		},
+		"modifiers": {
+			"temp_offset_c": 0.0,
+			"evap_mult": 1.10,
+			"rain_gain_mult": 1.0,
+			"drought_damage_mult": 1.0,
+			"spoilage_mult": 1.05,
+			"road_rot_mult": 1.0,
+			"fuel_cost_mult": 0.95,
+			"worker_speed_mult": 1.15,
+			"build_speed_mult": 1.10,
+			"building_cost_mult": 0.85,
+			"tech_building_cost_mult": 1.0,
+			"land_cost_mult": 0.85,
+			"wage_mult": 1.0,
+			"hire_cost_mult": 1.0,
+			"supply_dump_mult": 1.25,
+			"export_hub_price_mult": 1.0,
+			"grade_c_price_mult": 1.0,
+			"grade_c_pts_mult": 1.0,
+			"solar_dryer_bonus": 0.25,
+			"specialty_crops": ["sugarcane", "yellow_corn", "palay"],
+			"specialty_yield_mult": 1.15,
+			"specialty_growth_mult": 1.10,
+			"specialty_price_mult": 1.12,
+			"specialty_seed_discount": 0.15,
+			"pest_mults": {"armyworm": 1.35, "rice_black_bug": 1.40},
+			"hub_fuel_overrides": {"tacurong": 0.70, "koronadal": 0.80},
 		},
 	},
 	"general_santos": {
@@ -206,164 +363,192 @@ const REGIONS = {
 		"monument_texture": "res://assets/sprites/monuments/gen_paulino_santos_monument.png",
 		"monument_texture_flipped": "res://assets/sprites/monuments/gen_paulino_santos_monument_FLIPPED.png",
 		"pros": [
-			"Direct seaport access with top export rates (+35%)",
-			"Industrial Cold Storage halts harvest spoilage",
-			"Fast access to high-tier weather gear & tech"
+			"+18% external hub export payout & -30% fuel to GenSan Seaport",
+			"-15% tech/processing building cost & +25% construction speed",
+			"+10% growth/yield & +12% price for Pineapple, Banana & Corn"
 		],
 		"cons": [
-			"Higher worker wages and urban operating costs",
-			"Coastal humidity favors Fusarium Wilt infections",
-			"Seaport container inspection & freight surcharges"
+			"Urban payroll raises worker wages (+60%: ₱24/d) & land deeds (+15%)",
+			"Export rejection: Grade C produce pays -30% cash & -37.5% score",
+			"Urban coastal heat (+2°C, +20% evap) & +25% Fusarium Wilt risk"
 		],
 		"hazards": {
 			"flash_flood": 0.06,
 			"landslide": 0.02,
 			"el_nino_drought": 0.10,
 		},
+		"modifiers": {
+			"temp_offset_c": 2.0,
+			"evap_mult": 1.20,
+			"rain_gain_mult": 0.95,
+			"drought_damage_mult": 1.05,
+			"spoilage_mult": 1.0,
+			"road_rot_mult": 0.95,
+			"fuel_cost_mult": 0.90,
+			"worker_speed_mult": 1.0,
+			"build_speed_mult": 1.25,
+			"building_cost_mult": 1.0,
+			"tech_building_cost_mult": 0.85,
+			"land_cost_mult": 1.15,
+			"wage_mult": 1.60,
+			"hire_cost_mult": 1.20,
+			"supply_dump_mult": 0.90,
+			"export_hub_price_mult": 1.18,
+			"grade_c_price_mult": 0.70,
+			"grade_c_pts_mult": 0.625,
+			"solar_dryer_bonus": 0.25,
+			"specialty_crops": ["pineapple", "banana", "yellow_corn"],
+			"specialty_yield_mult": 1.10,
+			"specialty_growth_mult": 1.10,
+			"specialty_price_mult": 1.12,
+			"specialty_seed_discount": 0.15,
+			"pest_mults": {"fusarium_wilt": 1.25},
+			"hub_fuel_overrides": {"gensan_port": 0.70},
+		},
 	},
 }
 
-# Crop definitions
+# Crop definitions (Balanced Economy: 50u/tile baseline, 350u starter storage capacity)
 const CROPS = {
 	"palay": {
 		"display_name": "Palay (Rice)",
 		"icon": "🌾",
 		"footprint": Vector2i(1, 1),
-		"growth_days": 15,
+		"growth_days": 4,
 		"regrowth_days": 0,
 		"is_perennial": false,
 		"harvest_duration": 1.0,
-		"yield_quantity": 100,
+		"yield_quantity": 50,
 		"water_min": 70,
 		"water_max": 90,
 		"heat_min": 20,
 		"heat_max": 35,
-		"base_price": 100,
+		"base_price": 10,
 		"pests": ["kuhol", "rice_black_bug"],
-		"seed_cost": 25,
+		"seed_cost": 35,
 		"unlocked_by_default": true,
 		"license_cost": 0,
-		"description": "Thrives in wetland paddies (70-90% moisture). Halts growth if <30%. Severe waterlogging (>95%) rots roots.",
+		"description": "Thrives in wetland paddies (70-90% moisture). Rapid 4d turnover; severe waterlogging (>95%) rots roots.",
 	},
 	"yellow_corn": {
 		"display_name": "Yellow Corn",
 		"icon": "🌽",
 		"footprint": Vector2i(1, 1),
-		"growth_days": 25,
+		"growth_days": 5,
 		"regrowth_days": 0,
 		"is_perennial": false,
 		"harvest_duration": 1.1,
-		"yield_quantity": 100,
+		"yield_quantity": 50,
 		"water_min": 30,
 		"water_max": 60,
 		"heat_min": 22,
 		"heat_max": 45,
-		"base_price": 120,
+		"base_price": 14,
 		"pests": ["armyworm"],
-		"seed_cost": 30,
+		"seed_cost": 45,
 		"unlocked_by_default": true,
 		"license_cost": 0,
-		"description": "Hardy cereal crop (30-60% moisture). Highly resilient against heat up to 45°C. Vulnerable to armyworms.",
+		"description": "Hardy cereal crop (30-60% moisture, 5d cycle). Resilient against heat up to 45°C; vulnerable to armyworms.",
 	},
 	"sugarcane": {
 		"display_name": "Sugar Cane",
 		"icon": "🎋",
 		"footprint": Vector2i(1, 1),
-		"growth_days": 28,
+		"growth_days": 6,
 		"regrowth_days": 0,
 		"is_perennial": false,
 		"harvest_duration": 1.4,
-		"yield_quantity": 120,
+		"yield_quantity": 60,
 		"water_min": 50,
 		"water_max": 80,
 		"heat_min": 22,
 		"heat_max": 38,
-		"base_price": 95,
+		"base_price": 16,
 		"pests": ["armyworm", "fusarium_wilt"],
-		"seed_cost": 30,
+		"seed_cost": 50,
 		"unlocked_by_default": false,
-		"license_cost": 200,
-		"description": "Vigorous river crop (50-80% moisture). Thrives in full sun; yields high raw biomass (120 units).",
+		"license_cost": 150,
+		"description": "Vigorous 6d cash crop (50-80% moisture). High raw biomass (60 units) ideal for Trapiche sugar milling.",
 	},
 	"pineapple": {
 		"display_name": "Smooth Cayenne Pineapple",
 		"icon": "🍍",
 		"footprint": Vector2i(1, 1),
-		"growth_days": 35,
+		"growth_days": 7,
 		"regrowth_days": 0,
 		"is_perennial": false,
 		"harvest_duration": 1.3,
-		"yield_quantity": 100,
+		"yield_quantity": 50,
 		"water_min": 35,
 		"water_max": 65,
 		"heat_min": 20,
 		"heat_max": 36,
-		"base_price": 160,
+		"base_price": 25,
 		"pests": ["fusarium_wilt", "armyworm"],
-		"seed_cost": 40,
+		"seed_cost": 70,
 		"unlocked_by_default": false,
-		"license_cost": 350,
-		"description": "High-value export fruit (35-65% moisture). Thrives in volcanic soils; sensitive to standing flood rot.",
+		"license_cost": 250,
+		"description": "High-value 7d export fruit (35-65% moisture). Thrives in volcanic soils; sensitive to standing flood rot.",
 	},
 	"arabica_coffee": {
 		"display_name": "Arabica Coffee",
 		"icon": "☕",
 		"footprint": Vector2i(1, 1),
-		"growth_days": 40,
-		"regrowth_days": 14,
+		"growth_days": 8,
+		"regrowth_days": 3,
 		"is_perennial": true,
 		"harvest_duration": 1.3,
-		"yield_quantity": 100,
+		"yield_quantity": 45,
 		"water_min": 35,
 		"water_max": 70,
 		"heat_min": 18,
 		"heat_max": 30,
-		"base_price": 200,
+		"base_price": 30,
 		"pests": ["kuhol", "fusarium_wilt"],
-		"seed_cost": 50,
+		"seed_cost": 110,
 		"unlocked_by_default": false,
-		"license_cost": 500,
-		"description": "High-margin perennial shrub (35-70% moisture). Regrows cherries indefinitely without replanting.",
+		"license_cost": 400,
+		"description": "High-margin highland perennial (35-70% moisture, 8d mature). Regrows cherries every 3d indefinitely after maturity.",
 	},
 	"banana": {
 		"display_name": "Cavendish Banana",
 		"icon": "🍌",
 		"footprint": Vector2i(2, 2),
-		"growth_days": 50,
-		"regrowth_days": 18,
+		"growth_days": 9,
+		"regrowth_days": 3,
 		"is_perennial": true,
 		"harvest_duration": 2.2,
-		"yield_quantity": 400,
+		"yield_quantity": 200,
 		"water_min": 55,
 		"water_max": 85,
 		"heat_min": 24,
 		"heat_max": 36,
-		"base_price": 90,
+		"base_price": 23,
 		"pests": ["fusarium_wilt"],
-		"seed_cost": 140,
+		"seed_cost": 240,
 		"unlocked_by_default": false,
-		"license_cost": 750,
-		"description": "2×2 plantation grove (55-85% moisture). Yields 400 units every 18d indefinitely without replanting.",
+		"license_cost": 500,
+		"description": "2×2 plantation grove (55-85% moisture). Yields 200 units every 3d indefinitely after initial 9d maturation.",
 	},
 	"coconut": {
 		"display_name": "Tall Coconut Palm",
 		"icon": "🥥",
 		"footprint": Vector2i(2, 2),
-		"growth_days": 50,
-		"regrowth_days": 16,
+		"growth_days": 10,
+		"regrowth_days": 4,
 		"is_perennial": true,
 		"harvest_duration": 2.4,
-		"yield_quantity": 400,
+		"yield_quantity": 200,
 		"water_min": 40,
 		"water_max": 75,
 		"heat_min": 20,
 		"heat_max": 38,
-		"base_price": 85,
-		"seed_cost": 160,
+		"base_price": 22,
+		"seed_cost": 260,
 		"pests": ["armyworm"],
 		"unlocked_by_default": false,
-		"license_cost": 950,
-		"description": "Durable 2×2 coastal palm (40-75% moisture). Bears buko nuts indefinitely (16d cycle) without replanting.",
+		"license_cost": 600,
+		"description": "Durable 2×2 coastal palm (40-75% moisture, 10d mature). Yields 200 nuts every 4d indefinitely and resists heatwaves.",
 	},
 }
 
@@ -372,16 +557,16 @@ const PROCESSED_GOODS = {
 	"milled_rice": {
 		"display_name": "Polished White Rice",
 		"icon": "🍚",
-		"base_price": 220,
+		"base_price": 18,
 		"is_processed": true,
 		"source_crop": "palay",
 		"facility": "rice_mill",
-		"description": "Premium machine-milled white grain from Kiskisan Rice Mill (+120% value). Shelf-stable; never rots in storage or transit.",
+		"description": "Premium machine-milled white grain from Kiskisan Rice Mill. Shelf-stable; never rots in storage or transit.",
 	},
 	"rice_bran": {
 		"display_name": "Rice Bran (Darak Feed)",
 		"icon": "🌾",
-		"base_price": 40,
+		"base_price": 6,
 		"is_processed": true,
 		"source_crop": "palay",
 		"facility": "rice_mill",
@@ -390,7 +575,7 @@ const PROCESSED_GOODS = {
 	"muscovado_sugar": {
 		"display_name": "Muscovado Sugar Blocks",
 		"icon": "🪵",
-		"base_price": 210,
+		"base_price": 28,
 		"is_processed": true,
 		"source_crop": "sugarcane",
 		"facility": "sugar_mill",
@@ -399,7 +584,7 @@ const PROCESSED_GOODS = {
 	"molasses": {
 		"display_name": "Cane Molasses Syrup",
 		"icon": "🍯",
-		"base_price": 65,
+		"base_price": 14,
 		"is_processed": true,
 		"source_crop": "sugarcane",
 		"facility": "sugar_mill",
@@ -408,16 +593,16 @@ const PROCESSED_GOODS = {
 	"vco": {
 		"display_name": "Virgin Coconut Oil (VCO)",
 		"icon": "🥥",
-		"base_price": 260,
+		"base_price": 52,
 		"is_processed": true,
 		"source_crop": "coconut",
 		"facility": "copra_dryer",
-		"description": "Cold-pressed pure virgin coconut oil from Tapahan Copra Dryer & Press. Highly lucrative international wellness commodity.",
+		"description": "Cold-pressed pure virgin coconut oil from Tapahan Copra Dryer & Press. Lucrative international wellness export.",
 	},
 	"copra_meal": {
 		"display_name": "Copra Meal / Cake",
 		"icon": "🌴",
-		"base_price": 50,
+		"base_price": 14,
 		"is_processed": true,
 		"source_crop": "coconut",
 		"facility": "copra_dryer",
@@ -426,7 +611,7 @@ const PROCESSED_GOODS = {
 	"roasted_coffee": {
 		"display_name": "Barako Roast Coffee",
 		"icon": "☕",
-		"base_price": 480,
+		"base_price": 65,
 		"is_processed": true,
 		"source_crop": "arabica_coffee",
 		"facility": "coffee_roastery",
@@ -533,9 +718,9 @@ const BUILDINGS = {
 		"cost": 500,
 		"build_time": 25.0,
 		"max_level": 3,
-		"storage_limit": 200,
+		"storage_limit": 350,
 		"halts_spoilage": false,
-		"description": "Corrugated steel grain silo bin compound providing 200 units of crop storage (upgrades to 400 at Lv. 2). Produce in basic silos spoils at 5% freshness per hour.",
+		"description": "Corrugated steel grain silo bin compound providing 350 units of crop storage (upgrades to 700 at Lv. 2). Produce in basic silos spoils at 5% freshness per hour.",
 	},
 	"cold_storage": {
 		"display_name": "Cold Storage Facility",
@@ -644,12 +829,13 @@ const BUILDINGS = {
 		"unique": true,
 		"icon": "🛸",
 		"grid_size": Vector2i(2, 2),
-		"cost": 650,
-		"build_time": 20.0,
+		"cost": 450,
+		"build_time": 14.0,
 		"max_level": 3,
 		"storage_limit": 0,
+		"drone_capacity": 1,
 		"unlocks_drones": true,
-		"description": "Central flight avionics & telemetry command hangar. One-time purchase that unlocks and upgrades drone capabilities fleet-wide: Lv.1 Basic Tillage (Plow & Water), Lv.2 Precision Seeder & IPM Spray (unlocks seeds), Lv.3 Autonomous Harvester. Build Drone Landing Pads to commission additional drones!",
+		"description": "Central flight avionics & telemetry command hangar (+1 starter Drone included). Upgrades drone capabilities fleet-wide: Lv.1 Basic Tillage (Plow & Water), Lv.2 Precision Seeder & IPM Spray, Lv.3 Autonomous Harvester. Add Drone Landing Pads to expand your fleet!",
 	},
 	"drone_pad": {
 		"display_name": "Drone Landing Pad",
@@ -657,8 +843,8 @@ const BUILDINGS = {
 		"unique": false,
 		"icon": "🛸",
 		"grid_size": Vector2i(2, 2),
-		"cost": 350,
-		"build_time": 10.0,
+		"cost": 250,
+		"build_time": 8.0,
 		"max_level": 1,
 		"storage_limit": 0,
 		"drone_capacity": 1,
@@ -716,13 +902,13 @@ const BUILDINGS = {
 		"facility_type": "rice_mill",
 		"recipe": {
 			"input_crop": "palay",
-			"input_qty": 100,
+			"input_qty": 50,
 			"outputs": [
-				{"item": "milled_rice", "qty": 75},
-				{"item": "rice_bran", "qty": 25}
+				{"item": "milled_rice", "qty": 40},
+				{"item": "rice_bran", "qty": 15}
 			]
 		},
-		"description": "Automated hulling and polishing mill. Every 4 hours, converts 100 raw Palay from storage into 75 Polished White Rice (₱220/ea) and 25 Rice Bran (₱40/ea). Processed goods never spoil!",
+		"description": "Automated hulling and polishing mill. Every 4 hours, converts 50 raw Palay from storage into 40 Polished White Rice (₱18/ea) and 15 Rice Bran (₱6/ea). Processed goods never spoil!",
 	},
 	"sugar_mill": {
 		"display_name": "Trapiche Sugar Central",
@@ -737,13 +923,13 @@ const BUILDINGS = {
 		"facility_type": "sugar_mill",
 		"recipe": {
 			"input_crop": "sugarcane",
-			"input_qty": 120,
+			"input_qty": 60,
 			"outputs": [
-				{"item": "muscovado_sugar", "qty": 70},
-				{"item": "molasses", "qty": 50}
+				{"item": "muscovado_sugar", "qty": 40},
+				{"item": "molasses", "qty": 25}
 			]
 		},
-		"description": "Mechanized roller crusher and boiling cauldrons. Automatically processes 120 harvested Sugarcane into 70 Muscovado Sugar Blocks (₱210/ea) and 50 Cane Molasses (₱65/ea) every 4 hours.",
+		"description": "Mechanized roller crusher and boiling cauldrons. Automatically processes 60 harvested Sugarcane into 40 Muscovado Sugar Blocks (₱28/ea) and 25 Cane Molasses (₱14/ea) every 4 hours.",
 	},
 	"copra_dryer": {
 		"display_name": "Tapahan Copra Dryer & Press",
@@ -758,13 +944,13 @@ const BUILDINGS = {
 		"facility_type": "copra_dryer",
 		"recipe": {
 			"input_crop": "coconut",
-			"input_qty": 200,
+			"input_qty": 100,
 			"outputs": [
-				{"item": "vco", "qty": 80},
-				{"item": "copra_meal", "qty": 120}
+				{"item": "vco", "qty": 50},
+				{"item": "copra_meal", "qty": 60}
 			]
 		},
-		"description": "Biomass smokehouse kiln and mechanical expeller press. Converts 200 Coconuts into 80 Virgin Coconut Oil (₱260/ea) and 120 Copra Meal (₱50/ea) every 4 hours with 0% transit rot.",
+		"description": "Biomass smokehouse kiln and mechanical expeller press. Converts 100 Coconuts into 50 Virgin Coconut Oil (₱52/ea) and 60 Copra Meal (₱14/ea) every 4 hours with 0% transit rot.",
 	},
 	"coffee_roastery": {
 		"display_name": "Artisan Coffee Roastery",
@@ -779,12 +965,12 @@ const BUILDINGS = {
 		"facility_type": "coffee_roastery",
 		"recipe": {
 			"input_crop": "arabica_coffee",
-			"input_qty": 100,
+			"input_qty": 45,
 			"outputs": [
-				{"item": "roasted_coffee", "qty": 75}
+				{"item": "roasted_coffee", "qty": 35}
 			]
 		},
-		"description": "Batch drum roaster with bean grader. Processes 100 raw Arabica Coffee beans into 75 Premium Barako Roast packs (₱480/ea) every 4 hours. Unlocks immense export profits.",
+		"description": "Batch drum roaster with bean grader. Processes 45 raw Arabica Coffee beans into 35 Premium Barako Roast packs (₱65/ea) every 4 hours. Unlocks strong export margins.",
 	},
 	# ---------------------------------------------------------------------------
 	# Authentic Philippine Decorations & Village Landscaping
@@ -1824,3 +2010,41 @@ func get_region_map_path(region_key: String) -> String:
 			return "res://scenes/maps/Map_GeneralSantos.tscn"
 		_:
 			return "res://scenes/maps/Map_Cotabato.tscn"
+
+const TECH_INDUSTRIAL_BUILDINGS: Array = [
+	"cold_storage", "climate_silo", "weather_station", "water_tower",
+	"sprinkler", "drone_station", "drone_pad", "gensan_seaport",
+	"rice_mill", "sugar_mill", "copra_dryer", "coffee_roastery"
+]
+
+func get_region_modifiers(region_id: String = "") -> Dictionary:
+	var r_id: String = region_id if region_id != "" else current_region
+	var reg: Dictionary = REGIONS.get(r_id, REGIONS.get("cotabato", {}))
+	return reg.get("modifiers", {})
+
+func is_regional_specialty_crop(crop_key: String, region_id: String = "") -> bool:
+	var mods: Dictionary = get_region_modifiers(region_id)
+	return crop_key in mods.get("specialty_crops", [])
+
+func get_effective_building_cost(building_key: String, region_id: String = "") -> int:
+	var base_cost: int = int(BUILDINGS.get(building_key, {}).get("cost", 0))
+	var mods: Dictionary = get_region_modifiers(region_id)
+	var mult: float = float(mods.get("building_cost_mult", 1.0))
+	if building_key in TECH_INDUSTRIAL_BUILDINGS:
+		mult *= float(mods.get("tech_building_cost_mult", 1.0))
+	return maxi(1, int(round(float(base_cost) * mult)))
+
+func get_effective_land_cost(base_cost: int, region_id: String = "") -> int:
+	var mods: Dictionary = get_region_modifiers(region_id)
+	var mult: float = float(mods.get("land_cost_mult", 1.0))
+	return maxi(1, int(round(float(base_cost) * mult)))
+
+func get_effective_worker_wage(base_wage: int = 15, region_id: String = "") -> int:
+	var mods: Dictionary = get_region_modifiers(region_id)
+	var mult: float = float(mods.get("wage_mult", 1.0))
+	return maxi(1, int(round(float(base_wage) * mult)))
+
+func get_effective_hire_cost(base_hire_cost: int = 200, region_id: String = "") -> int:
+	var mods: Dictionary = get_region_modifiers(region_id)
+	var mult: float = float(mods.get("hire_cost_mult", 1.0))
+	return maxi(1, int(round(float(base_hire_cost) * mult)))

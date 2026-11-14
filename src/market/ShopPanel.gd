@@ -867,7 +867,7 @@ func _populate_labor() -> void:
 
 	# ── 1. Bahay Kubo Card ─────────────────────────────────────────────
 	var kubo_data: Dictionary = Data.get_building("bahay_kubo")
-	var kubo_cost: int = int(kubo_data.get("cost", 200))
+	var kubo_cost: int = Data.get_effective_building_cost("bahay_kubo")
 	var kubo_btn_text: String = "₱%s" % Utils.format_number(kubo_cost)
 	var kubo_disabled: bool = (cash < kubo_cost)
 
@@ -878,10 +878,11 @@ func _populate_labor() -> void:
 	elif cash < kubo_cost:
 		kubo_btn_text = "Need ₱%d" % kubo_cost
 
+	var kubo_build_sec: float = float(kubo_data.get("build_time", 16.0)) * BuildingManager.get_build_duration_scale()
 	var kubo_card = _create_coc_card(
 		"Bahay Kubo",
 		ShopSpritePreview.new("bahay_kubo", TEX_KUBO),
-		"⏱ 8s Build",
+		"⏱ %.0fs Build" % kubo_build_sec,
 		"+1 Worker Slot",
 		kubo_disabled,
 		kubo_btn_text,
@@ -892,8 +893,9 @@ func _populate_labor() -> void:
 	labor_grid.add_child(kubo_card)
 
 	# ── 2. Farm Worker Card ────────────────────────────────────────────
-	var worker_cost: int = 200
-	var worker_btn_text: String = "₱200 Hire"
+	var worker_cost: int = Data.get_effective_hire_cost(200)
+	var worker_wage: int = Data.get_effective_worker_wage(TimeManager.DAILY_WORKER_WAGE)
+	var worker_btn_text: String = "₱%d Hire" % worker_cost
 	var worker_disabled: bool = false
 
 	if is_constructing_kubo and act >= cap:
@@ -904,7 +906,7 @@ func _populate_labor() -> void:
 		worker_btn_text = "Housing Full"
 		worker_disabled = true
 	elif cash < worker_cost:
-		worker_btn_text = "Need ₱200"
+		worker_btn_text = "Need ₱%d" % worker_cost
 		worker_disabled = true
 
 	var worker_card = _create_coc_card(
@@ -915,7 +917,7 @@ func _populate_labor() -> void:
 		worker_disabled,
 		worker_btn_text,
 		"Autonomous Farm Laborer",
-		"Hires an autonomous worker to till, plant, water, spray, and harvest directly to storage. Daily wage: ₱15.",
+		"Hires an autonomous worker to till, plant, water, spray, and harvest directly to storage. Daily regional wage: ₱%d/day." % worker_wage,
 		_hire_worker
 	)
 	labor_grid.add_child(worker_card)
@@ -928,11 +930,11 @@ func _populate_labor() -> void:
 		"Autonomous Drones",
 		ShopSpritePreview.new("drone", null, Color.WHITE, _draw_drone_preview),
 		"🛸 %d/%d Active" % [d_act, d_cap],
-		"Avionics Lv.%d" % d_lvl if d_cap > 0 else "Needs Pad",
+		"Avionics Lv.%d" % d_lvl if d_cap > 0 else "Needs Hangar/Pad",
 		false,
-		"Build Pad ➜",
+		"Machinery ➜",
 		"Autonomous Precision Drone Fleet",
-		"Drones operate 100% autonomously. Build Drone Landing Pads in Machinery (+1 drone berth per pad), and construct the Drone Command Hangar to level up fleet avionics (Lv.1 Plow & Water, Lv.2 Plant & IPM, Lv.3 Harvest).",
+		"Drones operate 100% autonomously. Build the Drone Command Hangar (+1 starter Drone & fleet avionics: Lv.1 Plow & Water, Lv.2 Plant & IPM, Lv.3 Harvest) or add Drone Landing Pads (+1 drone berth each) in Machinery.",
 		func():
 			var tab_container: TabContainer = find_child("TabContainer", true, false)
 			if tab_container:
@@ -969,9 +971,9 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	var b_data: Dictionary = Data.get_building(b_key)
 	var is_unique: bool = BuildingManager.is_unique_building(b_key)
 	var existing: Node = BuildingManager.get_building_of_type(b_key) if is_unique else null
-	var cost: int = int(b_data.get("cost", 400))
+	var cost: int = Data.get_effective_building_cost(b_key)
 	var cash: int = EconomyManager.cash
-	var build_sec: float = float(b_data.get("build_time", 15.0))
+	var build_sec: float = float(b_data.get("build_time", 15.0)) * BuildingManager.get_build_duration_scale()
 
 	# 1. Meta left & right
 	var fp: Vector2i = b_data.get("grid_size", Vector2i(2, 2))
@@ -992,7 +994,7 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	elif b_data.get("worker_capacity", 0) > 0:
 		meta_right = "+%d Worker" % b_data.get("worker_capacity", 0)
 	elif b_data.get("unlocks_drones", false):
-		meta_right = "★ Fleet Avionics (Lv.1-3)"
+		meta_right = "★ +1 Drone & Avionics"
 	elif b_data.get("drone_capacity", 0) > 0:
 		meta_right = "🛸 +1 Drone Berth"
 	elif b_data.get("forecast_equipment", false):
@@ -1011,7 +1013,8 @@ func _create_building_coc_card(b_key: String) -> PanelContainer:
 	elif b_data.get("unlocks_bayanihan", false) or b_data.get("unlocks_machines", false):
 		meta_right = "🤝 Cooperative"
 	elif b_data.get("drying_bonus", 0.0) > 0.0:
-		meta_right = "+25% Quality"
+		var dryer_pct: int = int(round(float(Data.get_region_modifiers().get("solar_dryer_bonus", 0.25)) * 100.0))
+		meta_right = "+%d%% Quality" % dryer_pct
 	elif b_data.get("shop_category", "") == "processing":
 		var prereqs: Dictionary = BuildingManager.get_processing_prerequisites(b_key)
 		if not prereqs.allowed:
@@ -1139,7 +1142,7 @@ func _populate_land() -> void:
 	for p in Data.get_parcels():
 		var pid: String = p.get("id", "")
 		var is_owned: bool = unlocked_parcels.has(pid)
-		var cost: int = p.get("cost", 0)
+		var cost: int = Data.get_effective_land_cost(int(p.get("cost", 0)))
 		var r_sz: Vector2i = p.get("rect", Rect2i()).size
 
 		var meta_left: String = "📐 %d×%d Plots" % [r_sz.x, r_sz.y]
@@ -1220,8 +1223,9 @@ func _hire_worker() -> void:
 			status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
-	if EconomyManager.cash < 200:
-		status_label.text = "Cannot hire! Insufficient funds (₱200 required, you have ₱%d)." % EconomyManager.cash
+	var hire_cost: int = Data.get_effective_hire_cost(200)
+	if EconomyManager.cash < hire_cost:
+		status_label.text = "Cannot hire! Insufficient funds (₱%d required, you have ₱%d)." % [hire_cost, EconomyManager.cash]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 		return
 
@@ -1383,11 +1387,11 @@ func _create_seed_coc_card(c_key: String) -> PanelContainer:
 	var info_desc: String = "Footprint: %s | Type: %s | Base Value: ₱%d/unit\nGrowth: %d days%s | Yield: %d units | Seed Cost: ₱%d\nMoisture: %d%%–%d%% | Heat: %d°C–%d°C\nTarget Pests: %s\n%s" % [
 		fp_str,
 		"Perennial Regrowth" if is_perennial else "Annual Harvest",
-		int(c_data.get("base_price", 100)),
+		int(c_data.get("base_price", 20)),
 		g_days,
 		(" (%d-day regrowth cycle)" % rg_days) if (is_perennial and rg_days > 0) else "",
-		int(c_data.get("yield_quantity", 100)),
-		int(c_data.get("seed_cost", 25)),
+		int(c_data.get("yield_quantity", 50)),
+		MarketManager.get_seed_buy_price(c_key),
 		int(c_data.get("water_min", 30)),
 		int(c_data.get("water_max", 70)),
 		int(c_data.get("heat_min", 20)),

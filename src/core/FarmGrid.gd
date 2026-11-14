@@ -43,6 +43,7 @@ var ground_layer:  Node2D = null  # Dedicated ground layer (Z=0) for terrain sla
 var renderer: TileRenderer = null  # Owns all visual update logic
 var drones: Array = []              # Autonomous precision farm drone fleet
 var is_drone_targeting: bool = false # Independent drone zone designation mode
+var is_spectating: bool = false      # True while viewing another player's farm in MP
 signal drone_selected(drone_index: int)
 var selected_drone_index: int = 0   # 0 = none selected, 1-based index when drone is selected
 var drone: FarmDrone:               # Backward-compatible accessor for drone #0
@@ -92,6 +93,15 @@ var weather_app_modal: WeatherAppModal = null
 # Foliage & Crop Occlusion State (See-through transparency for workers)
 # ---------------------------------------------------------------------------
 var _occluded_tiles: Dictionary = {}
+var _occlusion_scan_accum: float = 0.0
+const OCCLUSION_SCAN_INTERVAL: float = 0.05
+
+var _cached_hud_layer: Node = null
+var _cached_market_panel: CanvasItem = null
+var _cached_sell_panel: CanvasItem = null
+var _cached_shop_panel: CanvasItem = null
+var _cached_admin_panel: CanvasItem = null
+var _cached_pause_menu: CanvasItem = null
 
 # ---------------------------------------------------------------------------
 # Node reference
@@ -103,6 +113,15 @@ var _occluded_tiles: Dictionary = {}
 # _ready
 # ---------------------------------------------------------------------------
 func _ready() -> void:
+	if not SaveManager.has_pending_save_data():
+		BuildingManager.reset_for_new_session()
+		TaskManager.reset_for_new_session()
+		MarketManager.reset_for_new_session()
+		PestManager.reset_for_new_session()
+		AudioManager.stop_build_loop()
+		if TimeManager.get_speed_scale() <= 0.0:
+			TimeManager.set_speed_scale(2.0 if Data.is_auto_mode else 1.0)
+
 	if Data.game_mode == "sandbox" and not SaveManager.has_pending_save_data():
 		unlocked_parcels = ["homestead", "east_meadows", "south_plains", "highland_plateau"]
 		EconomyManager.cash = 999999
@@ -265,6 +284,11 @@ func _process(delta: float) -> void:
 ## Checks all active workers against standing crops, 2x2 groves, and obstacle trees,
 ## smoothly fading occluding foliage to 35% translucent alpha so workers are never hidden.
 func _update_foliage_occlusion(delta: float) -> void:
+	_occlusion_scan_accum += delta
+	if _occlusion_scan_accum < OCCLUSION_SCAN_INTERVAL:
+		return
+	var scan_dt: float = _occlusion_scan_accum
+	_occlusion_scan_accum = 0.0
 	var farmers := get_tree().get_nodes_in_group("farmers")
 	if farmers.is_empty():
 		if not _occluded_tiles.is_empty():
@@ -273,7 +297,7 @@ func _update_foliage_occlusion(delta: float) -> void:
 				if _is_valid(tp):
 					var ov: Node2D = tile_overlays[tp.x][tp.y]
 					if is_instance_valid(ov):
-						ov.modulate.a = move_toward(ov.modulate.a, 1.0, delta * 6.0)
+						ov.modulate.a = move_toward(ov.modulate.a, 1.0, scan_dt * 6.0)
 						if ov.modulate.a >= 0.99:
 							ov.modulate.a = 1.0
 							restored.append(tp)
@@ -339,7 +363,7 @@ func _update_foliage_occlusion(delta: float) -> void:
 		_occluded_tiles[tp] = true
 		var ov: Node2D = tile_overlays[tp.x][tp.y]
 		if is_instance_valid(ov):
-			ov.modulate.a = move_toward(ov.modulate.a, 0.35, delta * 8.0)
+			ov.modulate.a = move_toward(ov.modulate.a, 0.35, scan_dt * 8.0)
 
 	# Fade out restored tiles back to opaque (1.0)
 	var to_clean: Array = []
@@ -348,7 +372,7 @@ func _update_foliage_occlusion(delta: float) -> void:
 			if _is_valid(tp):
 				var ov: Node2D = tile_overlays[tp.x][tp.y]
 				if is_instance_valid(ov):
-					ov.modulate.a = move_toward(ov.modulate.a, 1.0, delta * 6.0)
+					ov.modulate.a = move_toward(ov.modulate.a, 1.0, scan_dt * 6.0)
 					if ov.modulate.a >= 0.99:
 						ov.modulate.a = 1.0
 						to_clean.append(tp)
@@ -700,7 +724,7 @@ func unlock_parcel(parcel_id: String) -> bool:
 		return false
 	if unlocked_parcels.has(parcel_id):
 		return false
-	var cost: int = p.get("cost", 0)
+	var cost: int = Data.get_effective_land_cost(int(p.get("cost", 0)))
 	if EconomyManager.cash < cost:
 		return false
 
@@ -1093,23 +1117,31 @@ func _global_pos_in_grid(gp: Vector2) -> bool:
 
 ## Check if any modal or overlay panel is currently open
 func _is_any_menu_open() -> bool:
-	var hud_layer = get_node_or_null("../HUDLayer")
-	if hud_layer:
-		var market = hud_layer.find_child("MarketPanel", true, false)
-		if market and market.visible:
+	if not is_instance_valid(_cached_hud_layer):
+		_cached_hud_layer = get_node_or_null("../HUDLayer")
+	if is_instance_valid(_cached_hud_layer):
+		if not is_instance_valid(_cached_market_panel):
+			_cached_market_panel = _cached_hud_layer.find_child("MarketPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_market_panel) and _cached_market_panel.visible:
 			return true
-		var sell = hud_layer.find_child("SellPanel", true, false)
-		if sell and sell.visible:
+		if not is_instance_valid(_cached_sell_panel):
+			_cached_sell_panel = _cached_hud_layer.find_child("SellPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_sell_panel) and _cached_sell_panel.visible:
 			return true
-		var shop = hud_layer.find_child("ShopPanel", true, false)
-		if shop and shop.visible:
+		if not is_instance_valid(_cached_shop_panel):
+			_cached_shop_panel = _cached_hud_layer.find_child("ShopPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_shop_panel) and _cached_shop_panel.visible:
 			return true
-	var admin = get_tree().root.find_child("AdminPanel", true, false)
-	if admin and admin.visible:
-		return true
-	var pause = get_tree().root.find_child("PauseMenu", true, false)
-	if pause and pause.visible:
-		return true
+	var tree := get_tree()
+	if tree and tree.root:
+		if not is_instance_valid(_cached_admin_panel):
+			_cached_admin_panel = tree.root.find_child("AdminPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_admin_panel) and _cached_admin_panel.visible:
+			return true
+		if not is_instance_valid(_cached_pause_menu):
+			_cached_pause_menu = tree.root.find_child("PauseMenu", true, false) as CanvasItem
+		if is_instance_valid(_cached_pause_menu) and _cached_pause_menu.visible:
+			return true
 	if early_harvest_modal and is_instance_valid(early_harvest_modal) and early_harvest_modal.visible:
 		return true
 	if land_modal and is_instance_valid(land_modal) and land_modal.visible:
@@ -1118,6 +1150,8 @@ func _is_any_menu_open() -> bool:
 
 ## Global input: used for marquee dragging motion, building placement, and tool hover tracking
 func _input(event: InputEvent) -> void:
+	if is_spectating:
+		return
 	if is_placing_building and event is InputEventMouseMotion:
 		var gpos := FarmerMovement.pixel_to_grid(get_global_mouse_position(), self)
 		if gpos != placing_hover_grid_pos:
@@ -1171,6 +1205,8 @@ func _find_farmer_at(gp: Vector2) -> Node:
 
 ## Unhandled input: only fires if NO UI control or HUD button on screen absorbed the mouse click
 func _unhandled_input(event: InputEvent) -> void:
+	if is_spectating:
+		return
 	if _is_any_menu_open():
 		if is_box_dragging:
 			is_box_dragging = false
@@ -1560,7 +1596,7 @@ func _auto_apply_hotbar_action(target_list: Array, tool_id: String) -> void:
 			# Tool is a crop seed (e.g. palay, yellow_corn, sugarcane, pineapple, arabica_coffee, banana, coconut)
 			var c_data: Dictionary = Data.get_crop(tool_id)
 			var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
-			var seed_cost: int = int(c_data.get("seed_cost", 25))
+			var seed_cost: int = MarketManager.get_seed_buy_price(tool_id)
 
 			if EconomyManager.cash < seed_cost:
 				var target_tile: Vector2i = target_list[0] if not target_list.is_empty() else hovered_grid_pos
@@ -1749,7 +1785,7 @@ func _on_action_popup_selected(action_type: String, tile_pos: Vector2i, extra: D
 			return
 		var c_data: Dictionary = Data.get_crop(crop_name)
 		var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
-		var seed_cost: int = int(c_data.get("seed_cost", 25))
+		var seed_cost: int = MarketManager.get_seed_buy_price(crop_name)
 		if EconomyManager.cash < seed_cost:
 			show_floating_text(tile_pos, "Not enough Money")
 			AudioManager.play_ui("error")
@@ -1815,7 +1851,7 @@ func _on_batch_action_selected(action_type: String, target_tiles: Array, extra: 
 				LogManager.log_event("license", "Cannot plant %s: Variety license not yet acquired in Agri-Shop!" % crop_name.capitalize(), "🔒", Color(1.0, 0.4, 0.4))
 				break
 			var c_data: Dictionary = Data.get_crop(crop_name)
-			var seed_cost: int = int(c_data.get("seed_cost", 25))
+			var seed_cost: int = MarketManager.get_seed_buy_price(crop_name)
 			var fp: Vector2i = c_data.get("footprint", Vector2i(1, 1))
 			if fp.x > 1 or fp.y > 1:
 				if covered_tiles.has(pos):
@@ -1967,7 +2003,7 @@ func plant_crop(pos: Vector2i, crop_name: String) -> void:
 		return
 	var crop_data: Dictionary = Data.get_crop(crop_name)
 	var fp: Vector2i = crop_data.get("footprint", Vector2i(1, 1))
-	var seed_cost: int = int(crop_data.get("seed_cost", 25))
+	var seed_cost: int = MarketManager.get_seed_buy_price(crop_name)
 
 	if fp.x > 1 or fp.y > 1:
 		if not can_plant_crop(pos, crop_name, true):
@@ -1979,6 +2015,7 @@ func plant_crop(pos: Vector2i, crop_name: String) -> void:
 			LogManager.log_event("economy", "Cannot plant %s: Not enough money! (₱%d needed, balance ₱%d)" % [crop_data.get("display_name", crop_name), seed_cost, EconomyManager.cash], "⚠️", Color(1.0, 0.35, 0.35))
 			print("[FarmGrid] Not enough cash to plant %s!" % crop_name)
 			return
+		MarketManager.record_seed_purchase(crop_name, 2)
 
 		var region_data: Dictionary = Data.get_region(Data.current_region)
 		var base_moisture: float = float(region_data.get("soil_moisture", 60))
@@ -2018,6 +2055,7 @@ func plant_crop(pos: Vector2i, crop_name: String) -> void:
 		LogManager.log_event("economy", "Cannot plant %s: Not enough money! (₱%d needed, balance ₱%d)" % [crop_data.get("display_name", crop_name), seed_cost, EconomyManager.cash], "⚠️", Color(1.0, 0.35, 0.35))
 		print("[FarmGrid] Not enough cash to plant %s!" % crop_name)
 		return
+	MarketManager.record_seed_purchase(crop_name, 1)
 
 	var region_data: Dictionary = Data.get_region(Data.current_region)
 	tile.crop_type       = crop_name
@@ -2128,9 +2166,6 @@ func harvest_tile(pos: Vector2i) -> void:
 		return
 
 	var crop_name_harvested: String = root_tile.crop_type
-	if not BuildingManager.has_storage_for_crop(crop_name_harvested, 100):
-		LogManager.log_event("crops", "Cannot harvest plot (%d, %d): No storage facility accepting %s has space (%d/%d used)! Adjust crop routing on your storage buildings or sell crops." % [pos.x, pos.y, crop_name_harvested.capitalize(), BuildingManager.used_storage, BuildingManager.total_storage_capacity], "⚠️", Color(1.0, 0.35, 0.35, 1.0))
-		return
 	var crop_data: Dictionary = Data.get_crop(crop_name_harvested)
 	var is_2x2: bool = (crop_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2))
 	var is_perennial: bool = crop_data.get("is_perennial", false)
@@ -2139,6 +2174,10 @@ func harvest_tile(pos: Vector2i) -> void:
 	var harvest_info: Dictionary = TileAgronomySystem.calculate_harvest(root_tile)
 	var quantity: int = int(harvest_info.get("yield", 0))
 	var grade_str: String = str(harvest_info.get("grade_string", "Grade C"))
+
+	if not BuildingManager.has_storage_for_crop(crop_name_harvested, maxi(1, quantity)):
+		LogManager.log_event("crops", "Cannot harvest plot (%d, %d): No storage facility accepting %s has space (%d/%d used, %d needed)! Adjust crop routing on your storage buildings or sell crops." % [pos.x, pos.y, crop_name_harvested.capitalize(), BuildingManager.used_storage, BuildingManager.total_storage_capacity, quantity], "⚠️", Color(1.0, 0.35, 0.35, 1.0))
+		return
 
 	# Deposit into Farm Storage
 	MarketManager.add_harvest_to_storage(crop_name_harvested, quantity, grade_str, 100.0)
@@ -2547,7 +2586,7 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 		return false
 
 	# Deduct cost
-	var cost: int = int(b_data.get("cost", 400))
+	var cost: int = Data.get_effective_building_cost(b_type)
 	if not EconomyManager.deduct_cash(cost):
 		return false
 
@@ -2575,7 +2614,7 @@ func place_building(start_pos: Vector2i, b_type: String) -> bool:
 	building.building_type = b_type
 	building.grid_pos      = start_pos
 	building.footprint     = fp
-	building.duration      = 0.0 if (Data.game_mode == "sandbox" or b_data.get("is_decoration", false)) else float(b_data.get("build_time", 20.0))
+	building.duration      = 0.0 if (Data.game_mode == "sandbox" or b_data.get("is_decoration", false)) else float(b_data.get("build_time", 20.0)) * BuildingManager.get_build_duration_scale()
 	building.is_flipped    = placing_is_flipped
 	if Data.game_mode == "sandbox" or b_data.get("is_decoration", false):
 		building.state     = Building.BuildingState.ACTIVE

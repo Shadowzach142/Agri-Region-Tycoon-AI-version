@@ -27,7 +27,7 @@ var unlocked_techs: Array = []
 var unlocked_crops: Array = ["palay", "yellow_corn"]
 var bayanihan_directives: Dictionary = {} # parcel_id -> {"mode": String, "crop": String}
 
-var total_storage_capacity: int = 200
+var total_storage_capacity: int = 350
 var used_storage: int = 0
 
 var worker_capacity: int = 1
@@ -37,6 +37,22 @@ var active_drones: int = 0
 func _ready() -> void:
 	if TimeManager.has_signal("hour_changed"):
 		TimeManager.hour_changed.connect(_on_hour_changed)
+
+## Resets all building, worker, drone, and tech state for a fresh game session
+func reset_for_new_session() -> void:
+	placed_buildings.clear()
+	purchased_buildings.clear()
+	unlocked_techs.clear()
+	unlocked_crops = ["palay", "yellow_corn"]
+	bayanihan_directives.clear()
+	total_storage_capacity = 350
+	used_storage = 0
+	worker_capacity = 1
+	active_workers = 1
+	active_drones = 0
+	storage_updated.emit(total_storage_capacity, used_storage)
+	worker_capacity_changed.emit(worker_capacity, active_workers)
+	drone_capacity_changed.emit(0, 0)
 
 # ---------------------------------------------------------------------------
 # Placed Building Registry
@@ -98,15 +114,15 @@ func recalculate_bonuses() -> void:
 		total_storage_capacity = maxi(new_storage, 25000)
 		worker_capacity = maxi(new_workers, 20)
 	else:
-		total_storage_capacity = new_storage if not placed_buildings.is_empty() else 200
+		total_storage_capacity = new_storage if not placed_buildings.is_empty() else 350
 		worker_capacity = max(new_workers, 1)
+		active_workers = clampi(active_workers, 1, worker_capacity)
 
 	var m_mgr = get_node_or_null("/root/MarketManager")
 	if m_mgr and m_mgr.has_method("get_total_stored_units"):
 		used_storage = m_mgr.get_total_stored_units()
 
 	storage_updated.emit(total_storage_capacity, used_storage)
-	worker_hired.emit(active_workers)
 	worker_capacity_changed.emit(worker_capacity, active_workers)
 
 	# Drones: central Hangar upgrades abilities fleet-wide; Drone Landing Pads determine capacity
@@ -160,15 +176,21 @@ func get_building_construction_time_remaining(b_type: String) -> float:
 			min_rem = rem
 	return min_rem
 
+# Global construction speed factor (0.5 = buildings finish in half the listed build_time)
+const BUILD_TIME_SCALE: float = 0.5
+
+func get_build_duration_scale(region_id: String = "") -> float:
+	var build_mult: float = float(Data.get_region_modifiers(region_id).get("build_speed_mult", 1.0))
+	return BUILD_TIME_SCALE / maxf(build_mult, 0.5)
+
 func get_upgrade_cost(building_type: String, current_level: int) -> int:
-	var b_data := Data.get_building(building_type)
-	var base_cost: int = int(b_data.get("cost", 300))
+	var base_cost: int = Data.get_effective_building_cost(building_type)
 	return int(base_cost * (1.2 + current_level * 0.4))
 
 func get_upgrade_time(building_type: String, current_level: int) -> float:
 	var b_data := Data.get_building(building_type)
 	var base_time: float = float(b_data.get("build_time", 20.0))
-	return base_time * (1.0 + current_level * 0.5)
+	return base_time * (1.0 + current_level * 0.5) * get_build_duration_scale()
 
 # ---------------------------------------------------------------------------
 # Tech & Workers
@@ -288,11 +310,14 @@ func get_drone_pad_count() -> int:
 	return get_drone_pads().size()
 
 ## Returns total drone capacity across the farm:
-## Each Drone Landing Pad provides 1 drone dock/berth into your active fleet.
+## Drone Command Hangar provides +1 starter rooftop berth and each Landing Pad adds +1 berth.
 func get_drone_capacity() -> int:
+	var cap: int = get_drone_pad_count()
+	if has_drone_hangar():
+		cap += 1
 	if Data.game_mode == "sandbox":
-		return maxi(get_drone_pad_count(), 3)
-	return get_drone_pad_count()
+		return maxi(cap, 3)
+	return cap
 
 func get_drone_pads_capacity() -> int:
 	return get_drone_capacity()
@@ -543,7 +568,7 @@ func hire_worker() -> bool:
 	if active_workers >= worker_capacity:
 		return false # Need Bahay Kubo for more worker housing
 
-	var hire_cost: int = 200
+	var hire_cost: int = Data.get_effective_hire_cost(200)
 	if not EconomyManager.deduct_cash(hire_cost):
 		return false
 
@@ -591,8 +616,8 @@ func owns_building(building_type: String) -> bool:
 	return get_building_of_type(building_type) != null
 
 func get_worker_speed_multiplier() -> float:
-	# The Biyahero Trading Post no longer affects worker speed (it is a market buff only).
-	return 1.0
+	# Regional flatlands (e.g. Sultan Kudarat +15%) vs mountain slopes (South Cotabato -10%)
+	return float(Data.get_region_modifiers(Data.current_region).get("worker_speed_mult", 1.0))
 
 ## Extra price multiplier when selling to the Local Biyahero (0.0 without an active Trading Post).
 func get_biyahero_price_bonus() -> float:
@@ -789,14 +814,14 @@ func get_processing_prerequisites(facility_type: String) -> Dictionary:
 	var has_land_deed: bool = false
 	if farm_grid and "unlocked_parcels" in farm_grid:
 		has_land_deed = farm_grid.unlocked_parcels.size() > 1
-	var has_storage_cap: bool = (total_storage_capacity >= 400) or has_cold_storage()
+	var has_storage_cap: bool = (total_storage_capacity >= 600) or has_cold_storage()
 	var can_build: bool = has_land_deed and has_storage_cap
 
 	var reasons: Array[String] = []
 	if not has_land_deed:
 		reasons.append("Requires Land Expansion Deed")
 	if not has_storage_cap:
-		reasons.append("Requires Lv.2 Silo (400+ cap) or Cold Storage")
+		reasons.append("Requires Lv.2 Silo (700+ cap) or Cold Storage")
 
 	return {
 		"allowed": can_build,

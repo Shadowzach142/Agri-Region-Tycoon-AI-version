@@ -51,6 +51,15 @@ var farm_grid: Node2D = null
 
 var _materials: Dictionary = {}
 var _active_highlighted_sprites: Array[Sprite2D] = []
+var _cached_plant_hotbar: Node = null
+
+func _get_plant_hotbar() -> Node:
+	if is_instance_valid(_cached_plant_hotbar) and _cached_plant_hotbar.is_inside_tree():
+		return _cached_plant_hotbar
+	var tree := get_tree()
+	if tree and tree.root:
+		_cached_plant_hotbar = tree.root.find_child("PlantHotbar", true, false)
+	return _cached_plant_hotbar
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -156,7 +165,7 @@ func _draw() -> void:
 	if farm_grid and "is_drone_targeting" in farm_grid and farm_grid.is_drone_targeting:
 		is_drone_mode = true
 	else:
-		var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
+		var plant_hotbar = _get_plant_hotbar()
 		if plant_hotbar and plant_hotbar.has_method("get_selected_tool"):
 			is_drone_mode = (plant_hotbar.get_selected_tool() == "drone_zone")
 
@@ -377,7 +386,7 @@ func _draw_tool_hover() -> bool:
 		if hovered_ctrl != null and hovered_ctrl.mouse_filter != Control.MOUSE_FILTER_IGNORE:
 			return false
 
-	var plant_hotbar = get_tree().root.find_child("PlantHotbar", true, false)
+	var plant_hotbar = _get_plant_hotbar()
 	if plant_hotbar == null or not plant_hotbar.visible:
 		return false
 

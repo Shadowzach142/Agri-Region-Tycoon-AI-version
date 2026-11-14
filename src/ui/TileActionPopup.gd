@@ -107,7 +107,7 @@ func open_for_tile(global_mouse_pos: Vector2, tile_pos: Vector2i, tile: FarmTile
 			var c_data: Dictionary = Data.get_crop(active_crop)
 			var c_name: String = c_data.get("display_name", active_crop.capitalize())
 			var c_icon: String = c_data.get("icon", "🌱")
-			var c_cost: int = int(c_data.get("seed_cost", 25))
+			var c_cost: int = MarketManager.get_seed_buy_price(active_crop)
 			var is_2x2: bool = (c_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2))
 			var cost_str: String = " - ₱%d" % c_cost
 			if EconomyManager.cash < c_cost:
@@ -249,7 +249,7 @@ func open_for_batch(global_mouse_pos: Vector2, target_tiles: Array, tiles_grid: 
 		var c_data: Dictionary = Data.get_crop(active_crop)
 		var c_name: String = c_data.get("display_name", active_crop.capitalize())
 		var c_icon: String = c_data.get("icon", "🌱")
-		var c_cost: int = int(c_data.get("seed_cost", 25))
+		var c_cost: int = MarketManager.get_seed_buy_price(active_crop)
 		var is_2x2: bool = (c_data.get("footprint", Vector2i(1, 1)) == Vector2i(2, 2))
 		add_separator("🌱 Plant Seed (%d Plowed)" % n)
 		var total_cost: int = c_cost if is_2x2 else n * c_cost

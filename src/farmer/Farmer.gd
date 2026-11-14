@@ -187,8 +187,12 @@ func _ready() -> void:
 		worker_id = 1
 	worker_name = "Worker %d" % worker_id
 
-	# Set default visual variant based on worker_id (Worker 1 = variant 0, Worker 2 = variant 1, etc.)
-	if variant_id == 0 and worker_id > 1:
+	# Set default visual variant: in multiplayer, match the player's chosen lobby color;
+	# otherwise cycle based on worker_id (Worker 1 = variant 0, Worker 2 = variant 1, etc.)
+	var data_mgr = get_node_or_null("/root/Data")
+	if data_mgr and bool(data_mgr.get("is_multiplayer_match")):
+		variant_id = posmod(int(data_mgr.get("multiplayer_player_color_idx")), NUM_VARIANTS)
+	elif variant_id == 0 and worker_id > 1:
 		variant_id = (worker_id - 1) % NUM_VARIANTS
 	else:
 		_current_frames = get_frames_for_variant(variant_id)
@@ -366,9 +370,6 @@ func _task_covers_tile(task: Dictionary, pos: Vector2i) -> bool:
 # Process — main state dispatch
 # ---------------------------------------------------------------------------
 func _process(delta: float) -> void:
-	if is_wandering or state == FarmerStateMachine.WorkerState.MOVING or state == FarmerStateMachine.WorkerState.WORKING:
-		queue_redraw()
-
 	var speed_scale: float = TimeManager.get_speed_scale()
 	if speed_scale <= 0.0:
 		return  # Paused

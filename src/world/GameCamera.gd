@@ -42,6 +42,11 @@ var target_zoom: Vector2     = Vector2.ONE
 var is_dragging: bool        = false
 
 @onready var hud_layer: CanvasLayer = get_parent().get_node_or_null("HUDLayer")
+var _cached_market_panel: CanvasItem = null
+var _cached_sell_panel: CanvasItem   = null
+var _cached_shop_panel: CanvasItem   = null
+var _cached_admin_panel: CanvasItem  = null
+var _cached_pause_menu: CanvasItem   = null
 
 func _ready() -> void:
 	enabled = true
@@ -134,20 +139,27 @@ func _adjust_zoom(factor: float) -> void:
 	target_position = _clamp_to_world_bounds(target_position, target_zoom.x)
 
 func _is_typing_or_menu_open() -> bool:
-	if hud_layer:
-		var market = hud_layer.find_child("MarketPanel", true, false)
-		if market and market.visible:
+	if hud_layer and is_instance_valid(hud_layer):
+		if not is_instance_valid(_cached_market_panel):
+			_cached_market_panel = hud_layer.find_child("MarketPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_market_panel) and _cached_market_panel.visible:
 			return true
-		var sell = hud_layer.find_child("SellPanel", true, false)
-		if sell and sell.visible:
+		if not is_instance_valid(_cached_sell_panel):
+			_cached_sell_panel = hud_layer.find_child("SellPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_sell_panel) and _cached_sell_panel.visible:
 			return true
-		var shop = hud_layer.find_child("ShopPanel", true, false)
-		if shop and shop.visible:
+		if not is_instance_valid(_cached_shop_panel):
+			_cached_shop_panel = hud_layer.find_child("ShopPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_shop_panel) and _cached_shop_panel.visible:
 			return true
-	var admin = get_tree().root.find_child("AdminPanel", true, false)
-	if admin and admin.visible:
-		return true
-	var pause = get_tree().root.find_child("PauseMenu", true, false)
-	if pause and pause.visible:
-		return true
+	var tree := get_tree()
+	if tree and tree.root:
+		if not is_instance_valid(_cached_admin_panel):
+			_cached_admin_panel = tree.root.find_child("AdminPanel", true, false) as CanvasItem
+		if is_instance_valid(_cached_admin_panel) and _cached_admin_panel.visible:
+			return true
+		if not is_instance_valid(_cached_pause_menu):
+			_cached_pause_menu = tree.root.find_child("PauseMenu", true, false) as CanvasItem
+		if is_instance_valid(_cached_pause_menu) and _cached_pause_menu.visible:
+			return true
 	return false

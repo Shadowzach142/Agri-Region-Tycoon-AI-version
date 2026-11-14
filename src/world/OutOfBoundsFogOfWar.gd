@@ -11,6 +11,9 @@ const MIST_COLOR: Color = Color(0.25, 0.38, 0.28, 0.22) # Soft drifting canopy m
 
 var _time: float = 0.0
 var _mist_particles: Array[Dictionary] = []
+var _redraw_accum: float = 0.0
+const MIST_REDRAW_INTERVAL: float = 0.085
+var _static_border_node: Node2D = null
 
 func _init() -> void:
 	z_index = 22
@@ -19,6 +22,13 @@ func _init() -> void:
 func _ready() -> void:
 	name = "OutOfBoundsFogOfWar"
 	_init_mist_particles()
+	_static_border_node = Node2D.new()
+	_static_border_node.name = "StaticBorderFog"
+	_static_border_node.z_index = 0
+	_static_border_node.z_as_relative = true
+	_static_border_node.draw.connect(_draw_static_border_fog)
+	add_child(_static_border_node)
+	_static_border_node.queue_redraw()
 
 func _init_mist_particles() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -55,26 +65,40 @@ func _init_mist_particles() -> void:
 		})
 
 func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return
 	_time += delta
-	queue_redraw()
+	_redraw_accum += delta
+	if _redraw_accum >= MIST_REDRAW_INTERVAL:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 func _draw() -> void:
+	# Animated Drifting Mist Wisps (static gradient quads live on StaticBorderFog child drawn once)
+	for m in _mist_particles:
+		var drift_offset := Vector2(
+			sin(_time * m.speed + m.phase) * 24.0,
+			cos(_time * m.speed * 0.7 + m.phase) * 12.0
+		)
+		var pulse_alpha: float = (0.75 + 0.25 * sin(_time * m.speed * 1.2 + m.phase)) * m.alpha_mult
+		var mist_col := Color(MIST_COLOR.r, MIST_COLOR.g, MIST_COLOR.b, MIST_COLOR.a * pulse_alpha)
+
+		# Draw soft multi-ring mist puff
+		var center: Vector2 = m.base_pos + drift_offset
+		draw_circle(center, m.radius, mist_col)
+		draw_circle(center, m.radius * 0.6, Color(mist_col.r, mist_col.g, mist_col.b, mist_col.a * 1.4))
+
+func _draw_static_border_fog() -> void:
+	var target: Node2D = _static_border_node
+	if target == null:
+		return
 	var get_pt := func(gx: float, gy: float) -> Vector2:
 		return Vector2(
 			FarmerMovement.ORIGIN_OFFSET.x + (gx - gy) * FarmerMovement.HALF_W,
 			FarmerMovement.ORIGIN_OFFSET.y + (gx + gy + 1.0) * FarmerMovement.HALF_H
 		)
 
-	# -----------------------------------------------------------------------
-	# 1. Concentric Isometric Gradient Rings for Landward Borders (NW, NE, SW)
-	# -----------------------------------------------------------------------
-	# We draw smooth multi-band gradient quads around the perimeter:
-	# Bands:
-	#   Band 0: margin 1.0 tiles out (alpha = 0.0) -> margin 3.2 tiles out (alpha = 0.35)
-	#   Band 1: margin 3.2 tiles out (alpha = 0.35) -> margin 5.5 tiles out (alpha = 0.75)
-	#   Band 2: margin 5.5 tiles out (alpha = 0.75) -> margin 8.5 tiles out (alpha = 0.96)
-	#   Band 3: margin 8.5 tiles out (alpha = 0.96) -> margin 18.0 tiles out (alpha = 1.0)
-
+	# Concentric Isometric Gradient Rings for Landward Borders (NW, NE, SW) — drawn ONCE
 	var margins: Array[float] = [1.2, 3.2, 5.5, 8.5, 18.0]
 	var alphas: Array[float] = [0.0, 0.35, 0.75, 0.96, 1.0]
 
@@ -83,7 +107,7 @@ func _draw() -> void:
 		var m_out: float = margins[b + 1]
 		var a_in: float = alphas[b]
 		var a_out: float = alphas[b + 1]
-		
+
 		var col_in := Color(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, a_in)
 		var col_out := Color(FOG_COLOR.r, FOG_COLOR.g, FOG_COLOR.b, a_out)
 
@@ -92,59 +116,43 @@ func _draw() -> void:
 		var p2_in: Vector2 = get_pt.call(-m_in, 32.0 + m_in)
 		var p2_out: Vector2 = get_pt.call(-m_out, 32.0 + m_out)
 		var p1_out: Vector2 = get_pt.call(-m_out, -m_out)
-		_draw_gradient_quad(p1_in, p2_in, p2_out, p1_out, col_in, col_in, col_out, col_out)
+		_draw_gradient_quad(target, p1_in, p2_in, p2_out, p1_out, col_in, col_in, col_out, col_out)
 
 		# Quad B: North-East Border (gx from -m to 32, gy = -m)
 		var q1_in: Vector2 = get_pt.call(-m_in, -m_in)
 		var q2_in: Vector2 = get_pt.call(32.0 + m_in, -m_in)
 		var q2_out: Vector2 = get_pt.call(32.0 + m_out, -m_out)
 		var q1_out: Vector2 = get_pt.call(-m_out, -m_out)
-		_draw_gradient_quad(q1_in, q2_in, q2_out, q1_out, col_in, col_in, col_out, col_out)
+		_draw_gradient_quad(target, q1_in, q2_in, q2_out, q1_out, col_in, col_in, col_out, col_out)
 
 		# Quad C: South-West Border (gx from -m to 32, gy = 32+m)
 		var r1_in: Vector2 = get_pt.call(-m_in, 32.0 + m_in)
 		var r2_in: Vector2 = get_pt.call(32.0 + m_in, 32.0 + m_in)
 		var r2_out: Vector2 = get_pt.call(32.0 + m_out, 32.0 + m_out)
 		var r1_out: Vector2 = get_pt.call(-m_out, 32.0 + m_out)
-		_draw_gradient_quad(r1_in, r2_in, r2_out, r1_out, col_in, col_in, col_out, col_out)
+		_draw_gradient_quad(target, r1_in, r2_in, r2_out, r1_out, col_in, col_in, col_out, col_out)
 
 		# Quad D: North Headland to Ocean transition (gx >= 32, gy <= -m)
 		var nh1_in: Vector2 = get_pt.call(32.0, -m_in)
 		var nh2_in: Vector2 = get_pt.call(40.0 + m_in, -m_in)
 		var nh2_out: Vector2 = get_pt.call(40.0 + m_out, -m_out)
 		var nh1_out: Vector2 = get_pt.call(32.0, -m_out)
-		_draw_gradient_quad(nh1_in, nh2_in, nh2_out, nh1_out, col_in, col_in, col_out, col_out)
+		_draw_gradient_quad(target, nh1_in, nh2_in, nh2_out, nh1_out, col_in, col_in, col_out, col_out)
 
 		# Quad E: South Headland to Ocean transition (gx >= 32, gy >= 32+m)
 		var sh1_in: Vector2 = get_pt.call(32.0, 32.0 + m_in)
 		var sh2_in: Vector2 = get_pt.call(40.0 + m_in, 32.0 + m_in)
 		var sh2_out: Vector2 = get_pt.call(40.0 + m_out, 32.0 + m_out)
 		var sh1_out: Vector2 = get_pt.call(32.0, 32.0 + m_out)
-		_draw_gradient_quad(sh1_in, sh2_in, sh2_out, sh1_out, col_in, col_in, col_out, col_out)
+		_draw_gradient_quad(target, sh1_in, sh2_in, sh2_out, sh1_out, col_in, col_in, col_out, col_out)
 
-	# -----------------------------------------------------------------------
-	# 2. Animated Drifting Mist Wisps
-	# -----------------------------------------------------------------------
-	for m in _mist_particles:
-		var drift_offset := Vector2(
-			sin(_time * m.speed + m.phase) * 24.0,
-			cos(_time * m.speed * 0.7 + m.phase) * 12.0
-		)
-		var pulse_alpha: float = (0.75 + 0.25 * sin(_time * m.speed * 1.2 + m.phase)) * m.alpha_mult
-		var mist_col := Color(MIST_COLOR.r, MIST_COLOR.g, MIST_COLOR.b, MIST_COLOR.a * pulse_alpha)
-		
-		# Draw soft multi-ring mist puff
-		var center: Vector2 = m.base_pos + drift_offset
-		draw_circle(center, m.radius, mist_col)
-		draw_circle(center, m.radius * 0.6, Color(mist_col.r, mist_col.g, mist_col.b, mist_col.a * 1.4))
-
-func _draw_gradient_quad(p1: Vector2, p2: Vector2, p3: Vector2, p4: Vector2,
+func _draw_gradient_quad(target: CanvasItem, p1: Vector2, p2: Vector2, p3: Vector2, p4: Vector2,
 		c1: Color, c2: Color, c3: Color, c4: Color) -> void:
 	# Draw two triangles forming the quad with Gouraud vertex color shading
 	var pts1 := PackedVector2Array([p1, p2, p3])
 	var cols1 := PackedColorArray([c1, c2, c3])
-	draw_polygon(pts1, cols1)
+	target.draw_polygon(pts1, cols1)
 
 	var pts2 := PackedVector2Array([p1, p3, p4])
 	var cols2 := PackedColorArray([c1, c3, c4])
-	draw_polygon(pts2, cols2)
+	target.draw_polygon(pts2, cols2)

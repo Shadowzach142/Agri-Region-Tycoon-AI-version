@@ -159,8 +159,10 @@ func capture_game_state(slot_name: String = "") -> Dictionary:
 				"is_flipped": b.is_flipped if "is_flipped" in b else false
 			})
 
+	var live_farmer_count: int = maxi(tree.get_nodes_in_group("farmers").size(), 1)
 	var building_manager_data: Dictionary = {
-		"active_workers": BuildingManager.active_workers,
+		"active_workers": live_farmer_count,
+		"hired_farmers_count": live_farmer_count,
 		"worker_capacity": BuildingManager.worker_capacity,
 		"active_drones": BuildingManager.active_drones,
 		"unlocked_techs": BuildingManager.unlocked_techs.duplicate(),
@@ -411,13 +413,18 @@ func apply_pending_save(farm_grid: Node) -> void:
 				if mp_arr.size() >= 2:
 					t.multi_tile_root_pos = Vector2i(int(mp_arr[0]), int(mp_arr[1]))
 
-	# 7. Buildings
+	# 7. Buildings & Session Reset
+	TaskManager.reset_for_new_session()
+	PestManager.reset_for_new_session()
+	AudioManager.stop_build_loop()
+
 	var bm_data: Dictionary = data.get("building_manager", {})
 	# Clear existing placed buildings (starter buildings spawned in _ready)
 	for b in BuildingManager.placed_buildings.duplicate():
 		if is_instance_valid(b):
 			BuildingManager.unregister_building(b)
 			b.queue_free()
+	BuildingManager.reset_for_new_session()
 
 	BuildingManager.unlocked_techs = bm_data.get("unlocked_techs", [])
 	if Data.game_mode == "sandbox":
@@ -463,16 +470,23 @@ func apply_pending_save(farm_grid: Node) -> void:
 
 		BuildingManager.register_building(building)
 
-	BuildingManager.active_workers = bm_data.get("active_workers", 1)
-	BuildingManager.active_drones = bm_data.get("active_drones", 0)
 	BuildingManager.recalculate_bonuses()
+	if bm_data.has("hired_farmers_count"):
+		BuildingManager.active_workers = clampi(int(bm_data.get("hired_farmers_count", 1)), 1, BuildingManager.worker_capacity)
+	else:
+		# Heal older save files where active_workers was polluted from a previous session
+		BuildingManager.active_workers = 1
+	BuildingManager.active_drones = BuildingManager.get_drone_capacity()
+	BuildingManager.worker_capacity_changed.emit(BuildingManager.worker_capacity, BuildingManager.active_workers)
 
-	# 8. Farmer position
+	# 8. Farmer position & Sync extra hired Farmer nodes
 	var farmer_data: Dictionary = data.get("farmer", {})
 	if not farmer_data.is_empty():
 		var farmer = farm_grid.get_tree().root.find_child("Farmer", true, false)
 		if farmer and farmer_data.has("pos"):
 			farmer.global_position = Vector2(farmer_data["pos"][0], farmer_data["pos"][1])
+
+	_sync_farmers_in_scene(farm_grid, BuildingManager.active_workers)
 
 	# 9. Refresh visual renderer & signposts
 	if farm_grid:
@@ -481,3 +495,40 @@ func apply_pending_save(farm_grid: Node) -> void:
 
 	print("[SaveManager] Loaded farm applied successfully!")
 	LogManager.log_event("finance", "📂 Resumed farm: " + meta.get("title", ""), "📂", Color(0.3, 0.9, 0.4))
+
+func _sync_farmers_in_scene(farm_grid: Node, desired_count: int) -> void:
+	if not farm_grid or not farm_grid.is_inside_tree():
+		return
+	var tree := farm_grid.get_tree()
+	var current_farmers := tree.get_nodes_in_group("farmers")
+	var parent_node: Node = farm_grid.get_parent() if farm_grid.get_parent() else tree.current_scene
+	if not parent_node:
+		return
+
+	# Remove excess farmer nodes if any
+	while current_farmers.size() > desired_count and current_farmers.size() > 1:
+		var extra: Node = current_farmers.pop_back()
+		if is_instance_valid(extra) and extra.name != "Farmer":
+			extra.queue_free()
+
+	# Spawn missing farmer nodes if save has more than 1 worker
+	var template: Node = tree.root.find_child("Farmer", true, false)
+	while current_farmers.size() < desired_count:
+		var idx: int = current_farmers.size() + 1
+		var new_variant: int = (idx - 1) % 8
+		if template and is_instance_valid(template):
+			var f := template.duplicate() as CharacterBody2D
+			f.name = "Farmer_%d" % idx
+			var depot_pos: Vector2 = FarmerMovement.grid_to_pixel_center(Vector2i(0, 0), null)
+			f.position = depot_pos + Vector2(randf_range(-30, 30), randf_range(-15, 15))
+			f.assigned_tasks = []
+			f.current_task = {}
+			f.is_selected = false
+			f.state = FarmerStateMachine.WorkerState.IDLE
+			f.z_index = 10
+			if "variant_id" in f:
+				f.variant_id = new_variant
+			parent_node.add_child(f)
+			current_farmers.append(f)
+		else:
+			break

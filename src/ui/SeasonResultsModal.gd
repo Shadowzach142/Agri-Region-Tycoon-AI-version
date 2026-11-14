@@ -153,6 +153,9 @@ func _build_ui() -> void:
 	_add_stat_row("Top Single Delivery:", "%s pts" % Utils.format_number(LeaderboardManager.highest_single_sale_pts))
 	_add_stat_row("Final Treasury Balance:", "₱%s" % Utils.format_number(EconomyManager.cash))
 
+	if Data.is_multiplayer_match:
+		_build_multiplayer_podium(vbox)
+
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(spacer)
@@ -172,10 +175,11 @@ func _build_ui() -> void:
 	records_btn.add_theme_stylebox_override("pressed", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButtonPressed.tres"))
 	records_btn.add_theme_color_override("font_color", Color(0.96, 0.92, 0.84))
 	records_btn.pressed.connect(_on_records_pressed)
+	records_btn.visible = not Data.is_multiplayer_match
 	btn_row.add_child(records_btn)
 
 	var new_run_btn := Button.new()
-	new_run_btn.text = "🔄 New Campaign"
+	new_run_btn.text = "🏠 Main Menu" if Data.is_multiplayer_match else "🔄 New Campaign"
 	new_run_btn.custom_minimum_size = Vector2(160, 40)
 	new_run_btn.add_theme_font_size_override("font_size", 13)
 	new_run_btn.add_theme_stylebox_override("normal", preload("res://assets/sprites/hud/Buttons/Brownbutton/BrownButton.tres"))
@@ -195,7 +199,92 @@ func _build_ui() -> void:
 	freeplay_btn.add_theme_color_override("font_color", Color(0.20, 0.12, 0.06))
 	freeplay_btn.add_theme_color_override("font_hover_color", Color(0.10, 0.05, 0.02))
 	freeplay_btn.pressed.connect(_on_freeplay_pressed)
+	freeplay_btn.visible = not Data.is_multiplayer_match
 	btn_row.add_child(freeplay_btn)
+
+func _build_multiplayer_podium(parent_vbox: VBoxContainer) -> void:
+	var podium_box := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.14, 0.11, 0.08, 0.92)
+	sb.border_color = Color(0.76, 0.58, 0.28, 0.90)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(8)
+	podium_box.add_theme_stylebox_override("panel", sb)
+	parent_vbox.add_child(podium_box)
+
+	var inner_v := VBoxContainer.new()
+	inner_v.add_theme_constant_override("separation", 4)
+	podium_box.add_child(inner_v)
+
+	var hdr := Label.new()
+	var reveal_tag := "" if Data.multiplayer_leaderboard_enabled else " (SURPRISE REVEAL!)"
+	hdr.text = "🏆 LAN MULTIPLAYER STANDINGS%s" % reveal_tag
+	hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hdr.add_theme_font_size_override("font_size", 13)
+	hdr.add_theme_color_override("font_color", Color(1.0, 0.88, 0.38))
+	inner_v.add_child(hdr)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 128)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inner_v.add_child(scroll)
+
+	var rows_v := VBoxContainer.new()
+	rows_v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_v.add_theme_constant_override("separation", 4)
+	scroll.add_child(rows_v)
+
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	var standings: Array = []
+	if mp:
+		standings = mp.final_standings if not mp.final_standings.is_empty() else mp.get_sorted_standings()
+
+	for i in range(standings.size()):
+		var st: Dictionary = standings[i]
+		var cidx := posmod(int(st.get("color_idx", 0)), mp.FARMER_COLORS.size()) if mp else 0
+		var fcol: Color = mp.FARMER_COLORS[cidx] if mp else Color.WHITE
+		var is_me: bool = (mp != null and str(st.get("slot_id", "")) == str(mp.my_slot_id))
+
+		var row_bg := PanelContainer.new()
+		var rsb := StyleBoxFlat.new()
+		rsb.bg_color = Color(0.24, 0.20, 0.12, 0.95) if is_me else Color(0.18, 0.15, 0.11, 0.85)
+		rsb.border_color = fcol
+		rsb.border_width_left = 4
+		rsb.set_corner_radius_all(4)
+		rsb.set_content_margin_all(4)
+		row_bg.add_theme_stylebox_override("panel", rsb)
+		rows_v.add_child(row_bg)
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row_bg.add_child(row)
+
+		var rank_lbl := Label.new()
+		rank_lbl.text = "#%d" % (i + 1)
+		rank_lbl.custom_minimum_size = Vector2(28, 0)
+		rank_lbl.add_theme_font_size_override("font_size", 13)
+		rank_lbl.add_theme_color_override("font_color", Color(1.0, 0.86, 0.34) if i == 0 else Color(0.92, 0.90, 0.84))
+		row.add_child(rank_lbl)
+
+		var swatch := ColorRect.new()
+		swatch.custom_minimum_size = Vector2(12, 16)
+		swatch.color = fcol
+		row.add_child(swatch)
+
+		var name_lbl := Label.new()
+		var p_name := str(st.get("name", "Player")) + (" [YOU]" if is_me else "")
+		name_lbl.text = "%s — %s" % [p_name, str(st.get("region_short", ""))]
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.add_theme_font_size_override("font_size", 12)
+		name_lbl.add_theme_color_override("font_color", Color(0.98, 0.96, 0.88))
+		row.add_child(name_lbl)
+
+		var score_lbl := Label.new()
+		score_lbl.text = "%s pts  |  ₱%s" % [Utils.format_number(int(st.get("score", 0))), Utils.format_number(int(st.get("cash", 0)))]
+		score_lbl.add_theme_font_size_override("font_size", 12)
+		score_lbl.add_theme_color_override("font_color", Color(0.68, 0.96, 0.56))
+		row.add_child(score_lbl)
 
 func _add_stat_row(label_text: String, value_text: String) -> void:
 	var l := Label.new()
@@ -219,6 +308,10 @@ func _on_records_pressed() -> void:
 
 func _on_new_run_pressed() -> void:
 	new_run_requested.emit()
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	if mp and mp.has_method("disconnect_multiplayer"):
+		mp.disconnect_multiplayer()
+	Data.reset_all_session_state(0.0)
 	queue_free()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 

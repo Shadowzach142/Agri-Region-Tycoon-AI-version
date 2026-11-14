@@ -12,6 +12,12 @@ signal tasks_changed()
 var task_queue: Array = []
 var selected_farmers: Array = []
 
+func reset_for_new_session() -> void:
+	task_queue.clear()
+	selected_farmers.clear()
+	tasks_changed.emit()
+	selection_changed.emit(selected_farmers)
+
 ## Add a new task dict to the global unassigned queue.
 ## Expected format: {"type": String, "position": Vector2i, "crop_type": String (optional)}
 func add_task(task: Dictionary) -> void:

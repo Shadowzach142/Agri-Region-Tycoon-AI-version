@@ -96,7 +96,7 @@ func _ready() -> void:
 		vbox.add_child(logo_rect)
 
 	var title := Label.new()
-	title.text = "— GAME PAUSED —"
+	title.text = "— MATCH MENU (LIVE GAME) —" if Data.is_multiplayer_match else "— GAME PAUSED —"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.22, 0.14, 0.08, 1.0))
@@ -117,10 +117,12 @@ func _ready() -> void:
 
 	_save_btn = _make_brown_button("💾 Save Farm")
 	_save_btn.pressed.connect(_on_save_game)
+	_save_btn.visible = not Data.is_multiplayer_match
 	vbox.add_child(_save_btn)
 
 	_load_btn = _make_brown_button("📂 Load Farm")
 	_load_btn.pressed.connect(_on_load_game)
+	_load_btn.visible = not Data.is_multiplayer_match
 	vbox.add_child(_load_btn)
 
 	# Dedicated Personal Records button moved here from the HUD
@@ -134,6 +136,7 @@ func _ready() -> void:
 
 	_debug_btn = _make_brown_button("🛠️ Debug Console (`)")
 	_debug_btn.pressed.connect(_on_debug_console)
+	_debug_btn.visible = not Data.is_multiplayer_match
 	vbox.add_child(_debug_btn)
 
 	_menu_btn = _make_brown_button("🏠 Main Menu")
@@ -184,6 +187,11 @@ func _ready() -> void:
 # -- Input ---------------------------------------------------------------------
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
+		var mp = get_node_or_null("/root/MultiplayerManager")
+		if Data.is_multiplayer_match and mp and mp.is_spectating():
+			mp.stop_spectating()
+			get_viewport().set_input_as_handled()
+			return
 		toggle()
 		get_viewport().set_input_as_handled()
 
@@ -204,7 +212,8 @@ func hide_menu() -> void:
 func _show_menu() -> void:
 	_visible = true
 	visible  = true
-	get_tree().paused = true
+	if not Data.is_multiplayer_match:
+		get_tree().paused = true
 	AudioManager.play_ui("pause")
 	_update_music_ui()
 
@@ -234,7 +243,8 @@ func _hide_menu() -> void:
 	tw.tween_property(_dim,   "color",    Color(0, 0, 0, 0),   0.14)
 	tw.chain().tween_callback(func():
 		visible = false
-		get_tree().paused = false
+		if not Data.is_multiplayer_match:
+			get_tree().paused = false
 	)
 
 # -- Button callbacks ----------------------------------------------------------
@@ -291,11 +301,18 @@ func _on_load_game() -> void:
 
 func _on_main_menu() -> void:
 	get_tree().paused = false
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	if mp and mp.has_method("disconnect_multiplayer"):
+		mp.disconnect_multiplayer()
+	Data.reset_all_session_state(0.0)
 	quit_to_menu.emit()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
 
 func _on_quit() -> void:
 	get_tree().paused = false
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	if mp and mp.has_method("disconnect_multiplayer"):
+		mp.disconnect_multiplayer()
 	get_tree().quit()
 
 # -- Helpers -------------------------------------------------------------------

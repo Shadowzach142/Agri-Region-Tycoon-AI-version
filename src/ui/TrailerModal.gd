@@ -175,11 +175,15 @@ func _restore_autoload_state() -> void:
 		_tm().selected_farmers.clear()
 
 	if _bm():
-		_bm().placed_buildings.clear()
-		_bm().purchased_buildings.clear()
-		_bm().unlocked_techs.clear()
-		_bm().active_drones = 0
-		_bm().recalculate_bonuses()
+		if _bm().has_method("reset_for_new_session"):
+			_bm().reset_for_new_session()
+		else:
+			_bm().placed_buildings.clear()
+			_bm().purchased_buildings.clear()
+			_bm().unlocked_techs.clear()
+			_bm().active_workers = 1
+			_bm().active_drones = 0
+			_bm().recalculate_bonuses()
 
 	if _mm():
 		_mm().stored_inventory.clear()

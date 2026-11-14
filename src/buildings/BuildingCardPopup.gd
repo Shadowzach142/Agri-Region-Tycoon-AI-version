@@ -168,7 +168,7 @@ func refresh() -> void:
 	else:
 		_refresh_generic_feature_section()
 
-	var base_cost: int = int(b_data.get("cost", 200))
+	var base_cost: int = Data.get_effective_building_cost(current_building.building_type)
 	var refund: int = int(base_cost * 0.5 * current_building.level)
 
 	if is_decor:
@@ -896,7 +896,7 @@ func _get_building_summary(b_type: String) -> String:
 		"sprinkler":
 			return "Ground-mounted rotary sprinkler. Automates morning irrigation across surrounding plots."
 		"drone_station":
-			return "Central flight avionics & telemetry command hangar. One-time purchase that unlocks autonomous drones and upgrades their capabilities fleet-wide (Lv.1 Plow & Water, Lv.2 Precision Seeder & IPM, Lv.3 Master Harvester)."
+			return "Central flight avionics & telemetry command hangar. One-time purchase that includes +1 starter Drone berth and upgrades drone capabilities fleet-wide (Lv.1 Plow & Water, Lv.2 Precision Seeder & IPM, Lv.3 Master Harvester)."
 		"drone_pad":
 			return "Individual landing dock and solar recharge berth for autonomous farm drones. Like the Bahay Kubo for drones: stores 1 drone at Lv.1, 2 at Lv.2, and 3 at Lv.3. Buy more pads to expand your fleet!"
 		"bayanihan_center":

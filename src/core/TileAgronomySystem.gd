@@ -34,8 +34,13 @@ static func process_day(tile: FarmTile, pos: Vector2i) -> void:
 
 	if not is_halted:
 		var growth_days: float = float(crop_data.get("growth_days", 30))
-		var growth_delta: float = (1.0 / growth_days) * tile.soil_fertility
+		var growth_mult: float = maxf(0.1, float(Data.custom_crop_growth_multiplier))
+		var mods: Dictionary = Data.get_region_modifiers(Data.current_region)
+		var region_growth_mult: float = float(mods.get("specialty_growth_mult", 1.0)) if Data.is_regional_specialty_crop(tile.crop_type, Data.current_region) else 1.0
+		var growth_delta: float = (1.0 / growth_days) * tile.soil_fertility * growth_mult * region_growth_mult
 		tile.growth_progress = clampf(tile.growth_progress + growth_delta, 0.0, 1.0)
+		if tile.growth_progress >= 0.9999:
+			tile.growth_progress = 1.0
 
 	if tile.growth_progress >= 1.0:
 		tile.state   = FarmTile.TileState.HARVESTABLE
@@ -69,22 +74,25 @@ static func process_hour(tile: FarmTile, has_drip: bool, pos: Vector2i = Vector2
 
 	var is_night: bool = TimeManager.is_night()
 
-	# ── Evaporation & Rainfall rate by climate ──────────────────────────────
+	# ── Evaporation & Rainfall rate by climate & regional soil/terrain ──────
 	# Night cycle reduces daytime solar evaporation by 80-85%.
 	# High night humidity creates dew condensation on open soils.
 	# Irrigation infrastructure provides up to 35% mulch & pipe evaporation reduction.
 	var evap_reduction: float = BuildingManager.get_irrigation_evap_reduction()
+	var r_mods: Dictionary = Data.get_region_modifiers(Data.current_region)
+	var region_evap_mult: float = float(r_mods.get("evap_mult", 1.0))
+	var region_rain_mult: float = float(r_mods.get("rain_gain_mult", 1.0))
 	match wm.current_climate:
 		wm.Climate.EL_NINO:
-			var evap: float = (0.35 if is_night else 1.5) * (1.0 - evap_reduction)
+			var evap: float = (0.35 if is_night else 1.5) * (1.0 - evap_reduction) * region_evap_mult
 			tile.soil_moisture = maxf(tile.soil_moisture - evap, 0.0)
 		wm.Climate.LA_NINA:
 			# Evaporate a little, but rain adds more
-			var evap: float = (0.05 if is_night else 0.2) * (1.0 - evap_reduction)
-			var rainfall_gain: float = randf_range(1.5, 3.0)
+			var evap: float = (0.05 if is_night else 0.2) * (1.0 - evap_reduction) * region_evap_mult
+			var rainfall_gain: float = randf_range(1.5, 3.0) * region_rain_mult
 			tile.soil_moisture = minf(tile.soil_moisture - evap + rainfall_gain, 100.0)
 		wm.Climate.NORMAL:
-			var evap: float = (0.08 if is_night else 0.5) * (1.0 - evap_reduction)
+			var evap: float = (0.08 if is_night else 0.5) * (1.0 - evap_reduction) * region_evap_mult
 			tile.soil_moisture = maxf(tile.soil_moisture - evap, 0.0)
 
 	# ── Nocturnal Dew Condensation ──────────────────────────────────────────
@@ -142,6 +150,7 @@ static func apply_climate_effects(tile: FarmTile, crop_data: Dictionary, pos: Ve
 	var wm = WeatherManager
 	var water_min: float = float(crop_data.get("water_min", 40))
 	var water_max: float = float(crop_data.get("water_max", 80))
+	var r_mods: Dictionary = Data.get_region_modifiers(Data.current_region)
 
 	# Agronomy Rule: Arabica Coffee & Pineapple sensitive to severe waterlogging (Phytophthora root rot)
 	if (tile.crop_type == "arabica_coffee" or tile.crop_type == "pineapple") and tile.days_overwatered >= 2:
@@ -154,7 +163,7 @@ static func apply_climate_effects(tile: FarmTile, crop_data: Dictionary, pos: Ve
 		WeatherManager.Climate.EL_NINO:
 			var covered_by_sprinkler: bool = (pos != Vector2i(-1, -1) and BuildingManager.is_tile_covered_by_sprinkler(pos))
 			if not covered_by_sprinkler:
-				tile.soil_moisture = maxf(tile.soil_moisture - 15.0, 0.0)
+				tile.soil_moisture = maxf(tile.soil_moisture - 15.0 * float(r_mods.get("evap_mult", 1.0)), 0.0)
 			else:
 				tile.days_without_water = 0
 				tile.health = minf(tile.health + 0.05, 1.0)
@@ -163,14 +172,15 @@ static func apply_climate_effects(tile: FarmTile, crop_data: Dictionary, pos: Ve
 			var heat_resilient: bool = (tile.crop_type == "yellow_corn" and wm.temperature <= 45.0) or (tile.crop_type == "pineapple" and wm.temperature <= 40.0)
 			if tile.soil_moisture < water_min and not heat_resilient and not covered_by_sprinkler:
 				tile.days_without_water += 1
-				tile.health = maxf(tile.health - 0.15, 0.0)
+				var drought_dmg: float = 0.15 * float(r_mods.get("drought_damage_mult", 1.0))
+				tile.health = maxf(tile.health - drought_dmg, 0.0)
 				if tile.health < 0.4:
 					tile.quality = FarmTile.QualityGrade.C
 				elif tile.health < 0.7:
 					tile.quality = FarmTile.QualityGrade.B
 
 		WeatherManager.Climate.LA_NINA:
-			tile.soil_moisture = minf(tile.soil_moisture + 15.0, 100.0)
+			tile.soil_moisture = minf(tile.soil_moisture + 15.0 * float(r_mods.get("rain_gain_mult", 1.0)), 100.0)
 			if tile.soil_moisture > water_max:
 				tile.days_overwatered += 1
 				# Waterlogging stress reduces health gradually over days, not instantly
@@ -234,6 +244,11 @@ static func calculate_harvest(tile: FarmTile) -> Dictionary:
 	else:
 		final_yield = tile.yield_quantity
 		quality = determine_quality(tile)
+
+	# Apply regional specialty harvest yield bonus (e.g. +15% in native provinces)
+	if Data.is_regional_specialty_crop(tile.crop_type, Data.current_region):
+		var spec_yield: float = float(Data.get_region_modifiers(Data.current_region).get("specialty_yield_mult", 1.0))
+		final_yield = maxi(1, int(round(float(final_yield) * spec_yield)))
 
 	return {
 		"yield": final_yield,

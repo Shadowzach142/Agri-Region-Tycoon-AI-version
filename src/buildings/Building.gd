@@ -915,15 +915,21 @@ func update_storage_display() -> void:
 
 	queue_redraw()
 
-func _process(delta: float) -> void:
-	if building_type in ["drone_station", "weather_station", "water_tower", "machine_garage", "sprinkler", "rice_mill", "sugar_mill", "copra_dryer", "coffee_roastery"] and state == BuildingState.ACTIVE:
-		queue_redraw()
+var _anim_redraw_accum: float = 0.0
+const ANIM_REDRAW_INTERVAL: float = 0.08
 
+func _process(delta: float) -> void:
 	var speed_scale: float = TimeManager.get_speed_scale()
+	if speed_scale > 0.0 and is_visible_in_tree() and state == BuildingState.ACTIVE:
+		if building_type in ["drone_station", "weather_station", "water_tower", "machine_garage", "sprinkler", "rice_mill", "sugar_mill", "copra_dryer", "coffee_roastery"]:
+			_anim_redraw_accum += delta
+			if _anim_redraw_accum >= ANIM_REDRAW_INTERVAL:
+				_anim_redraw_accum = 0.0
+				queue_redraw()
 	if speed_scale <= 0.0:
 		return
 
-	var dt: float = delta * speed_scale
+	var dt: float = delta * speed_scale * maxf(0.1, float(Data.custom_build_speed_multiplier))
 
 	if state == BuildingState.CONSTRUCTING:
 		progress_timer += dt
@@ -1038,7 +1044,7 @@ func demolish() -> void:
 		AudioManager.unregister_active_construction()
 	AudioManager.play_building("demolish")
 	var b_data := Data.get_building(building_type)
-	var base_cost: int = int(b_data.get("cost", 200))
+	var base_cost: int = Data.get_effective_building_cost(building_type)
 	var refund: int = int(base_cost * 0.5 * level)
 	EconomyManager.add_cash(refund, false)
 	var b_name: String = str(b_data.get("name", building_type.capitalize()))

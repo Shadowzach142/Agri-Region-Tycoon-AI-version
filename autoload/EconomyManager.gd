@@ -10,6 +10,14 @@ var cash: int = 250  # Starting cash
 func _ready() -> void:
 	cash_changed.emit(cash)
 
+func set_cash(amount: int) -> void:
+	cash = maxi(0, amount)
+	cash_changed.emit(cash)
+
+func reset_for_new_session(starting_cash: int = 1500) -> void:
+	cash = maxi(0, starting_cash)
+	cash_changed.emit(cash)
+
 func add_cash(amount: int, play_sound: bool = true) -> void:
 	cash += amount
 	if play_sound and amount > 0:

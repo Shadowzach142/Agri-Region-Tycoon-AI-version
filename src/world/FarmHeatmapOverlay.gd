@@ -24,6 +24,8 @@ var current_mode: int = HeatmapMode.UNIFIED
 var alpha: float = 0.0
 var _pulse_phase: float = 0.0
 var _tween: Tween = null
+var _redraw_accum: float = 0.0
+const PULSE_REDRAW_INTERVAL: float = 0.065
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -37,7 +39,10 @@ func _process(delta: float) -> void:
 	if not is_active and alpha <= 0.0:
 		return
 	_pulse_phase += delta * 3.5
-	queue_redraw()
+	_redraw_accum += delta
+	if _redraw_accum >= PULSE_REDRAW_INTERVAL:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 func _get_iso_pt(gx: float, gy: float) -> Vector2:
 	return Vector2(

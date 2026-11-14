@@ -44,7 +44,8 @@ func _process(delta: float) -> void:
 		var amb: Color = TimeManager.get_ambient_color()
 		if WeatherManager.incoming_disaster == "flash_flood" or WeatherManager.active_disaster == "flash_flood":
 			amb = amb.lerp(Color(0.25, 0.32, 0.42), 0.40)
-		_canvas_modulate.color = amb
+		if not _canvas_modulate.color.is_equal_approx(amb):
+			_canvas_modulate.color = amb
 
 	# 2. Subtle heatwave pulsing during drought
 	if _is_drought_active and _sky_tint:

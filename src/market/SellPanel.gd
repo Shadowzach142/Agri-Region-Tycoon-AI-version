@@ -519,23 +519,25 @@ func _refresh_view() -> void:
 			continue
 
 		btn.disabled = false
+		var logi: Dictionary = MarketManager._get_hub_logistics(h_key)
 		var km: int = int(h_dict.get("distance_km", 0))
-		var base_fuel: int = int(h_dict.get("fuel_cost", 0))
-		var actual_fuel: int = base_fuel + (25 if is_night and h_key != "local_biyahero" else 0)
+		var actual_fuel: int = int(logi.get("fuel_cost", 0))
+		var night_fee: int = int(logi.get("night_fee", 0))
+		var road_rot: float = float(logi.get("road_rot", 0.0))
 
-		# Distance, fuel, and rate perk tag
+		# Distance, fuel, rot, and rate perk tag
 		var fuel_tag := "₱%d Fuel" % actual_fuel if actual_fuel > 0 else "Free Fuel"
-		if is_night and h_key != "local_biyahero":
-			fuel_tag += " (+₱25 🌙)"
+		if night_fee > 0:
+			fuel_tag += " (🌙)"
 		
 		var rate_tag := ""
 		if h_key == "local_biyahero":
 			var rate_pct: int = int(round(float(h_dict.get("price_multiplier", 0.72)) * 100.0))
-			rate_tag = "%d%% Instant Rate" % rate_pct
+			rate_tag = "%d%% Rate • 0%% Rot" % rate_pct
 		else:
 			var mult: float = float(h_dict.get("price_multiplier", 1.0))
 			var boost_tag: String = " ⭐" if h_dict.get("boosted", false) else ""
-			rate_tag = "%.2fx Rate%s" % [mult, boost_tag]
+			rate_tag = "%.2fx%s • %.0f%% Rot" % [mult, boost_tag, road_rot]
 
 		dist_fuel_lbl.text = "%d km  •  %s  •  %s" % [km, fuel_tag, rate_tag]
 		sel_badge.text = "✔ Selected" if is_sel else ""

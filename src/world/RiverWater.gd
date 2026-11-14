@@ -7,6 +7,8 @@ class_name RiverWater
 extends Node2D
 
 var _river_textures: Array[Texture2D] = []
+var _redraw_accum: float = 0.0
+const WATER_REDRAW_INTERVAL: float = 0.085
 
 func _init() -> void:
 	z_index = -40
@@ -22,8 +24,13 @@ func _load_textures() -> void:
 			if tex:
 				_river_textures.append(tex)
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return
+	_redraw_accum += delta
+	if _redraw_accum >= WATER_REDRAW_INTERVAL:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 func _draw() -> void:
 	var t: float = float(Time.get_ticks_msec()) * 0.001

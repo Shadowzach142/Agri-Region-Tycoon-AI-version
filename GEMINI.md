@@ -1,6 +1,6 @@
 # Agri-Region Tycoon — AI Context File
 > **Purpose**: This file is the SINGLE SOURCE OF TRUTH for any AI session. Read this first and **do NOT individually re-read files** unless you need a specific line number. Update this file at the end of every session
-> **Last Updated**: 2026-11-08 (Session 155 — Fixed Stretched Bodega Sales Desk UI (`ScrollContainer` crop selector & fixed `820×480` size in `SellPanel.gd`), Bulk Auto-AI Commodity Selling (`sell_all_of_crop()` across all 4 hubs so storage never hits full capacity), & Full Building/Decoration Construction in `AutoBoothController.gd` (`tacurong_mill`, `koronadal_wholesale`, `gensan_seaport`, all Lv.3 mills/storage, Barrio Fiesta Plaza, Basketball Court, Stalls, and Flora Gardens))
+> **Last Updated**: 2026-11-13 (Session 160 — Performance Optimization & Competitive Smart Multiplayer AI: eliminated per-frame recursive `find_child` lookups across `TimeManager`, `WeatherManager`, `GameCamera`, `DragSelectOverlay`, `FarmGrid`, `HUD`, and `MultiplayerManager`; throttled 60 FPS canvas redraws & cached static geometry across `SeaWater`, `RiverWater`, `RegionalStreamOverlay`, `OutOfBoundsFogOfWar`, `FarmHeatmapOverlay`, `Building`, `Farmer`, `FarmDrone`, `WeatherEffects`, and `MultiplayerSpectateView`; pooled `MultiplayerLeaderboardHUD` rows and stripped heavy 1,024-tile deep copies from `get_sorted_standings()` (`8.46 ms` for 500 calls); upgraded `MultiplayerManager` AI rivals (`Easy`/`Normal`/`Hard`) into full competitive tycoons with dynamic market-driven ROI crop/license selection, `2×2` perennial groves, workforce housing expansion, halfway `drone_station` + `drone_pad` drone fleets synced into spectate snapshots, irrigation, weather stations, cold storage, land parcel expansions, agro-industrial mills, and profit-maximizing multi-hub sales)
 
 ---
 
@@ -36,7 +36,9 @@ agri-region-ai-version/
 │   ├── MarketManager.gd                   ← stored_inventory, add_harvest_to_storage(), sell_batch()
 │   ├── BuildingManager.gd                 ← placed_buildings, register_building(), has_tech(), has_cold_storage()
 │   ├── LogManager.gd                      ← log_event(category, msg, icon, color, details?)
-│   └── LeaderboardManager.gd              ← End-game PvE points, rival rankings, streaks, Hall of Fame
+│   ├── LeaderboardManager.gd              ← End-game PvE points, rival rankings, streaks, Hall of Fame
+│   ├── SaveManager.gd                     ← 5-slot persistent farm save/load
+│   └── MultiplayerManager.gd              ← High-level ENet LAN host/join, 5-region slots, unique farmer colors, snapshots, AI rivals, spectating
 ├── scenes/
 │   ├── MainMenu.tscn / MainMenu.gd
 │   ├── MainGame.tscn                      ← Root scene (see §4 for full hierarchy)
@@ -87,7 +89,10 @@ agri-region-ai-version/
 │   │   ├── AutoBoothController.gd         ← class_name AutoBoothController (Endless self-playing booth/kiosk AI mode that pauses on player input and resumes after 60s idle)
 │   │   ├── WeatherAppModal.gd             ← Dedicated Weather App & PAGASA forecast telemetry dashboard
 │   │   ├── HeatmapLegendBar.gd            ← class_name HeatmapLegendBar (Interactive Diagnostic Heatmap HUD Control Bar & Live Hover Telemetry)
-│   │   └── PauseMenu.gd                   ← ESC pause overlay (spawned dynamically)
+│   │   ├── MultiplayerLobbyModal.gd       ← ENet LAN Host/Join lobby, 5 Region teams, unique Farmer colors, custom days, Leaderboard ON/OFF
+│   │   ├── MultiplayerLeaderboardHUD.gd   ← Toggleable live standings HUD ([O] / button hide) + click rival to spectate
+│   │   ├── MultiplayerSpectateView.gd     ← Live isometric rival farm + animated colored farmers renderer
+│   │   └── PauseMenu.gd                   ← ESC pause overlay (live match menu without tree pause in MP)
 │   └── market/                            ← Economy & trade UI
 │       ├── MarketChart.gd                 ← 7-day stock line chart custom Control
 │       ├── MarketPanel.gd                 ← Regional commodity market dashboard (all 7 crops)
@@ -156,9 +161,10 @@ signal period_changed(period_name: String, is_night: bool)
 signal season_ended(target_days: int, final_score: int)
 
 var is_freeplay_mode: bool = false
-const DAY_SECONDS: float = 180.0  # 3 minutes per 24-hr day at 1x (7.5s per in-game hour)
+const DAY_SECONDS: float = 96.0  # 1.6 real minutes per 24-hr day at 1x (4.0s per in-game hour)
+const MULTIPLAYER_SPEED_SCALE: float = 1.0  # Calm shared 1.0x RTS clock (pause & 1x-3x disabled)
 const STARTING_HOUR: int = 7     # 07:00 AM bright morning daylight
-func get_speed_scale() -> float  # 0 = paused, 1x/2x/3x
+func get_speed_scale() -> float  # 0 = paused, 1x/2x/3x (locked to 1.0x in MP)
 func get_ambient_color() -> Color
 func is_night() -> bool
 func is_dusk() -> bool
@@ -214,7 +220,7 @@ signal tech_unlocked(tech_id: String)
 signal sprinklers_updated(active_count: int, capacity: int)
 
 var placed_buildings: Array = []
-var total_storage_capacity: int = 200
+var total_storage_capacity: int = 350
 var worker_capacity: int = 1
 
 func register_building(building: Node) -> void
@@ -232,7 +238,8 @@ func can_place_sprinkler() -> bool
 func get_sprinkler_radius() -> int                 # 1 = 3x3 diamond (Lv.1), 2 = 5x5 diamond (Lv.2+)
 func is_tile_covered_by_sprinkler(pos: Vector2i) -> bool
 func get_covering_sprinkler(pos: Vector2i) -> Node
-func get_worker_speed_multiplier() -> float        # 1.0 baseline, 1.8x kuliglig, 3.5x combine
+func get_worker_speed_multiplier() -> float        # 1.0 baseline, 1.8x kuliglig, 3.5x combine (scaled by region worker_speed_mult)
+func get_build_duration_scale() -> float           # regional build_speed_mult scaling
 func get_biyahero_price_bonus() -> float           # 0.08 if bayanihan_center owned, else 0.0
 func is_hub_unlocked(hub_id: String) -> bool       # checks requires_building requirement against placed_buildings
 func has_heatmap() -> bool                         # checks has_tech("field_survey_kit")
@@ -242,16 +249,26 @@ func has_heatmap() -> bool                         # checks has_tech("field_surv
 ```gdscript
 signal inventory_changed()
 signal price_updated(crop: String, price: float)
+signal market_region_updated(region_id: String, crop: String, price: float)
 signal sale_completed(crop: String, revenue: int, net_profit: int, hub_name: String, rot_loss: float)
 
 var stored_inventory: Array = []  # [{id, crop, quantity, grade, freshness, is_cold_storage}]
 var price_history: Dictionary = {} # crop -> Array[float] of last 7 daily prices
+var region_markets: Dictionary = {} # per-region supply, demand, and 7-day price_history across all 5 provinces
 
+func set_active_region(region_id: String) -> void
+func export_all_markets() -> Dictionary
+func import_all_markets(payload: Dictionary) -> void
 func add_harvest_to_storage(crop: String, quantity: int, grade: String, freshness: float) -> void
 func process_hourly_spoilage() -> void
 func get_benchmark_price(crop: String) -> float
+func get_benchmark_price_for_region(crop_name: String, region_id: String) -> float
 func get_price_history(crop: String) -> Array
 func get_price_change(crop: String) -> Dictionary # { current, previous, diff, percent, is_up }
+func get_seed_buy_price(crop_name: String, region_id: String = "") -> int
+func get_commodity_buy_price(crop_name: String, region_id: String = "") -> float
+func buy_commodity(crop_name: String, quantity: int, region_id: String = "") -> Dictionary
+func apply_market_trade(region_id: String, crop_name: String, delta_supply: float, delta_demand: float, broadcast: bool = true) -> void
 func get_stored_units_for_crop(crop: String) -> int
 func sell_stored_batch(batch_index: int, hub_id: String) -> bool
 ```
@@ -335,17 +352,17 @@ func apply_pending_save(farm_grid: Node) -> void
 ### Crops (Data.CROPS) — Rebalanced Agronomy & Multi-Tile Systems
 | Key | Display | Footprint | Type | Growth | Regrowth | Moisture | Seed Cost | Base Price | Yield | Harvest Speed |
 |-----|---------|-----------|------|--------|----------|----------|-----------|------------|-------|---------------|
-| `palay` | Palay (Rice) | 1×1 | Annual | 15d | — | 70–90% | ₱25 | ₱100 | 100 | 1.0s |
-| `yellow_corn` | Yellow Corn | 1×1 | Annual | 25d | — | 30–60% | ₱30 | ₱120 | 100 | 1.1s |
-| `sugarcane` | Sugar Cane | 1×1 | Annual | 28d | — | 50–80% | ₱30 | ₱95 | 120 | 1.4s |
-| `pineapple` | Smooth Cayenne Pineapple | 1×1 | Annual | 35d | — | 35–65% | ₱40 | ₱160 | 100 | 1.3s |
-| `arabica_coffee` | Arabica Coffee | 1×1 | Perennial | 40d | 14d | 35–70% | ₱50 | ₱200 | 100 | 1.3s |
-| `banana` | Cavendish Banana | 2×2 | Perennial | 50d | 18d | 55–85% | ₱140 (₱35×4) | ₱90 | 400 | 2.2s |
-| `coconut` | Tall Coconut Palm | 2×2 | Perennial | 50d | 16d | 40–75% | ₱160 (₱40×4) | ₱80 | 400 | 2.4s |
+| `palay` | Palay (Rice) | 1×1 | Annual | 4d | — | 70–90% | ₱35 | ₱10 | 50 | 1.0s |
+| `yellow_corn` | Yellow Corn | 1×1 | Annual | 5d | — | 30–60% | ₱45 | ₱14 | 50 | 1.1s |
+| `sugarcane` | Sugar Cane | 1×1 | Annual | 6d | — | 50–80% | ₱50 | ₱16 | 60 | 1.4s |
+| `pineapple` | Smooth Cayenne Pineapple | 1×1 | Annual | 7d | — | 35–65% | ₱70 | ₱25 | 50 | 1.3s |
+| `arabica_coffee` | Arabica Coffee | 1×1 | Perennial | 8d | 3d | 35–70% | ₱110 | ₱30 | 45 | 1.3s |
+| `banana` | Cavendish Banana | 2×2 | Perennial | 9d | 3d | 55–85% | ₱240 (₱60×4) | ₱23 | 200 | 2.2s |
+| `coconut` | Tall Coconut Palm | 2×2 | Perennial | 10d | 4d | 40–75% | ₱260 (₱65×4) | ₱22 | 200 | 2.4s |
 
 **Perennial Agronomy**: Harvesting annual crops (`palay`, `yellow_corn`, `sugarcane`, `pineapple`) resets the tile to `EMPTY`. Harvesting perennial plants (`arabica_coffee`, `banana`, `coconut`) leaves the plant standing in `GROWING` state at `1.0 - (regrowth_days / growth_days)` progress without requiring seed re-purchase or re-planting.
 
-**2×2 Multi-Tile Crops**: Coconut Palm occupies a 2×2 diamond (4 plots). The root plot `(x, y)` manages state, agronomy, and visuals, syncing to child plots `(x+1, y)`, `(x, y+1)`, `(x+1, y+1)`. Harvesting any plot in the grove harvests the entire grove and deposits 400 units into storage.
+**2×2 Multi-Tile Crops**: Coconut Palm and Cavendish Banana occupy a 2×2 diamond (4 plots). The root plot `(x, y)` manages state, agronomy, and visuals, syncing to child plots `(x+1, y)`, `(x, y+1)`, `(x+1, y+1)`. Harvesting any plot in the grove harvests the entire grove and deposits 200 units into storage (fits comfortably in the rebalanced `350`-unit starter Bodega).
 
 ### Crop Stage Sprites & Withering System (`assets/sprites/Field/Crops/`)
 Pixel-art sprite sequences for all 7 crops rendered in 2.5D isometric perspective (scaled 4× with nearest-neighbor filtering, soft drop shadows, and automatic baseline alignment to the tile diamond):
@@ -2011,3 +2028,18 @@ $$\text{Total Points} = \text{Base Points} \times \text{Grade Mult} \times \text
     - Created `class_name AutoBoothController extends CanvasLayer` (`src/ui/AutoBoothController.gd`):
       - **Autonomous Farm AI (`_run_ai_tick`)**: Automatically plows an 8×8 field block `(3..10, 3..10)`, plants rotating unlocked regional crops, waters thirsty crops, treats pests, harvests ripe crops, sells stored Bodega batches at the best unlocked market hub, hires additional workers when cash permits, and smoothly pans the camera between active farmers and crop fields.
       - **Instant Player Takeover & 60-Second Idle Resume (`_input`, `_process`)**: Immediately stops auto-playing and switches to 1× speed the instant any mouse movement, click, key press, or touch is detected so booth visitors can play seamlessly. Automatically resumes playing by itself after **60 seconds (1 minute)** of inactivity (or immediately via the top-banner **`🤖 Auto Now`** button).
+- **Session 160 (2026-11-13)**:
+  - **Game-Wide Frame Time & UI Optimization Pass**:
+    - **Eliminated Per-Frame Scene-Tree Scans**: Cached `FarmGrid`, HUD clusters, and modal references in `autoload/TimeManager.gd`, `autoload/WeatherManager.gd`, `autoload/MultiplayerManager.gd`, `src/world/GameCamera.gd`, `src/world/DragSelectOverlay.gd`, `src/core/FarmGrid.gd`, and `src/ui/HUD.gd`; throttled `FarmGrid._update_foliage_occlusion()` spatial scans to `OCCLUSION_SCAN_INTERVAL = 0.05` (20 Hz).
+    - **Throttled 60 FPS Canvas Redraws & Split Static Geometry**:
+      - Split `src/world/OutOfBoundsFogOfWar.gd` static Gouraud border quads onto a `StaticBorderFog` child drawn once, leaving drifting mist puffs throttled at `MIST_REDRAW_INTERVAL = 0.085`.
+      - Throttled redraws with `is_visible_in_tree()` guards across `src/world/SeaWater.gd` (`_shelf_polygon` cached per region, `0.085s`), `src/world/RiverWater.gd`, `src/world/RegionalStreamOverlay.gd`, `src/world/FarmHeatmapOverlay.gd` (`PULSE_REDRAW_INTERVAL = 0.065`), `src/buildings/Building.gd` (`ANIM_REDRAW_INTERVAL = 0.08`), and `src/drone/FarmDrone.gd` (`0.045s` drone / `0.065s` zone overlay).
+      - Removed redundant per-frame `queue_redraw()` from `src/farmer/Farmer.gd` `_process()` and guarded `src/world/WeatherEffects.gd` `_canvas_modulate.color` writes with `is_equal_approx()`.
+    - **Multiplayer UI & Snapshot Optimization (`MultiplayerManager.gd`, `MultiplayerLeaderboardHUD.gd`, `MultiplayerSpectateView.gd`)**:
+      - Pooled row `Button`/`Label`/`StyleBoxFlat` nodes in `MultiplayerLeaderboardHUD.gd` (`_row_pool`, `_style_cache`, `_last_standings_sig` diffing) and eliminated `duplicate(true)` copies of 1,024-tile snapshot arrays in `MultiplayerManager.get_sorted_standings()`.
+      - Added `_last_ground_sig` ground-tile diffing and `0.04s` object redraw throttling in `MultiplayerSpectateView.gd`, plus hovering animated `drones` rendering.
+  - **Competitive Smart Multiplayer AI (`autoload/MultiplayerManager.gd`)**:
+    - Upgraded `Easy` / `Normal` / `Hard` bot rivals in `_init_ai_sim()`, `_ai_score_crop()`, `_ai_pick_best_license()`, `_ai_process_buildings_and_expansion()`, `_ai_try_unlock_parcel()`, `_ai_run_industrial_processing()`, `_ai_evaluate_and_sell()`, `_ai_tick_drones()`, and `_tick_ai_rivals()` to compete dynamically using live `MarketManager` regional prices, crop ROI/day, regional Pros/Cons, climate/disaster mitigation, unlocked crop licenses & `2×2` perennial groves, workforce housing + extra hiring (via dual `bahay_kubo` up to 5 workers), `solar_dryer`, `water_tower` + `sprinkler`s, `weather_station`, halfway `drone_station` + `drone_pad` fleets (exported in `"drones"` snapshot array), `cold_storage`, parcel expansions (`east_meadows` via `Data.get_parcels`), trade hub progression (`bayanihan_center`, `tacurong_mill`, `koronadal_wholesale`, `gensan_seaport`), and regional agro-industrial mills (`rice_mill`, `sugar_mill`, `copra_dryer`, `coffee_roastery`).
+  - **Automated Verification**:
+    - `verify_perf_and_smart_ai.gd` (30-day multi-AI simulation + perf benchmarks): passed with exit code `0` (`500 x get_sorted_standings() across 5x1024-tile snapshots: 8.46 ms`, Hard & Normal AI deployed Drones by Day 15, Hard/Normal significantly outscored Easy, pooled UI buttons reused in-place).
+    - Headless `--quit` smoke tests across `MainMenu.tscn`, `MainGame.tscn`, all 5 regional `MainGame_*.tscn` scenes, and `-- --test-menu`: exited cleanly with code `0` and zero script errors.

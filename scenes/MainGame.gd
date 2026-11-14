@@ -12,6 +12,8 @@ const BACKLOG_PANEL_SCRIPT: String = "res://src/ui/BacklogPanel.gd"
 const LEADERBOARD_PANEL_SCRIPT: String = "res://src/ui/LeaderboardPanel.gd"
 const TUTORIAL_OVERLAY_SCRIPT: String = "res://src/ui/TutorialOverlay.gd"
 const AUTO_BOOTH_SCRIPT: String = "res://src/ui/AutoBoothController.gd"
+const MP_LEADERBOARD_HUD_SCRIPT: String = "res://src/ui/MultiplayerLeaderboardHUD.gd"
+const MP_SPECTATE_VIEW_SCRIPT: String = "res://src/ui/MultiplayerSpectateView.gd"
 
 var _admin_panel: Node = null
 var _pause_menu: CanvasLayer = null
@@ -32,6 +34,41 @@ func _ready() -> void:
 			spawn_tutorial_overlay()
 		if data_mgr.get("is_auto_mode") == true:
 			spawn_auto_booth_controller()
+		if data_mgr.get("is_multiplayer_match") == true:
+			_announce_multiplayer_match()
+
+func _announce_multiplayer_match() -> void:
+	var data_mgr = get_node_or_null("/root/Data")
+	var log_mgr = get_node_or_null("/root/LogManager")
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	var t_num: int = int(data_mgr.get("multiplayer_team")) if data_mgr else 1
+	var reg_key: String = str(data_mgr.get("current_region")) if data_mgr else "cotabato"
+	var reg_data: Dictionary = Data.get_region(reg_key)
+	var reg_short: String = str(reg_data.get("display_name", reg_key.capitalize())).split("(")[0].strip_edges()
+
+	var color_idx: int = posmod(int(data_mgr.get("multiplayer_player_color_idx")), mp.FARMER_COLORS.size()) if (data_mgr and mp) else 0
+	var t_col: Color = mp.FARMER_COLORS[color_idx] if mp else Color(0.40, 0.75, 1.0)
+	var c_name: String = mp.FARMER_COLOR_NAMES[color_idx] if mp else "Blue"
+	var lb_on: bool = bool(data_mgr.get("multiplayer_leaderboard_enabled")) if data_mgr else true
+
+	# Always spawn spectate view (used when clicking rivals in the live leaderboard)
+	var sv_script = load(MP_SPECTATE_VIEW_SCRIPT)
+	if sv_script:
+		var sv = sv_script.new()
+		add_child(sv)
+
+	# Spawn toggleable live leaderboard only when enabled in lobby config (otherwise Surprise Mode)
+	if lb_on:
+		var lb_script = load(MP_LEADERBOARD_HUD_SCRIPT)
+		if lb_script:
+			var lb = lb_script.new()
+			add_child(lb)
+
+	if log_mgr and log_mgr.has_method("log_event"):
+		var mode_note := "Live Leaderboard ON (press [O] or click header to hide/spectate)" if lb_on else "Surprise Mode (Live Leaderboard OFF)"
+		log_mgr.log_event("multiplayer", "LAN RTS: Team %d (%s) • %s Farmers • %d Days • %s" % [
+			t_num, reg_short, c_name, int(data_mgr.get("selected_season_days")), mode_note
+		], "⚔️", t_col)
 
 func spawn_tutorial_overlay() -> void:
 	if _tutorial_overlay and is_instance_valid(_tutorial_overlay):

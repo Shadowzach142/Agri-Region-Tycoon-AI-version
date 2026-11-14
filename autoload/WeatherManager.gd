@@ -18,6 +18,7 @@ var rainfall_mm: float = 5.0   # Daily rainfall in mm
 var rain_chance: float = 0.20  # Precipitation probability for today (0.0 to 1.0)
 var condition: String = "partly_cloudy"
 var condition_title: String = "Partly Cloudy & Fair"
+var _cached_farm_grid: Node = null
 
 func _get_time_mgr() -> Node:
 	if is_inside_tree():
@@ -91,7 +92,27 @@ func _ready() -> void:
 	if bm and bm.has_signal("weather_station_updated"):
 		bm.weather_station_updated.connect(func(_lvl): _generate_forecast())
 
+func reset_for_new_session() -> void:
+	current_climate = Climate.NORMAL
+	incoming_disaster = ""
+	disaster_countdown = 0.0
+	active_disaster = ""
+	disaster_duration = 0.0
+	init_fresh_queue(1)
+	_generate_forecast()
+	weather_changed.emit(temperature, humidity)
+
+func _has_active_farm_grid() -> bool:
+	if is_instance_valid(_cached_farm_grid) and _cached_farm_grid.is_inside_tree():
+		return true
+	if is_inside_tree() and get_tree() != null and get_tree().root != null:
+		_cached_farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+		return is_instance_valid(_cached_farm_grid) and _cached_farm_grid.is_inside_tree()
+	return false
+
 func _process(delta: float) -> void:
+	if not _has_active_farm_grid():
+		return
 	var tm := _get_time_mgr()
 	var scale: float = tm.get_speed_scale() if tm and tm.has_method("get_speed_scale") else 1.0
 	if scale <= 0.0:
@@ -179,9 +200,11 @@ func _generate_upcoming_day(target_day: int) -> Dictionary:
 	var cur_reg: String = dm.current_region if dm and "current_region" in dm else "cotabato"
 	var region_data: Dictionary = dm.get_region(cur_reg) if dm and dm.has_method("get_region") else {}
 	var hazards: Dictionary = region_data.get("hazards", {})
-	var flood_p: float = hazards.get("flash_flood", 0.10)
-	var drought_p: float = hazards.get("el_nino_drought", 0.08)
-	var slide_p: float = hazards.get("landslide", 0.03)
+	var intensity: String = str(dm.get("custom_weather_intensity")) if dm and "custom_weather_intensity" in dm else "normal"
+	var hazard_scale: float = 0.25 if intensity == "calm" else (2.2 if intensity == "extreme" else 1.0)
+	var flood_p: float = clampf(float(hazards.get("flash_flood", 0.10)) * hazard_scale, 0.01, 0.65)
+	var drought_p: float = clampf(float(hazards.get("el_nino_drought", 0.08)) * hazard_scale, 0.01, 0.65)
+	var slide_p: float = clampf(float(hazards.get("landslide", 0.03)) * hazard_scale, 0.01, 0.50)
 
 	# Transition synoptic weather front when previous front completes
 	if _front_remaining_days <= 0:
@@ -277,6 +300,9 @@ func _generate_upcoming_day(target_day: int) -> Dictionary:
 				temp = randf_range(26.0, 29.5)
 				hum = randf_range(0.65, 0.80)
 				cond = "showers"
+
+	var r_mods: Dictionary = Data.get_region_modifiers(Data.current_region)
+	temp = clampf(temp + float(r_mods.get("temp_offset_c", 0.0)), 18.0, 44.0)
 
 	var title_str: String = get_condition_title(clim, haz, rain, chance)
 

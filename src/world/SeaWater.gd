@@ -20,6 +20,10 @@ const GRID_HEIGHT: float = 32.0
 
 var _ocean_polygon: PackedVector2Array = []
 var _coast_line: PackedVector2Array = []
+var _shelf_polygon: PackedVector2Array = []
+var _cached_shelf_reg: String = ""
+var _redraw_accum: float = 0.0
+const WATER_REDRAW_INTERVAL: float = 0.085
 
 var _water_light_textures: Array[Texture2D] = []
 var _water_dark_textures: Array[Texture2D] = []
@@ -97,8 +101,13 @@ func _get_iso_pt(gx: float, gy: float) -> Vector2:
 		FarmerMovement.ORIGIN_OFFSET.y + (gx + gy + 1.0) * FarmerMovement.HALF_H
 	)
 
-func _process(_delta: float) -> void:
-	queue_redraw()
+func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return
+	_redraw_accum += delta
+	if _redraw_accum >= WATER_REDRAW_INTERVAL:
+		_redraw_accum = 0.0
+		queue_redraw()
 
 func _draw() -> void:
 	if _ocean_polygon.size() < 4:
@@ -142,14 +151,16 @@ func _draw() -> void:
 	# 1. Base deep water bedrock floor
 	draw_colored_polygon(_ocean_polygon, col_deep)
 
-	# 2. Shallow shoreline shelf
-	var shelf_polygon := PackedVector2Array([
-		_get_iso_pt(COAST_X, -3.0),
-		_get_iso_pt(COAST_X + shelf_width, -3.0),
-		_get_iso_pt(COAST_X + shelf_width, GRID_HEIGHT + 3.0),
-		_get_iso_pt(COAST_X, GRID_HEIGHT + 3.0)
-	])
-	draw_colored_polygon(shelf_polygon, col_shelf)
+	# 2. Shallow shoreline shelf (cached per region)
+	if _cached_shelf_reg != reg or _shelf_polygon.is_empty():
+		_cached_shelf_reg = reg
+		_shelf_polygon = PackedVector2Array([
+			_get_iso_pt(COAST_X, -3.0),
+			_get_iso_pt(COAST_X + shelf_width, -3.0),
+			_get_iso_pt(COAST_X + shelf_width, GRID_HEIGHT + 3.0),
+			_get_iso_pt(COAST_X, GRID_HEIGHT + 3.0)
+		])
+	draw_colored_polygon(_shelf_polygon, col_shelf)
 
 	# 3. Animated Isometric Water Surface Grid
 	var min_gy: int = -2

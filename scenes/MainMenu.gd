@@ -129,6 +129,16 @@ const MODE_EXPLANATIONS: Dictionary = {
 			"Automatically resumes playing by itself after 1 minute (60 seconds) of inactivity when left unattended."
 		],
 		"tip": "👉 Click to launch Endless Auto-Play Booth Mode"
+	},
+	"multiplayer": {
+		"title": "⚔️ MULTIPLAYER LOBBY",
+		"tagline": "[ ONLINE & LAN MATCHES • TEAMS & ENEMIES • 1-CLICK SWAP ]",
+		"sentences": [
+			"Join or host competitive LAN/Online matches across all 5 Mindanao regions with live peer-to-peer networking.",
+			"Form agro-cooperatives or declare war against rival farming syndicates: switch between Allies and Enemies with a single click!",
+			"Fill empty slots with customizable AI tycoon bots, configure custom harvest battle rules, and chat in the live lobby."
+		],
+		"tip": "👉 Click to open the Multiplayer Teams & Enemies Lobby"
 	}
 }
 
@@ -168,6 +178,7 @@ var _mode_leaderboard_btn: Button = null
 var _mode_trailer_btn: Button = null
 var _mode_tutorial_btn: Button = null
 var _mode_auto_btn: Button = null
+var _mode_multiplayer_btn: Button = null
 
 # StartMenu Textures & Styles Cache
 var tex_game_logo: Texture2D = null
@@ -339,6 +350,9 @@ var _region_season_box: Control = null
 var _transition_tween: Tween = null
 
 func _ready() -> void:
+	# Ensure all simulation timers are paused and previous run states are cleared while on the Main Menu
+	Data.reset_all_session_state(0.0)
+
 	if location_map:
 		location_map.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
@@ -423,6 +437,7 @@ func _ready() -> void:
 
 		assert(_mode_trailer_btn != null, "Watch Trailer button must exist on MainMenu")
 		assert(_mode_tutorial_btn != null, "Play Tutorial button must exist on MainMenu")
+		assert(_mode_multiplayer_btn != null, "Multiplayer Lobby button must exist on MainMenu")
 		assert(tex_game_logo != null, "Official game_logo.png texture must load on MainMenu")
 		assert(_start_screen_logo != null and _start_screen_logo.texture != null, "Right-side game logo must exist on starting screen")
 		assert(_start_screen_logo.position.x >= 400.0, "Starting screen logo must be positioned on the right side")
@@ -853,6 +868,16 @@ func _build_mode_select_view() -> void:
 			_start_auto_mode()
 		)
 
+	_mode_multiplayer_btn = find_child("ModeMultiplayerBtn", true, false) as Button
+	if _mode_multiplayer_btn:
+		_mode_multiplayer_btn.tooltip_text = " ".join(MODE_EXPLANATIONS["multiplayer"]["sentences"])
+		_mode_multiplayer_btn.mouse_entered.connect(func(): _on_mode_button_hovered("multiplayer", _mode_multiplayer_btn))
+		_mode_multiplayer_btn.mouse_exited.connect(func(): _on_mode_button_unhovered("multiplayer"))
+		_mode_multiplayer_btn.pressed.connect(func():
+			_hide_mode_hover_card_immediate()
+			_open_multiplayer_lobby()
+		)
+
 	var s30 = find_child("Season30Btn", true, false) as Button
 	var s60 = find_child("Season60Btn", true, false) as Button
 	var s90 = find_child("Season90Btn", true, false) as Button
@@ -1229,6 +1254,12 @@ func _open_trailer_modal() -> void:
 		var tr = tr_cls.new()
 		add_child(tr)
 
+func _open_multiplayer_lobby() -> void:
+	var lobby_cls = load("res://src/ui/MultiplayerLobbyModal.gd")
+	if lobby_cls:
+		var lobby = lobby_cls.new()
+		add_child(lobby)
+
 func _open_load_modal() -> void:
 	var modal = SaveLoadModalScript.new(SaveLoadModalScript.Mode.LOAD)
 	get_tree().root.add_child(modal)
@@ -1300,7 +1331,16 @@ func _apply_region_data(meta: Dictionary, r_data: Dictionary, bg_tex: Texture2D,
 	region_specialty_label.text = meta.get("tagline", r_data.get("specialty", ""))
 
 	desc_label.text = r_data.get("description", "")
-	crops_val.text = meta.get("crops", "Palay, Corn")
+	var key: String = region_keys[current_idx]
+	var r_mods: Dictionary = Data.get_region_modifiers(key)
+	var spec_arr: Array = r_mods.get("specialty_crops", [])
+	if not spec_arr.is_empty():
+		var spec_names: Array[String] = []
+		for sc in spec_arr:
+			spec_names.append(str(Data.get_crop(str(sc)).get("display_name", str(sc).capitalize())))
+		crops_val.text = ", ".join(spec_names)
+	else:
+		crops_val.text = meta.get("crops", "Palay, Corn")
 	moisture_val.text = meta.get("moisture", "50%")
 	hazard_val.text = meta.get("hazard_summary", "Moderate")
 
@@ -1316,24 +1356,29 @@ func _apply_region_data(meta: Dictionary, r_data: Dictionary, bg_tex: Texture2D,
 		cons_str += "• %s\n" % c
 	cons_text.text = cons_str.strip_edges()
 
-	# Populate visual pro and con rows with pixel-art icons and clear text
-	var key: String = region_keys[current_idx]
+	# Populate visual pro and con rows directly from authoritative Data.REGIONS text + pixel-art icons
 	var factors: Dictionary = REGION_VISUAL_FACTORS.get(key, {})
 	var visual_pros: Array = factors.get("pros", [])
-	for i in range(mini(_pro_icons.size(), visual_pros.size())):
-		var item: Dictionary = visual_pros[i]
-		var icon_path: String = item.get("icon", "")
-		if ResourceLoader.exists(icon_path):
-			_pro_icons[i].texture = load(icon_path)
-		_pro_labels[i].text = item.get("text", "")
+	for i in range(_pro_labels.size()):
+		if i < _pro_icons.size() and i < visual_pros.size():
+			var icon_path: String = visual_pros[i].get("icon", "")
+			if ResourceLoader.exists(icon_path):
+				_pro_icons[i].texture = load(icon_path)
+		if i < pros_array.size():
+			_pro_labels[i].text = "• %s" % str(pros_array[i])
+		elif i < visual_pros.size():
+			_pro_labels[i].text = visual_pros[i].get("text", "")
 
 	var visual_cons: Array = factors.get("cons", [])
-	for i in range(mini(_con_icons.size(), visual_cons.size())):
-		var item: Dictionary = visual_cons[i]
-		var icon_path: String = item.get("icon", "")
-		if ResourceLoader.exists(icon_path):
-			_con_icons[i].texture = load(icon_path)
-		_con_labels[i].text = item.get("text", "")
+	for i in range(_con_labels.size()):
+		if i < _con_icons.size() and i < visual_cons.size():
+			var icon_path: String = visual_cons[i].get("icon", "")
+			if ResourceLoader.exists(icon_path):
+				_con_icons[i].texture = load(icon_path)
+		if i < cons_array.size():
+			_con_labels[i].text = "• %s" % str(cons_array[i])
+		elif i < visual_cons.size():
+			_con_labels[i].text = visual_cons[i].get("text", "")
 
 	_update_start_button_text()
 
@@ -1401,15 +1446,27 @@ func _on_admin_checkbox_toggled(on: bool) -> void:
 		flag.add_to_group(ADMIN_FLAG_GROUP)
 		get_tree().root.add_child(flag)
 
+func _disconnect_stale_multiplayer() -> void:
+	var mp = get_node_or_null("/root/MultiplayerManager")
+	if mp and mp.has_method("disconnect_multiplayer"):
+		mp.disconnect_multiplayer()
+
 func _on_start_pressed() -> void:
+	_disconnect_stale_multiplayer()
 	Data.is_tutorial_mode = false
 	Data.is_auto_mode = false
+	Data.is_multiplayer_match = false
 	if current_idx >= 0 and current_idx < region_keys.size():
 		Data.current_region = region_keys[current_idx]
 	else:
 		Data.current_region = "cotabato"
 
-	WeatherManager.init_fresh_queue(1)
+	Data.reset_all_session_state(1.0)
+	# Mode-balanced starting treasury: campaign sprints need a fast ramp-up, career a gentle one
+	if Data.game_mode == "campaign":
+		EconomyManager.set_cash(1500)
+	elif Data.game_mode == "career":
+		EconomyManager.set_cash(800)
 
 	if Data.game_mode == "career" or Data.game_mode == "sandbox":
 		TimeManager.is_freeplay_mode = true
@@ -1424,18 +1481,15 @@ func _on_start_pressed() -> void:
 
 func _start_tutorial() -> void:
 	AudioManager.play_ui("click")
+	_disconnect_stale_multiplayer()
 	Data.is_tutorial_mode = true
 	Data.is_auto_mode = false
+	Data.is_multiplayer_match = false
 	Data.game_mode = "career"
 	Data.current_region = "cotabato"
+	Data.reset_all_session_state(1.0)
 	TimeManager.is_freeplay_mode = true
-	TimeManager.current_day = 1
-	TimeManager.current_hour = 7
-	TimeManager.set_speed_scale(1.0)
-	EconomyManager.cash = 1000
-	TaskManager.task_queue.clear()
-	MarketManager.stored_inventory.clear()
-	WeatherManager.init_fresh_queue(1)
+	EconomyManager.set_cash(1000)
 
 	var target_scene := Data.get_region_scene_path("cotabato")
 	if ResourceLoader.exists(target_scene):
@@ -1445,18 +1499,15 @@ func _start_tutorial() -> void:
 
 func _start_auto_mode() -> void:
 	AudioManager.play_ui("click")
+	_disconnect_stale_multiplayer()
 	Data.is_tutorial_mode = false
 	Data.is_auto_mode = true
+	Data.is_multiplayer_match = false
 	Data.game_mode = "career"
 	Data.current_region = "cotabato"
+	Data.reset_all_session_state(2.0)
 	TimeManager.is_freeplay_mode = true
-	TimeManager.current_day = 1
-	TimeManager.current_hour = 7
-	TimeManager.set_speed_scale(2.0)
-	EconomyManager.cash = 6000
-	TaskManager.task_queue.clear()
-	MarketManager.stored_inventory.clear()
-	WeatherManager.init_fresh_queue(1)
+	EconomyManager.set_cash(6000)
 
 	var target_scene := Data.get_region_scene_path("cotabato")
 	if ResourceLoader.exists(target_scene):

@@ -337,6 +337,12 @@ func _refresh_level() -> void:
 				var poly: PackedVector2Array = FarmerMovement.get_footprint_polygon_local(Vector2i(5, 5), Vector2i(1, 1))
 				position = (poly[0] + poly[2]) * 0.5
 
+var _drone_redraw_accum: float = 0.0
+var _zone_redraw_accum: float = 0.0
+var _last_zone_sig: String = ""
+const DRONE_REDRAW_INTERVAL: float = 0.045
+const ZONE_REDRAW_INTERVAL: float = 0.065
+
 func _process(delta: float) -> void:
 	if farm_grid == null:
 		return
@@ -346,9 +352,10 @@ func _process(delta: float) -> void:
 	if _level <= 0:
 		return
 
-	_rotor_phase += delta * 42.0
-	_bob += delta * 3.0
-	var sim_delta: float = delta * TimeManager.get_speed_scale()
+	var sim_scale: float = TimeManager.get_speed_scale()
+	_rotor_phase += delta * (42.0 if sim_scale > 0.0 else 0.0)
+	_bob += delta * (3.0 if sim_scale > 0.0 else 0.0)
+	var sim_delta: float = delta * sim_scale
 
 	match state:
 		State.IDLE:
@@ -407,9 +414,22 @@ func _process(delta: float) -> void:
 				state = State.IDLE
 				_scan_cooldown = 0.05
 
-	queue_redraw()
+	if is_visible_in_tree():
+		_drone_redraw_accum += delta
+		if sim_scale > 0.0 and _drone_redraw_accum >= DRONE_REDRAW_INTERVAL:
+			_drone_redraw_accum = 0.0
+			queue_redraw()
 	if is_instance_valid(_zone_layer):
-		_zone_layer.queue_redraw()
+		var z_sig: String = "%s|%s|%d" % [str(is_selected), str(state), job.get("pos", Vector2i(-1, -1)).x * 64 + job.get("pos", Vector2i(-1, -1)).y]
+		if z_sig != _last_zone_sig:
+			_last_zone_sig = z_sig
+			_zone_redraw_accum = 0.0
+			_zone_layer.queue_redraw()
+		elif is_selected and not zone.is_empty() and sim_scale > 0.0:
+			_zone_redraw_accum += delta
+			if _zone_redraw_accum >= ZONE_REDRAW_INTERVAL:
+				_zone_redraw_accum = 0.0
+				_zone_layer.queue_redraw()
 
 func _footprint_in_zone(pos: Vector2i, fp: Vector2i) -> bool:
 	for dx in range(fp.x):

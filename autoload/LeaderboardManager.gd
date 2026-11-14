@@ -22,20 +22,20 @@ const SAVE_PATH: String = "user://personal_leaderboard.json"
 
 # Base points per crop unit based on crop value and growth cycle
 const BASE_CROP_POINTS = {
-	"palay": 10,
-	"yellow_corn": 15,
+	"palay": 12,
+	"yellow_corn": 16,
 	"sugarcane": 18,
-	"pineapple": 25,
-	"banana": 30,
-	"arabica_coffee": 35,
-	"coconut": 60,
-	"milled_rice": 25,
+	"pineapple": 26,
+	"banana": 26,
+	"arabica_coffee": 34,
+	"coconut": 28,
+	"milled_rice": 22,
 	"rice_bran": 10,
-	"muscovado_sugar": 35,
-	"molasses": 15,
-	"vco": 55,
-	"copra_meal": 15,
-	"roasted_coffee": 75,
+	"muscovado_sugar": 30,
+	"molasses": 16,
+	"vco": 58,
+	"copra_meal": 18,
+	"roasted_coffee": 65,
 }
 
 # Quality grade multipliers
@@ -53,14 +53,22 @@ const HUB_MULTIPLIERS = {
 	"gensan_port": 2.5
 }
 
-# Regional specialty affinity (home region gets +25% points)
+# Regional specialty affinity (synchronized with Data.REGIONS modifiers)
 const REGION_SPECIALTIES = {
-	"cotabato": ["palay", "sugarcane"],
+	"cotabato": ["palay", "banana"],
 	"south_cotabato": ["arabica_coffee", "yellow_corn", "pineapple"],
 	"sarangani": ["coconut", "banana"],
-	"sultan_kudarat": ["palay", "sugarcane", "yellow_corn"],
-	"general_santos": ["banana", "yellow_corn", "pineapple"]
+	"sultan_kudarat": ["sugarcane", "yellow_corn", "palay"],
+	"general_santos": ["pineapple", "banana", "yellow_corn"]
 }
+
+static func normalize_grade(grade: String) -> String:
+	var g: String = grade.strip_edges().to_upper()
+	if g.ends_with("A") or g == "GRADE A":
+		return "A"
+	if g.ends_with("B") or g == "GRADE B":
+		return "B"
+	return "C"
 
 # Current Run State
 var current_points: int = 0
@@ -93,7 +101,7 @@ func _update_personal_best_from_records() -> void:
 			personal_best = s
 
 ## Calculates points earned from selling a crop batch
-func calculate_sale_points(crop_name: String, quantity: int, grade: String, arrival_freshness: float, hub_id: String) -> Dictionary:
+func calculate_sale_points(crop_name: String, quantity: int, grade: String, arrival_freshness: float, hub_id: String, region_id: String = "", combo_override: int = -1) -> Dictionary:
 	if quantity <= 0 or arrival_freshness <= 0.0:
 		return {
 			"base_points": 0,
@@ -106,12 +114,18 @@ func calculate_sale_points(crop_name: String, quantity: int, grade: String, arri
 			"breakdown": "Ruined produce (0 pts)"
 		}
 
+	var r_id: String = region_id if region_id != "" else Data.current_region
+	var r_mods: Dictionary = Data.get_region_modifiers(r_id)
+	var norm_grade: String = normalize_grade(grade)
+
 	# 1. Base unit points * quantity
 	var unit_pts: int = BASE_CROP_POINTS.get(crop_name, 15)
 	var raw_base: int = unit_pts * quantity
 
-	# 2. Quality multiplier (Grade A: 2.5x, B: 1.5x, C: 0.8x)
-	var grade_mult: float = GRADE_MULTIPLIERS.get(grade, 1.0)
+	# 2. Quality multiplier (Grade A: 2.5x, B: 1.5x, C: 0.8x * regional export rejection penalty)
+	var grade_mult: float = float(GRADE_MULTIPLIERS.get(norm_grade, 1.0))
+	if norm_grade == "C":
+		grade_mult *= float(r_mods.get("grade_c_pts_mult", 1.0))
 
 	# 3. Freshness factor (0.1 to 1.0)
 	var fresh_mult: float = clampf(arrival_freshness / 100.0, 0.1, 1.0)
@@ -119,12 +133,14 @@ func calculate_sale_points(crop_name: String, quantity: int, grade: String, arri
 	# 4. Destination / Market Hub multiplier (Local: 1.0x, Tacurong: 1.35x, Koronadal: 1.75x, Gensan: 2.5x)
 	var hub_mult: float = HUB_MULTIPLIERS.get(hub_id, 1.0)
 
-	# 5. Regional specialty synergy (+25% if shipping active region's signature harvest)
-	var specs: Array = REGION_SPECIALTIES.get(Data.current_region, [])
-	var reg_mult: float = 1.25 if (crop_name in specs) else 1.0
+	# 5. Regional specialty synergy (+25% if shipping active region's signature raw or milled harvest)
+	var base_crop_key: String = str(Data.get_crop(crop_name).get("source_crop", crop_name)) if Data.is_processed_good(crop_name) else crop_name
+	var specs: Array = REGION_SPECIALTIES.get(r_id, Data.get_region_modifiers(r_id).get("specialty_crops", []))
+	var reg_mult: float = 1.25 if (base_crop_key in specs) else 1.0
 
 	# 6. Quality streak multiplier (up to 1.5x for consistent high quality)
-	var streak_mult: float = get_combo_multiplier()
+	var combo_val: int = combo_override if combo_override >= 0 else current_combo
+	var streak_mult: float = clampf(1.0 + (minf(float(combo_val), 10.0) * 0.05), 1.0, 1.5)
 
 	# 7. Pristine harvest bonus (+15% if arrival freshness >= 95%)
 	var pristine_mult: float = 1.15 if (arrival_freshness >= 95.0) else 1.0
@@ -134,13 +150,13 @@ func calculate_sale_points(crop_name: String, quantity: int, grade: String, arri
 
 	var parts: Array[String] = []
 	parts.append("%d base" % raw_base)
-	parts.append("%.1fx Grade %s" % [grade_mult, grade])
+	parts.append("%.2fx Grade %s" % [grade_mult, norm_grade])
 	parts.append("%.0f%% Fresh" % arrival_freshness)
 	parts.append("%.2fx %s" % [hub_mult, Data.get_market_hub(hub_id).get("display_name", hub_id).split("(")[0].strip_edges()])
 	if reg_mult > 1.0:
 		parts.append("+25% Region Specialty")
 	if streak_mult > 1.0:
-		parts.append("%.1fx Streak" % streak_mult)
+		parts.append("%.2fx Streak" % streak_mult)
 	if pristine_mult > 1.0:
 		parts.append("+15% Pristine")
 
@@ -157,13 +173,14 @@ func calculate_sale_points(crop_name: String, quantity: int, grade: String, arri
 
 ## Records points from a completed sale in this run
 func record_sale(crop_name: String, quantity: int, grade: String, arrival_freshness: float, hub_id: String) -> int:
-	var pts_data: Dictionary = calculate_sale_points(crop_name, quantity, grade, arrival_freshness, hub_id)
+	var norm_grade: String = normalize_grade(grade)
+	var pts_data: Dictionary = calculate_sale_points(crop_name, quantity, norm_grade, arrival_freshness, hub_id)
 	var earned: int = int(pts_data.get("total_points", 0))
 
 	# Update quality streak:
 	# Grade A or Grade B with >= 70% freshness continues streak
 	# Ruined delivery or Grade C resets streak
-	if arrival_freshness > 0.0 and (grade == "A" or (grade == "B" and arrival_freshness >= 70.0)):
+	if arrival_freshness > 0.0 and (norm_grade == "A" or (norm_grade == "B" and arrival_freshness >= 70.0)):
 		current_combo += 1
 		max_combo = maxi(max_combo, current_combo)
 	else:
@@ -172,9 +189,9 @@ func record_sale(crop_name: String, quantity: int, grade: String, arrival_freshn
 	# Update run statistics
 	run_deliveries += 1
 	run_units_sold += quantity
-	if grade == "A":
+	if norm_grade == "A":
 		run_grade_a += quantity
-	elif grade == "B":
+	elif norm_grade == "B":
 		run_grade_b += quantity
 	else:
 		run_grade_c += quantity
@@ -186,7 +203,7 @@ func record_sale(crop_name: String, quantity: int, grade: String, arrival_freshn
 	if earned > 0:
 		current_points += earned
 		var hub_name: String = Data.get_market_hub(hub_id).get("display_name", hub_id)
-		var reason: String = "Sold %d %s (Grade %s) to %s" % [quantity, crop_name.capitalize(), grade, hub_name]
+		var reason: String = "Sold %d %s (Grade %s) to %s" % [quantity, crop_name.capitalize(), norm_grade, hub_name]
 		points_changed.emit(current_points, earned, reason)
 
 		# Log event in Chronicle

@@ -30,6 +30,7 @@ LogManager="*res://autoload/LogManager.gd"
 Utils="*res://src/core/Utils.gd"
 LeaderboardManager="*res://autoload/LeaderboardManager.gd"
 SaveManager="*res://autoload/SaveManager.gd"
+MultiplayerManager="*res://autoload/MultiplayerManager.gd"
 
 [display]
 

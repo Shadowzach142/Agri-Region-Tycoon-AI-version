@@ -2011,9 +2011,10 @@ func _populate_crop_hover(crop_key: String) -> void:
 	var is_peren: bool = c_data.get("is_perennial", false)
 	var g_days: int = int(c_data.get("growth_days", 25))
 	var reg_days: int = int(c_data.get("regrowth_days", 0))
-	var yield_qty: int = int(c_data.get("yield_quantity", 100))
-	var seed_cost: int = int(c_data.get("seed_cost", 25))
-	var base_price: int = int(c_data.get("base_price", 100))
+	var yield_qty: int = int(c_data.get("yield_quantity", 50))
+	var seed_cost: int = MarketManager.get_seed_buy_price(crop_key)
+	var base_price: int = int(c_data.get("base_price", 10))
+	var live_price: float = MarketManager.get_benchmark_price(crop_key)
 
 	var crop_tex := get_crop_sprite_texture(crop_key)
 	if crop_tex != null:
@@ -2034,8 +2035,9 @@ func _populate_crop_hover(crop_key: String) -> void:
 	)
 	card_type.text = type_str
 
+	var live_str: String = ("%.1f" % live_price) if (absf(live_price) < 100.0 and absf(live_price - roundf(live_price)) >= 0.05) else ("%d" % int(roundf(live_price)))
 	var growth_str: String = ("%dd (+%dd regrow)" % [g_days, reg_days]) if is_peren else ("%dd Cycle" % g_days)
-	card_stats.text = "Growth: %s • Yield: %d • Base: ₱%d" % [growth_str, yield_qty, base_price]
+	card_stats.text = "Growth: %s • Yield: %du • Base: ₱%d (Live ₱%s)" % [growth_str, yield_qty, base_price, live_str]
 	card_desc.text = c_data.get("description", "")
 
 	var cur_reg: String = Data.current_region
@@ -2063,16 +2065,27 @@ func _populate_crop_hover(crop_key: String) -> void:
 static func get_regional_crop_analysis(crop_key: String, region_key: String) -> Dictionary:
 	var crop: Dictionary = Data.get_crop(crop_key)
 	var region: Dictionary = Data.get_region(region_key)
+	var mods: Dictionary = Data.get_region_modifiers(region_key)
 	var reg_moisture: float = float(region.get("soil_moisture", 50))
 	var hazards: Dictionary = region.get("hazards", {})
-	var reg_short: String = region.get("display_name", region_key).split("(")[0].strip_edges()
+	var reg_short: String = str(region.get("display_name", region_key)).split("(")[0].strip_edges()
 
 	var buffs: Array[String] = []
 	var debuffs: Array[String] = []
 
-	var specialties: Array = LeaderboardManager.REGION_SPECIALTIES.get(region_key, [])
-	if specialties.has(crop_key):
-		buffs.append("✨ Specialty: +20%% Market Value in %s!" % reg_short)
+	if Data.is_regional_specialty_crop(region_key, crop_key):
+		var g_pct: int = int(round((float(mods.get("specialty_growth_mult", 1.0)) - 1.0) * 100.0))
+		var y_pct: int = int(round((float(mods.get("specialty_yield_mult", 1.0)) - 1.0) * 100.0))
+		var p_pct: int = int(round((float(mods.get("specialty_price_mult", 1.0)) - 1.0) * 100.0))
+		var parts: Array[String] = []
+		if g_pct > 0:
+			parts.append("+%d%% Growth" % g_pct)
+		if y_pct > 0:
+			parts.append("+%d%% Yield" % y_pct)
+		if p_pct > 0:
+			parts.append("+%d%% Value" % p_pct)
+		var detail: String = ", ".join(parts) if not parts.is_empty() else "Specialty Bonus"
+		buffs.append("✨ %s Specialty: %s!" % [reg_short, detail])
 
 	var w_min: float = float(crop.get("water_min", 40))
 	var w_max: float = float(crop.get("water_max", 70))
@@ -2084,21 +2097,32 @@ static func get_regional_crop_analysis(crop_key: String, region_key: String) -> 
 	elif reg_moisture > w_max:
 		debuffs.append("⚠️ Over-saturation: Regional (%.0f%%) exceeds ideal (%.0f%%)." % [reg_moisture, w_max])
 
+	var evap_mult: float = float(mods.get("evap_mult", 1.0))
+	if evap_mult >= 1.10:
+		debuffs.append("⚠️ High Evaporation: Soil dries +%.0f%% faster in %s." % [(evap_mult - 1.0) * 100.0, reg_short])
+
+	var grade_c_mult: float = float(mods.get("grade_c_price_mult", 1.0))
+	if grade_c_mult < 0.99:
+		debuffs.append("⚠️ Export Standard: Grade C batches lose %.0f%% price here." % [(1.0 - grade_c_mult) * 100.0])
+
 	var flood_risk: float = float(hazards.get("flash_flood", 0.0))
 	var drought_risk: float = float(hazards.get("el_nino_drought", 0.0))
+	var slide_risk: float = float(hazards.get("landslide", 0.0))
 
 	if flood_risk >= 0.10 and w_max <= 75.0:
 		debuffs.append("⚠️ Flood Susceptibility: River overflow risks drowning crops.")
 	if drought_risk >= 0.10 and w_min >= 50.0:
 		debuffs.append("⚠️ Drought Threat: Blistering dry spells halt growth without irrigation.")
+	if slide_risk >= 0.10:
+		debuffs.append("⚠️ Mountain Landslides: Heavy rains risk damaging steep plots.")
 
+	var pest_mults: Dictionary = mods.get("pest_mults", {})
 	var crop_pests: Array = crop.get("pests", [])
-	if crop_pests.has("kuhol") and region_key == "cotabato":
-		debuffs.append("⚠️ Pest Risk: Wetland paddies attract Golden Apple Snails (Kuhol).")
-	if crop_pests.has("fusarium_wilt") and (region_key == "south_cotabato" or region_key == "general_santos"):
-		debuffs.append("⚠️ Disease Risk: High humidity triggers Fusarium Wilt.")
-	if crop_pests.has("armyworm") and (region_key == "sarangani" or region_key == "sultan_kudarat"):
-		debuffs.append("⚠️ Pest Risk: Arid spells trigger Fall Armyworm outbreaks.")
+	for p in crop_pests:
+		var pm: float = float(pest_mults.get(str(p), 1.0))
+		if pm > 1.05:
+			debuffs.append("⚠️ Pest Risk: %s outbreaks +%.0f%% in %s." % [str(p).replace("_", " ").capitalize(), (pm - 1.0) * 100.0, reg_short])
+			break
 
 	if crop.get("is_perennial", false):
 		buffs.append("✔ Living Perennial: Regrows automatically in %dd without seed costs." % int(crop.get("regrowth_days", 14)))

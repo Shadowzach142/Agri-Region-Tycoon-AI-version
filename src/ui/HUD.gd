@@ -53,6 +53,7 @@ var task_capsule: Control = null
 var task_label: Label = null
 
 var _last_cycled_farmer_idx: int = -1
+var _season_modal_opened: bool = false
 var _last_speed_before_pause: float = 1.0
 
 var region_hover_card: Node = null
@@ -88,6 +89,10 @@ var _disaster_banner_sub: Label = null
 var _disaster_countdown_remaining: float = 0.0
 var _active_disaster_name: String = ""
 var _is_counting_down: bool = false
+var _cached_speed_panel: Control = null
+var _cached_right_cluster: Control = null
+var _last_displayed_task_count: int = -1
+var _last_countdown_tenths: int = -1
 
 func _ready() -> void:
 	_discover_nodes()
@@ -160,6 +165,18 @@ func _ready() -> void:
 
 	_update_speed_buttons_visual()
 	_update_climate_disaster_box()
+	if Data.is_multiplayer_match:
+		var sp := find_child("SpeedPanel", true, false) as Control
+		if sp:
+			sp.visible = false
+			sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for sb in [pause_btn, speed1_btn, speed2_btn, speed3_btn]:
+			if sb:
+				sb.visible = false
+				sb.disabled = true
+		var mp = get_node_or_null("/root/MultiplayerManager")
+		if mp and mp.has_signal("match_ended") and not mp.match_ended.is_connected(_on_mp_match_ended):
+			mp.match_ended.connect(_on_mp_match_ended)
 
 	# Initial values
 	_on_cash_changed(EconomyManager.cash)
@@ -220,16 +237,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_J or event.keycode == KEY_T:
 			_on_leaderboard_toggle_pressed()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_SPACE:
+		elif event.keycode == KEY_SPACE and not Data.is_multiplayer_match:
 			_toggle_pause_play()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F1:
+		elif event.keycode == KEY_F1 and not Data.is_multiplayer_match:
 			_on_1x_pressed()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F2:
+		elif event.keycode == KEY_F2 and not Data.is_multiplayer_match:
 			_on_2x_pressed()
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_F3:
+		elif event.keycode == KEY_F3 and not Data.is_multiplayer_match:
 			_on_3x_pressed()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_TAB:
@@ -380,23 +397,34 @@ func _process(delta: float) -> void:
 		var scale: float = TimeManager.get_speed_scale()
 		if scale > 0.0:
 			_disaster_countdown_remaining = maxf(_disaster_countdown_remaining - delta * scale, 0.0)
-			var hazard_title: String = _active_disaster_name.replace("_", " ").to_upper()
-			if _disaster_banner and _disaster_banner.visible and _disaster_banner_title:
-				_disaster_banner_title.text = "⚠️ INCOMING HAZARD: %s (%.1fs)" % [hazard_title, _disaster_countdown_remaining]
-			if disaster_box and disaster_box.visible and disaster_box_title:
-				disaster_box_title.text = "⚠️ %s (%.1fs)" % [hazard_title, _disaster_countdown_remaining]
+			var tenths: int = int(round(_disaster_countdown_remaining * 10.0))
+			if tenths != _last_countdown_tenths:
+				_last_countdown_tenths = tenths
+				var hazard_title: String = _active_disaster_name.replace("_", " ").to_upper()
+				if _disaster_banner and _disaster_banner.visible and _disaster_banner_title:
+					_disaster_banner_title.text = "⚠️ INCOMING HAZARD: %s (%.1fs)" % [hazard_title, _disaster_countdown_remaining]
+				if disaster_box and disaster_box.visible and disaster_box_title:
+					disaster_box_title.text = "⚠️ %s (%.1fs)" % [hazard_title, _disaster_countdown_remaining]
 
 	var t_count: int = TaskManager.get_task_count()
-	if task_capsule:
-		task_capsule.visible = (t_count > 0)
-	if task_label:
-		task_label.text = "📋 %d [🛑]" % t_count
-	_prevent_topbar_overlap()
+	if t_count != _last_displayed_task_count:
+		_last_displayed_task_count = t_count
+		if task_capsule:
+			task_capsule.visible = (t_count > 0)
+		if task_label:
+			task_label.text = "📋 %d [🛑]" % t_count
+		_prevent_topbar_overlap()
+	else:
+		_prevent_topbar_overlap()
 
 func _prevent_topbar_overlap() -> void:
-	var sp := find_child("SpeedPanel", true, false) as Control
-	var rc := find_child("RightCluster", true, false) as Control
-	if not sp or not rc:
+	if not is_instance_valid(_cached_speed_panel):
+		_cached_speed_panel = find_child("SpeedPanel", true, false) as Control
+	if not is_instance_valid(_cached_right_cluster):
+		_cached_right_cluster = find_child("RightCluster", true, false) as Control
+	var sp := _cached_speed_panel
+	var rc := _cached_right_cluster
+	if not sp or not sp.visible or not rc:
 		return
 	var first_cap_x: float = rc.global_position.x
 	for ch in rc.get_children():
@@ -408,7 +436,8 @@ func _prevent_topbar_overlap() -> void:
 	var target_x: float = minf(434.0, max_sp_right - sp_w)
 	if day_night_box:
 		target_x = maxf(target_x, day_night_box.global_position.x + day_night_box.size.x + 6.0)
-	sp.position.x = target_x
+	if not is_equal_approx(sp.position.x, target_x):
+		sp.position.x = target_x
 
 func _update_region_display() -> void:
 	if region_label == null:
@@ -416,7 +445,15 @@ func _update_region_display() -> void:
 	var reg_data: Dictionary = Data.get_region(Data.current_region)
 	var full_name: String = reg_data.get("display_name", Data.current_region.capitalize())
 	var short_name: String = full_name.split("(")[0].strip_edges()
-	region_label.text = short_name
+	if Data.is_multiplayer_match:
+		var cname: String = ""
+		var mp = get_node_or_null("/root/MultiplayerManager")
+		if mp:
+			var cidx := posmod(int(Data.multiplayer_player_color_idx), mp.FARMER_COLOR_NAMES.size())
+			cname = " • %s" % str(mp.FARMER_COLOR_NAMES[cidx])
+		region_label.text = "[Team %d] %s%s" % [Data.multiplayer_team, short_name, cname]
+	else:
+		region_label.text = short_name
 
 func _on_region_hover_entered() -> void:
 	if not region_hover_card:
@@ -483,10 +520,27 @@ func _on_day_changed(day: int) -> void:
 			day_label.tooltip_text = "Sprint Season: Day %d of %d (%d days left)" % [day, target, left]
 
 func _on_season_ended(_target_days: int, _final_score: int) -> void:
+	if Data.is_multiplayer_match:
+		var mp = get_node_or_null("/root/MultiplayerManager")
+		if mp and not mp.final_standings.is_empty():
+			_on_mp_match_ended(mp.final_standings)
+		return
+	if _season_modal_opened:
+		return
+	_season_modal_opened = true
+
 	# Automatically save completed run into local records
 	LeaderboardManager.save_current_run()
 
 	# Spawn and display SeasonResultsModal
+	var modal = SeasonResultsModalScript.new()
+	get_tree().root.add_child(modal)
+
+
+func _on_mp_match_ended(_standings: Array) -> void:
+	if _season_modal_opened:
+		return
+	_season_modal_opened = true
 	var modal = SeasonResultsModalScript.new()
 	get_tree().root.add_child(modal)
 

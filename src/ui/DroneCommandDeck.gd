@@ -554,14 +554,16 @@ func refresh_all() -> void:
 					btn.add_theme_stylebox_override("disabled", load("res://assets/sprites/hud/Buttons/DarkWoodenButton/DarkWoodenButton.tres"))
 				btn.add_theme_color_override("font_disabled_color", Color(0.60, 0.55, 0.50))
 			elif is_cur:
-				btn.text = "✔ %s\n₱%d" % [str(c_info.get("name", c_id.capitalize())).split(" ")[0], c_info.get("cost", 25)]
-				btn.tooltip_text = "Currently selected for autonomous sowing."
+				var live_seed_cost: int = MarketManager.get_seed_buy_price(c_id)
+				btn.text = "✔ %s\n₱%d" % [str(c_info.get("name", c_id.capitalize())).split(" ")[0], live_seed_cost]
+				btn.tooltip_text = "Currently selected for autonomous sowing (₱%d/plot in %s)." % [live_seed_cost, Data.get_region(Data.current_region).get("display_name", Data.current_region)]
 				if ResourceLoader.exists("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres"):
 					btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/GoldButton/Goldbutton.tres"))
 					btn.add_theme_color_override("font_color", Color(0.2, 0.12, 0.06))
 			else:
-				btn.text = "%s %s\n₱%d" % [c_info.get("icon", "🌱"), str(c_info.get("name", c_id.capitalize())).split(" ")[0], c_info.get("cost", 25)]
-				btn.tooltip_text = "Assign %s to automated sowing." % c_id.capitalize()
+				var live_seed_cost_o: int = MarketManager.get_seed_buy_price(c_id)
+				btn.text = "%s %s\n₱%d" % [c_info.get("icon", "🌱"), str(c_info.get("name", c_id.capitalize())).split(" ")[0], live_seed_cost_o]
+				btn.tooltip_text = "Assign %s to automated sowing (₱%d/plot)." % [c_id.capitalize(), live_seed_cost_o]
 				if ResourceLoader.exists("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButton.tres"):
 					btn.add_theme_stylebox_override("normal", load("res://assets/sprites/hud/Buttons/WoodenButton/WoodenButton.tres"))
 					btn.add_theme_color_override("font_color", Color(0.95, 0.90, 0.80))

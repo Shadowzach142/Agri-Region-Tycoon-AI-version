@@ -12,7 +12,8 @@ signal season_ended(target_days: int, final_score: int)
 
 enum Speed {PAUSE = 0, ONE_X = 1, TWO_X = 2, THREE_X = 3}
 
-const DAY_SECONDS: float = 180.0 # 3.0 real minutes per day at 1x (7.5 real seconds per hour)
+const DAY_SECONDS: float = 96.0 # 1.6 real minutes per day at 1x (4.0 real seconds per in-game hour)
+const MULTIPLAYER_SPEED_SCALE: float = 1.0 # Calm shared 1.0x RTS clock (96s per in-game day / 4.0s per hour; pause & 1x-3x disabled)
 const DAILY_WORKER_WAGE: int = 15
 const STARTING_HOUR: int = 7 # Start game in clear 07:00 AM morning daylight
 
@@ -23,6 +24,7 @@ var current_hour: int = STARTING_HOUR
 var current_day: int = 1
 var is_freeplay_mode: bool = false
 var _was_night: bool = false
+var _cached_farm_grid: Node = null
 
 # 24-Hour continuous ambient color palette for dynamic lighting
 const AMBIENT_KEYFRAMES: Array = [
@@ -45,8 +47,38 @@ func _ready() -> void:
 	_was_night = is_night()
 	set_process(true)
 
+func reset_for_new_session(starting_speed: float = 1.0) -> void:
+	current_day = 1
+	current_hour = STARTING_HOUR
+	_elapsed = (float(STARTING_HOUR) / 24.0) * DAY_SECONDS
+	_was_night = is_night()
+	if Data.is_multiplayer_match:
+		_speed_scale = MULTIPLAYER_SPEED_SCALE if starting_speed > 0.0 else 0.0
+	else:
+		_speed_scale = starting_speed
+	day_changed.emit(current_day)
+	hour_changed.emit(current_hour)
+
 func set_speed_scale(value: float) -> void:
+	if Data.is_multiplayer_match:
+		# Multiplayer RTS uses a locked shared real-time pace; pause & 1x-3x are disabled.
+		if _speed_scale <= 0.0 and value > 0.0:
+			_speed_scale = MULTIPLAYER_SPEED_SCALE
+		return
 	_speed_scale = clampf(value, 0.0, 3.0)
+
+func force_stop_for_season_end() -> void:
+	_speed_scale = 0.0
+
+func apply_network_clock(target_day: int, target_hour: int, target_elapsed: float) -> void:
+	if not Data.is_multiplayer_match:
+		return
+	while current_day < target_day and current_day <= Data.selected_season_days:
+		_increment_day()
+	_elapsed = clampf(target_elapsed, 0.0, DAY_SECONDS - 0.01)
+	if target_hour != current_hour and current_day == target_day:
+		current_hour = clampi(target_hour, 0, 23)
+		hour_changed.emit(current_hour)
 
 func get_speed_scale() -> float:
 	return _speed_scale
@@ -90,8 +122,18 @@ func get_ambient_color() -> Color:
 			return (k1[1] as Color).lerp(k2[1] as Color, factor)
 	return AMBIENT_KEYFRAMES[0][1]
 
+func _has_active_farm_grid() -> bool:
+	if is_instance_valid(_cached_farm_grid) and _cached_farm_grid.is_inside_tree():
+		return true
+	if is_inside_tree() and get_tree() != null and get_tree().root != null:
+		_cached_farm_grid = get_tree().root.find_child("FarmGrid", true, false)
+		return is_instance_valid(_cached_farm_grid) and _cached_farm_grid.is_inside_tree()
+	return false
+
 func _process(delta: float) -> void:
 	if _speed_scale <= 0.0:
+		return
+	if not _has_active_farm_grid():
 		return
 
 	_elapsed += delta * _speed_scale
@@ -116,8 +158,9 @@ func _increment_day() -> void:
 	current_day += 1
 	current_hour = 0
 	
-	# Midnight payroll deduction (15 pesos per active farmer)
-	var payroll: int = DAILY_WORKER_WAGE * BuildingManager.active_workers
+	# Midnight payroll deduction scaled by regional labor cost (₱15 baseline, ₱24 in urban GenSan)
+	var wage_per_worker: int = Data.get_effective_worker_wage(DAILY_WORKER_WAGE, Data.current_region)
+	var payroll: int = wage_per_worker * BuildingManager.active_workers
 	EconomyManager.deduct_cash(payroll)
 	
 	# Refresh market commodity supply/demand and pricing
@@ -133,18 +176,26 @@ func _increment_day() -> void:
 
 	# Check if campaign season duration has concluded
 	if not is_freeplay_mode and current_day > Data.selected_season_days:
-		set_speed_scale(0.0)
+		force_stop_for_season_end()
+		if Data.is_multiplayer_match:
+			var mp_mgr = get_node_or_null("/root/MultiplayerManager")
+			if mp_mgr and mp_mgr.has_method("on_local_season_ended"):
+				mp_mgr.on_local_season_ended()
 		season_ended.emit(Data.selected_season_days, LeaderboardManager.current_points)
-	elif Data.game_mode == "career" or Data.game_mode == "sandbox" or is_freeplay_mode:
+	elif not Data.is_multiplayer_match and (Data.game_mode == "career" or Data.game_mode == "sandbox" or is_freeplay_mode):
 		# Career / Endless / Sandbox Mode midnight autosave
 		SaveManager.save_game(SaveManager.AUTOSAVE_SLOT, "Autosave - Day %d (%s)" % [current_day, Data.game_mode.capitalize()])
 
 func enable_freeplay() -> void:
+	if Data.is_multiplayer_match:
+		return
 	is_freeplay_mode = true
 	set_speed_scale(1.0)
 	day_changed.emit(current_day)
 
 func set_speed_mode(mode: int) -> void:
+	if Data.is_multiplayer_match:
+		return
 	match mode:
 		Speed.PAUSE: set_speed_scale(0.0)
 		Speed.ONE_X: set_speed_scale(1.0)
